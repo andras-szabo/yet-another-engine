@@ -1,0 +1,16 @@
+# CMake build output (the generated VS solution lives here)
+build/
+
+# VS user-specific files
+*.user
+*.suo
+.vs/
+
+# Compiled output
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.dll
+*.exe
