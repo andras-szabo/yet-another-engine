@@ -23,7 +23,8 @@
 | Task | Status | Notes |
 |---|---|---|
 | P1-01 — CMake root project layout | ✅ Done | Project at `D:\CppProjects\Engine\`. Solution generated at `build\Engine.sln`. Three targets: `engine-core` (shared DLL), `editor` (exe), `game-template` (exe). |
-| P1-02 — CMake build configuration | ⬜ Next | |
+| P1-02 — CMake build configuration | ✅ Done | `cmake/CompilerOptions.cmake` with `apply_compiler_options()` function; `/W4`, `/permissive-`, per-config `/Od`+`/RTC1` (Debug) and `/O2` (Release/RelWithDebInfo), `/O1` (MinSizeRel). Applied to all three targets. |
+| P1-03 — Logger | ⬜ Next | |
 
 ## MVP Goal
 
