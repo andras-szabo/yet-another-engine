@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.28)  # 3.28+ required for C++20 modules support
 
 project(Engine LANGUAGES CXX)
+include(cmake/CompilerOptions.cmake)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

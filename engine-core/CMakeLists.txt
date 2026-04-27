@@ -15,3 +15,5 @@ target_include_directories(engine-core
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
+
+apply_compiler_options(engine-core)
