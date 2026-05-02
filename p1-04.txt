@@ -1,0 +1,43 @@
+Makes sense to me. But then, can you explain the result/error type idea first? Is this about establishing a
+  consistent error-handling strategy across different parts of the engine?
+
+● Yes, exactly. It's about picking one answer to the question "how does a function signal that something went
+  wrong?" and using it everywhere, rather than having some functions throw, some return nullptr, some return bool
+  with an out-param, etc.
+
+  The core idea is a type that holds either a success value or an error — commonly called Result<T, E> or
+  Expected<T, E>. C++23 actually ships one in the standard library: std::expected<T, E>. You'd define an
+  engine-specific error type E, and then functions return std::expected<T, EngineError> instead of throwing.
+
+  A concrete example from your own engine's future code:
+
+   // Without it — three different conventions, no consistency:
+   Texture* LoadTexture(Path p);           // nullptr on failure, no reason given
+   bool LoadScene(Path p, Scene& out);     // bool + out-param
+   void SaveScene(Path p, Scene& s);       // throws on failure
+
+   // With it — one convention everywhere:
+   Expected<Texture>    LoadTexture(Path p);
+   Expected<Scene>      LoadScene(Path p);
+   Expected<void>       SaveScene(Path p, const Scene& s);
+
+  Where Expected<T> is just a thin alias:
+
+   template<typename T>
+   using Expected = std::expected<T, EngineError>;
+
+  And EngineError carries a message and a category (IO, Parse, NotFound, etc.) so callers can react specifically or
+  just log and propagate.
+
+  Why not just use exceptions? You can, and for a single-developer engine it's a reasonable choice. The argument
+  for std::expected is that failures become visible in the type signature — you can't accidentally forget to handle
+  them — and there's no hidden control flow, which matters once you add hot-reload and IPC (places where an
+  unhandled exception crossing a boundary is a hard crash).
+
+  The practical scope for P1-04 would just be:
+
+   - Define EngineError (message string + category enum)
+   - Define the Expected<T> alias
+   - Maybe a few helper macros to propagate errors without boilerplate (PROPAGATE_ERROR / TRY)
+
+  That's it — small, but everything else in the engine (file I/O, serialisation, asset loading, IPC) builds on it.
