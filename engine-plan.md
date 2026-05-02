@@ -24,7 +24,7 @@
 |---|---|---|
 | P1-01 — CMake root project layout | ✅ Done | Project at `D:\CppProjects\Engine\`. Solution generated at `build\Engine.sln`. Three targets: `engine-core` (shared DLL), `editor` (exe), `game-template` (exe). |
 | P1-02 — CMake build configuration | ✅ Done | `cmake/CompilerOptions.cmake` with `apply_compiler_options()` function; `/W4`, `/permissive-`, per-config `/Od`+`/RTC1` (Debug) and `/O2` (Release/RelWithDebInfo), `/O1` (MinSizeRel). Applied to all three targets. |
-| P1-03 — Logger | ⬜ Next | |
+| P1-03 — Logger | ✅ Done | `LogManager`, `ConsoleLogSink` (ANSI colours per level), `FileLogSink` (appends to `EngineLog.txt`), `Log<>` template with `std::source_location` + `std::format`, configurable `minLogLevel`, DLL-exported via `ENGINE_CORE_API`. Convenience macros (`LOG_TRACE/DEBUG/INFO/WARN/ERROR`) in `engine-core/include/LoggerMacros.h` — include alongside `import Logger;`. |
 
 ## MVP Goal
 
