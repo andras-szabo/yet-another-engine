@@ -8,6 +8,7 @@
 // or introduce module partitions (e.g. EngineCore:Math, EngineCore:Scene).
 
 export module EngineCore;
+import Logger;
 
 // Nothing exported yet — the module exists so the build graph is wired up
 // correctly from the start. Editor and game-template already import it.
