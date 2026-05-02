@@ -34,6 +34,3 @@ ENGINE_CORE_API EngineError::EngineError(ErrorType type_, const std::string& mes
 export
 template<typename T>
 using Expected = std::expected<T, EngineError>;
-
-export
-using Unexpected = std::unexpected<EngineError>;

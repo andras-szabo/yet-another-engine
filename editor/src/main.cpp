@@ -15,7 +15,7 @@ Expected<int> ShouldBeEven(int number)
         return number;
     }
 
-    return Unexpected(EngineError{ErrorType::LogicError, "Bloargh"});
+    return std::unexpected<EngineError>({ErrorType::LogicError, "Bloargh"});
 }
 
 int main()
