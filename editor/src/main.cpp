@@ -16,6 +16,14 @@ Expected<int> ShouldBeEven(int number)
     return std::unexpected<EngineError>({ErrorType::LogicError, "Bloargh"});
 }
 
+void TestVec4()
+{
+    Vec4 a;
+    Vec4 b { 1, 2, 3, 0 };
+    Vec4 c { 5, 6, 7, 8 };
+    LOG_INFO("[Foo] Vec4: a: {}, b: {}, b + c = {}", a, b, b + c);
+}
+
 void TestVec3()
 {
     Vec3 a;
@@ -23,7 +31,6 @@ void TestVec3()
     Vec3 c = a + b;
     LOG_INFO("[Foo] Vec3: a: {}, b: {}, a + b = {:.2f}", a, b, c);
 }
-
 
 void TestVec2()
 {
@@ -76,6 +83,7 @@ int main()
 
     TestVec2();
     TestVec3();
+    TestVec4();
 
     return 0;
 }

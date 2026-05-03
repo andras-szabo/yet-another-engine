@@ -57,6 +57,7 @@ export struct ENGINE_CORE_API Vec3
 	constexpr Vec3() = default;
 	constexpr Vec3(float x_, float y_, float z_) : x{ x_ }, y{ y_ }, z{ z_ } {}
 	constexpr explicit Vec3(const Vec2 other);
+	constexpr Vec3(const Vec2, float);
 
 	constexpr Vec2 xy() const;
 	constexpr Vec2 xz() const;
@@ -95,6 +96,45 @@ export struct ENGINE_CORE_API Vec3
 	static constexpr Vec3 Left();
 	static constexpr Vec3 Forward();
 	static constexpr Vec3 Back();
+};
+
+export struct ENGINE_CORE_API Vec4
+{
+	float x{ 0.f };
+	float y{ 0.f };
+	float z{ 0.f };
+	float w{ 0.f };
+
+	constexpr Vec4() = default;
+	constexpr Vec4(float x_, float y_, float z_, float w_) : x{ x_ }, y{ y_ }, z{ z_ }, w{ w_ } {}
+	constexpr Vec4(const Vec3, float);
+	constexpr Vec4(const Vec2, const Vec2);
+
+	constexpr float operator[](int index) const;
+	constexpr float& operator[](int index);
+
+	constexpr Vec4 operator+(const Vec4 other) const;
+	constexpr Vec4 operator-(const Vec4 other) const;
+	constexpr Vec4 operator*(float scalar) const;
+	constexpr Vec4 operator/(float scalar) const;
+
+	constexpr Vec4 operator-() const;
+
+	constexpr Vec4& operator+=(const Vec4 other);
+	constexpr Vec4& operator-=(const Vec4 other);
+	constexpr Vec4& operator*=(float scalar);
+	constexpr Vec4& operator/=(float scalar);
+
+	constexpr float Dot(const Vec4 other) const;
+	constexpr float SqrMagnitude() const;
+
+	float Length() const;
+
+	void Normalize();
+	void NormalizeSafe(const Vec4 fallback = Vec4(1.f, 0.f, 0.f, 0.f));
+
+	Vec4 Normalized() const;
+	Vec4 NormalizedSafe(const Vec4 fallback = Vec4(1.f, 0.f, 0.f, 0.f)) const;
 };
 
 constexpr float Vec2::operator[](int index) const
@@ -448,6 +488,182 @@ public:
 		*out++ = ';';
 		*out++ = ' ';
 		out = _floatFormatter.format(vec.z, ctx);
+		*out++ = ')';
+		return out;
+	}
+};
+
+constexpr Vec4::Vec4(const Vec3 vec3, float w_) : x{ vec3.x }, y{ vec3.y }, z{ vec3.z }, w{ w_ }
+{
+}
+
+constexpr Vec4::Vec4(const Vec2 xy, const Vec2 zw) : x{ xy.x }, y{ xy.y }, z{ zw.x }, w{ zw.y }
+{
+}
+
+constexpr float Vec4::operator[](int index) const
+{
+	assert(0 <= index && index < 4 && "Vec4 index out of bounds");
+	if (index == 0) return x;
+	if (index == 1) return y;
+	if (index == 2) return z;
+	return w;
+}
+
+constexpr float& Vec4::operator[](int index)
+{
+	assert(0 <= index && index < 4 && "Vec4 index out of bounds");
+	if (index == 0) return x;
+	if (index == 1) return y;
+	if (index == 2) return z;
+	return w;
+}
+
+constexpr Vec4& Vec4::operator+=(const Vec4 other)
+{
+	x += other.x;
+	y += other.y;
+	z += other.z;
+	w += other.w;
+	return *this;
+}
+
+constexpr Vec4& Vec4::operator-=(const Vec4 other)
+{
+	x -= other.x;
+	y -= other.y;
+	z -= other.z;
+	w -= other.w;
+	return *this;
+}
+
+constexpr Vec4& Vec4::operator*=(float scalar)
+{
+	x *= scalar;
+	y *= scalar;
+	z *= scalar;
+	w *= scalar;
+	return *this;
+}
+
+constexpr Vec4& Vec4::operator/=(float scalar)
+{
+	x /= scalar;
+	y /= scalar;
+	z /= scalar;
+	w /= scalar;
+	return *this;
+}
+
+constexpr Vec4 Vec4::operator+(const Vec4 other) const
+{
+	return Vec4(x + other.x, y + other.y, z + other.z, w + other.w);
+}
+
+constexpr Vec4 Vec4::operator-(const Vec4 other) const
+{
+	return Vec4(x - other.x, y - other.y, z - other.z, w - other.w);
+}
+
+constexpr Vec4 Vec4::operator*(float scalar) const
+{
+	return Vec4(x * scalar, y * scalar, z * scalar, w * scalar);
+}
+
+constexpr Vec4 Vec4::operator/(float scalar) const
+{
+	return Vec4(x / scalar, y / scalar, z / scalar, w / scalar);
+}
+
+constexpr Vec4 Vec4::operator-() const
+{
+	return Vec4(-x, -y, -z, -w);
+}
+
+constexpr float Vec4::Dot(const Vec4 other) const
+{
+	return x * other.x + y * other.y + z * other.z + w * other.w;
+}
+
+constexpr float Vec4::SqrMagnitude() const
+{
+	return x * x + y * y + z * z + w * w;
+}
+
+float Vec4::Length() const
+{
+	return std::sqrtf(x * x + y * y + z * z + w * w);
+}
+
+void Vec4::Normalize()
+{
+	assert(SqrMagnitude() > 0.0f && "Cannot normalize a zero vector.");
+	float len = Length();
+	x /= len;
+	y /= len;
+	z /= len;
+	w /= len;
+}
+
+void Vec4::NormalizeSafe(const Vec4 fallback)
+{
+	if (float len = Length(); len > 0.0f)
+	{
+		x /= len;
+		y /= len;
+		z /= len;
+		w /= len;
+	}
+	else
+	{
+		x = fallback.x;
+		y = fallback.y;
+		z = fallback.z;
+		w = fallback.w;
+	}
+}
+
+Vec4 Vec4::Normalized() const
+{
+	assert(SqrMagnitude() > 0.0f && "Cannot normalize a zero vector.");
+	float len = Length();
+	return Vec4(x / len, y / len, z / len, w / len);
+}
+
+Vec4 Vec4::NormalizedSafe(const Vec4 fallback) const
+{
+	if (float len = Length(); len > 0.0f)
+		return Vec4(x / len, y / len, z / len, w / len);
+
+	return fallback;
+}
+
+template<>
+struct std::formatter<Vec4>
+{
+private:
+	mutable std::formatter<float> _floatFormatter;
+
+public:
+	constexpr auto parse(std::format_parse_context& ctx)
+	{
+		return _floatFormatter.parse(ctx);
+	}
+
+	auto format(Vec4 vec, std::format_context& ctx) const
+	{
+		auto out = ctx.out();
+		*out++ = '(';
+		out = _floatFormatter.format(vec.x, ctx);
+		*out++ = ';';
+		*out++ = ' ';
+		out = _floatFormatter.format(vec.y, ctx);
+		*out++ = ';';
+		*out++ = ' ';
+		out = _floatFormatter.format(vec.z, ctx);
+		*out++ = ';';
+		*out++ = ' ';
+		out = _floatFormatter.format(vec.w, ctx);
 		*out++ = ')';
 		return out;
 	}
