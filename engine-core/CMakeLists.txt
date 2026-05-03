@@ -19,6 +19,7 @@ target_sources(engine-core
       src/EngineCore.ixx
       src/EngineError.ixx
       src/Logger.ixx
+      src/Math.ixx
 )
 
 # Any target that links engine-core also gets these include paths.
