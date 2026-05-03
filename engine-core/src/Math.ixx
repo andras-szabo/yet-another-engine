@@ -8,6 +8,10 @@ module;
 
 export module Math;
 
+export const float ENGINE_CORE_API PI = 3.14159265f;
+export const float ENGINE_CORE_API TO_RAD = PI / 180.0f;
+export const float ENGINE_CORE_API TO_DEG = 180.0f / PI;
+
 export struct ENGINE_CORE_API Vec2
 {
 	float x{ 0.f };
@@ -143,14 +147,14 @@ export struct ENGINE_CORE_API Vec4
 
 export struct ENGINE_CORE_API Mat3x3
 {
-	float m[9]{ 0.f, 0.f, 0.f,
-				0.f, 0.f, 0.f,
-				0.f, 0.f, 0.f };
+	float m[9]{ 1.f, 0.f, 0.f,
+				0.f, 1.f, 0.f,
+				0.f, 0.f, 1.f };
 
 	constexpr Mat3x3() = default;
 	constexpr Mat3x3(float m0, float m1, float m2,
-					 float m3, float m4, float m5,
-					 float m6, float m7, float m8);
+		float m3, float m4, float m5,
+		float m6, float m7, float m8);
 
 	constexpr Mat3x3(const Vec3 r0, const Vec3 r1, const Vec3 r2);
 
@@ -166,21 +170,72 @@ export struct ENGINE_CORE_API Mat3x3
 	static constexpr Mat3x3 Identity();
 };
 
+struct Quaternion;
+
 export struct ENGINE_CORE_API Mat4x4
 {
-	float m[16]{ 0.f, 0.f, 0.f, 0.f,
-				  0.f, 0.f, 0.f, 0.f,
-				  0.f, 0.f, 0.f, 0.f,
-				  0.f, 0.f, 0.f, 0.f };
+	float m[16]{ 1.f, 0.f, 0.f, 0.f,
+				  0.f, 1.f, 0.f, 0.f,
+				  0.f, 0.f, 1.f, 0.f,
+				  0.f, 0.f, 0.f, 1.f };
 
 	constexpr Mat4x4() = default;
-	
+
 	constexpr Mat4x4 operator*(const Mat4x4& other) const;
 	constexpr Mat4x4 Transposed() const;
 	constexpr Mat4x4 Inverse() const;
 	constexpr float Determinant() const;
 
+	constexpr void SetRow(int index, float x, float y, float z, float w);
+
 	static constexpr Mat4x4 Identity();
+	static constexpr Mat4x4 Scale(Vec3 scale);
+	static constexpr Mat4x4 Scale(float x, float y, float z);
+	static constexpr Mat4x4 Translate(Vec3 position);
+	static constexpr Mat4x4 TRS(Vec3 translation, const Quaternion& rotation, Vec3 scale);
+	static constexpr Mat4x4 FromQuaternion(float w, float x, float y, float z);
+};
+
+export enum class ENGINE_CORE_API RotateOrder
+{
+	RollPitchYaw,
+	RollYawPitch,
+	PitchRollYaw,
+	PitchYawRoll,
+	YawRollPitch,
+	YawPitchRoll
+};
+
+export struct ENGINE_CORE_API Quaternion
+{
+	float x{ 0.0f };
+	float y{ 0.0f };
+	float z{ 0.0f };
+	float w{ 1.0f };
+
+	constexpr Quaternion() = default;
+	constexpr Quaternion(float w_, float x_, float y_, float z_) : x{ x_ }, y{ y_ }, z{ z_ }, w{ w_ } {}
+	constexpr Quaternion(float w_, const Vec3 v) : x{ v.x }, y{ v.y }, z{ v.z }, w{ w_ } {}
+
+	explicit Quaternion(const Mat3x3& matrix);
+
+	constexpr Quaternion operator*(const Quaternion& other) const;
+	constexpr Quaternion operator-(const Quaternion& other) const;
+	constexpr Quaternion operator*(float scalar) const;
+
+	
+	constexpr Quaternion& operator/=(float scalar);
+	constexpr Quaternion& operator+=(const Quaternion& other);
+
+	constexpr Quaternion Inverse() const;
+	float Magnitude() const;
+
+	static Quaternion Slerp(const Quaternion& a, const Quaternion& b, float t, bool forceLerp);
+	static Quaternion AngleAxis(float angleDegrees, const Vec3 axis);
+	static Quaternion LookRotation(const Vec3 targetDirection, const Vec3 targetRight, const Vec3 targetUp);
+	static Quaternion Euler(const Vec3 degrees, RotateOrder order = RotateOrder::RollPitchYaw);
+	static Quaternion Euler(float pitch, float yaw, float roll, RotateOrder order = RotateOrder::RollPitchYaw);
+	constexpr static Quaternion FromTo(const Quaternion& from, const Quaternion& to);
 };
 
 constexpr Mat4x4 Mat4x4::operator*(const Mat4x4& other) const
@@ -299,8 +354,8 @@ constexpr Mat4x4 Mat4x4::Identity()
 
 constexpr Mat3x3::Mat3x3(float m0, float m1, float m2,
 	float m3, float m4, float m5,
-	float m6, float m7, float m8) : 
-	m{ m0, m1, m2, m3, m4, m5, m6, m7, m8 } 
+	float m6, float m7, float m8) :
+	m{ m0, m1, m2, m3, m4, m5, m6, m7, m8 }
 {
 }
 
@@ -313,7 +368,7 @@ constexpr Mat3x3::Mat3x3(const Vec3 r0, const Vec3 r1, const Vec3 r2)
 
 constexpr Mat3x3 Mat3x3::Identity()
 {
-	return Mat3x3 { 1, 0, 0,
+	return Mat3x3{ 1, 0, 0,
 					0, 1, 0,
 					0, 0, 1 };
 }
@@ -738,8 +793,8 @@ Vec3 Vec3::NormalizedSafe(const Vec3 fallback) const
 // t is not clamped; values outside [0, 1] will extrapolate
 export constexpr Vec3 Lerp(const Vec3 a, const Vec3 b, float t) noexcept
 {
-	return Vec3(std::lerp(a.x, b.x, t), 
-		std::lerp(a.y, b.y, t), 
+	return Vec3(std::lerp(a.x, b.x, t),
+		std::lerp(a.y, b.y, t),
 		std::lerp(a.z, b.z, t));
 }
 
@@ -963,3 +1018,311 @@ public:
 		return out;
 	}
 };
+
+Quaternion::Quaternion(const Mat3x3& matrix)
+{
+	// Fletcher - Dunn p286
+	// 0 1 2
+	// 3 4 5
+	// 6 7 8
+
+	const auto& m = matrix.m;
+
+	const float fourWSquaredMinus1 = m[0] + m[4] + m[8];
+	const float fourXSquaredMinus1 = m[0] - m[4] - m[8];
+	const float fourYSquaredMinus1 = m[4] - m[0] - m[8];
+	const float fourZSquaredMinus1 = m[8] - m[0] - m[4];
+
+	int biggestIndex = 0;
+	float fourBiggest = fourWSquaredMinus1;
+	if (fourXSquaredMinus1 > fourBiggest) { fourBiggest = fourXSquaredMinus1; biggestIndex = 1; }
+	if (fourYSquaredMinus1 > fourBiggest) { fourBiggest = fourYSquaredMinus1; biggestIndex = 2; }
+	if (fourZSquaredMinus1 > fourBiggest) { fourBiggest = fourZSquaredMinus1; biggestIndex = 3; }
+
+	const float biggestVal = sqrtf(fourBiggest + 1.f) * 0.5f;
+	const float mult = 0.25f / biggestVal;
+
+	switch (biggestIndex)
+	{
+	case 0:
+		w = biggestVal;
+		x = (m[5] - m[7]) * mult;
+		y = (m[6] - m[2]) * mult;
+		z = (m[1] - m[3]) * mult;
+		break;
+
+	case 1:
+		w = (m[5] - m[7]) * mult;
+		x = biggestVal;
+		y = (m[1] + m[3]) * mult;
+		z = (m[6] + m[2]) * mult;
+		break;
+
+	case 2:
+		w = (m[6] - m[2]) * mult;
+		x = (m[1] + m[3]) * mult;
+		y = biggestVal;
+		z = (m[5] + m[7]) * mult;
+		break;
+
+	case 3:
+		w = (m[1] - m[3]) * mult;
+		x = (m[6] + m[2]) * mult;
+		y = (m[5] + m[7]) * mult;
+		z = biggestVal;
+		break;
+	}
+}
+
+// Returns the conjugate. Only valid as the true inverse for unit quaternions.
+constexpr Quaternion Quaternion::Inverse() const
+{
+	return Quaternion(w, -x, -y, -z);
+}
+
+Quaternion Quaternion::AngleAxis(float angleDegrees, Vec3 axis)
+{
+	const float alpha = (angleDegrees / 2.0f) * (PI / 180.f);
+	const float w = cosf(alpha);
+	axis *= sinf(alpha);
+	return Quaternion(w, axis.x, axis.y, axis.z);
+}
+
+Quaternion Quaternion::LookRotation(Vec3 targetDirection, Vec3 targetRight, Vec3 targetUp)
+{
+	const Mat3x3 m(targetRight, targetUp, targetDirection);
+	return Quaternion(m);
+}
+
+Quaternion Quaternion::Euler(Vec3 degrees, RotateOrder order)
+{
+	const float pitchHalf = degrees.x / 2.0f * TO_RAD;
+	const float yawHalf = degrees.y / 2.0f * TO_RAD;
+	const float rollHalf = degrees.z / 2.0f * TO_RAD;
+
+	const Quaternion qPitch(cosf(pitchHalf), sinf(pitchHalf), 0.0f, 0.0f);
+	const Quaternion qYaw(cosf(yawHalf), 0.0f, sinf(yawHalf), 0.0f);
+	const Quaternion qRoll(cosf(rollHalf), 0.0f, 0.0f, sinf(rollHalf));
+
+	switch (order)
+	{
+	case RotateOrder::RollPitchYaw: return qRoll * qPitch * qYaw;
+	case RotateOrder::RollYawPitch: return qRoll * qYaw * qPitch;
+
+	case RotateOrder::PitchYawRoll: return qPitch * qYaw * qRoll;
+	case RotateOrder::PitchRollYaw: return qPitch * qRoll * qYaw;
+
+	case RotateOrder::YawRollPitch: return qYaw * qRoll * qPitch;
+
+	default:
+		return qYaw * qPitch * qRoll;
+	}
+}
+
+Quaternion Quaternion::Euler(float pitch, float yaw, float roll, RotateOrder order)
+{
+	const float pitchAngleHalf = (pitch / 2.0f) * TO_RAD;
+	const float yawAngleHalf = (yaw / 2.0f) * TO_RAD;
+	const float rollAngleHalf = (roll / 2.0f) * TO_RAD;
+
+	const Quaternion qPitch(cosf(pitchAngleHalf), sinf(pitchAngleHalf), 0.0f, 0.0f);
+	const Quaternion qYaw(cosf(yawAngleHalf), 0.0f, sinf(yawAngleHalf), 0.0f);
+	const Quaternion qRoll(cosf(rollAngleHalf), 0.0f, 0.0f, sinf(rollAngleHalf));
+
+	switch (order)
+	{
+	case RotateOrder::RollPitchYaw: return qRoll * qPitch * qYaw;
+	case RotateOrder::RollYawPitch: return qRoll * qYaw * qPitch;
+
+	case RotateOrder::PitchYawRoll: return qPitch * qYaw * qRoll;
+	case RotateOrder::PitchRollYaw: return qPitch * qRoll * qYaw;
+
+	case RotateOrder::YawRollPitch: return qYaw * qRoll * qPitch;
+	default:
+		return qYaw * qPitch * qRoll;
+	}
+}
+
+constexpr Quaternion Quaternion::FromTo(const Quaternion& from, const Quaternion& to)
+{
+	return to - from;
+}
+
+float Quaternion::Magnitude() const
+{
+	return sqrtf(x * x + y * y + z * z + w * w);
+}
+
+constexpr Quaternion Quaternion::operator*(const Quaternion& other) const
+{
+	//"p" as in "product"
+	float pW = (w * other.w) - (x * other.x + y * other.y + z * other.z);
+
+	const Vec3 v1{ x, y, z };
+	const Vec3 v2{ other.x, other.y, other.z };
+
+	const Vec3 pV = (v2 * w) + (v1 * other.w) + v1.Cross(v2);
+
+	return Quaternion(pW, pV);
+}
+
+// Returns the relative rotation from 'other' to 'this' (i.e. this * other.Inverse())
+// NOT component-wise subtraction.
+constexpr Quaternion Quaternion::operator-(const Quaternion& other) const
+{
+	return (*this) * other.Inverse();
+}
+
+constexpr Quaternion Quaternion::operator*(float scalar) const
+{
+	return Quaternion(w * scalar, x * scalar, y * scalar, z * scalar);
+}
+
+constexpr Quaternion& Quaternion::operator/=(float scalar)
+{
+	w /= scalar;
+	x /= scalar;
+	y /= scalar;
+	z /= scalar;
+
+	return *this;
+}
+
+constexpr Quaternion& Quaternion::operator+=(const Quaternion& other)
+{
+	w += other.w;
+	x += other.x;
+	y += other.y;
+	z += other.z;
+
+	return *this;
+}
+
+Quaternion Quaternion::Slerp(const Quaternion& a, const Quaternion& b, float t, bool forceLerp)
+{
+	// Courtesy of Fletcher & Dunn p262
+	const float w0 = a.w;
+	const float x0 = a.x;
+	const float y0 = a.y;
+	const float z0 = a.z;
+
+	float w1 = b.w;
+	float x1 = b.x;
+	float y1 = b.y;
+	float z1 = b.z;
+
+	float cosOmega = w0 * w1 + x0 * x1 + y0 * y1 + z0 * z1;
+
+	if (cosOmega < 0.0f)
+	{
+		cosOmega = -cosOmega;
+
+		w1 = -w1;
+		x1 = -x1;
+		y1 = -y1;
+		z1 = -z1;
+	}
+
+	float k0{ 0.f };
+	float k1{ 0.f };
+
+	if (forceLerp || cosOmega > 0.9999f)
+	{
+		k0 = 1.0f - t;
+		k1 = t;
+	}
+	else
+	{
+		float sinOmega = sqrtf(1.0f - cosOmega * cosOmega);
+		float omega = atan2(sinOmega, cosOmega);
+		float oneOverSinOmega = 1.0f / sinOmega;
+
+		k0 = sin((1.0f - t) * omega) * oneOverSinOmega;
+		k1 = sin(t * omega) * oneOverSinOmega;
+	}
+
+	return Quaternion(w0 * k0 + w1 * k1,
+		x0 * k0 + x1 * k1,
+		y0 * k0 + y1 * k1,
+		z0 * k0 + z1 * k1);
+}
+
+constexpr void Mat4x4::SetRow(int index, float x, float y, float z, float w)
+{
+	assert(0 <= index && index < 4 && "Matrix row out of bounds.");
+
+	const int r = index * 4;
+	m[r] = x;
+	m[r + 1] = y;
+	m[r + 2] = z;
+	m[r + 3] = w;
+}
+
+constexpr Mat4x4 Mat4x4::Scale(Vec3 scale)
+{
+	return Mat4x4::Scale(scale.x, scale.y, scale.z);
+}
+
+constexpr Mat4x4 Mat4x4::Scale(float x, float y, float z)
+{
+	Mat4x4 s;
+	s.m[0] = x;
+	s.m[5] = y;
+	s.m[10] = z;
+	return s;
+}
+
+constexpr Mat4x4 Mat4x4::Translate(Vec3 position)
+{
+	Mat4x4 t;
+	t.m[3] = position.x;
+	t.m[7] = position.y;
+	t.m[11] = position.z;
+	return t;
+}
+
+constexpr Mat4x4 Mat4x4::TRS(Vec3 translation, const Quaternion& rotation, Vec3 scale)
+{
+	const Mat4x4 s = Scale(scale.x, scale.y, scale.z);
+	const Mat4x4 r = FromQuaternion(rotation.w, rotation.x, rotation.y, rotation.z);
+
+	Mat4x4 trs = r * s;
+
+	// Translation is set directly in the last column, independently
+	// of rotation and scale.
+	trs.m[3] = translation.x;
+	trs.m[7] = translation.y;
+	trs.m[11] = translation.z;
+
+	return trs;
+}
+
+constexpr Mat4x4 Mat4x4::FromQuaternion(float w, float x, float y, float z)
+{
+	float x2 = x * x;	float y2 = y * y;	float z2 = z * z;
+
+	Mat4x4 result;
+	auto& m = result.m;
+
+	m[0] = 1.0f - 2.0f * (y2 + z2);
+	m[1] = 2.0f * x * y + 2.0f * w * z;
+	m[2] = 2.0f * x * z - 2.0f * w * y;
+	m[3] = 0.0f;
+
+	m[4] = 2.0f * x * y - 2.0f * w * z;
+	m[5] = 1.0f - 2.0f * (x2 + z2);
+	m[6] = 2.0f * y * z + 2.0f * w * x;
+	m[7] = 0.0f;
+
+	m[8] = 2.0f * x * z + 2.0f * w * y;
+	m[9] = 2.0f * y * z - 2.0f * w * x;
+	m[10] = 1.0f - 2.0f * (x2 + y2);
+	m[11] = 0.0f;
+
+	m[12] = 0.0f;
+	m[13] = 0.0f;
+	m[14] = 0.0f;
+	m[15] = 1.0f;
+
+	return result;
+}
