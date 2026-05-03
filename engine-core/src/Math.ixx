@@ -166,6 +166,137 @@ export struct ENGINE_CORE_API Mat3x3
 	static constexpr Mat3x3 Identity();
 };
 
+export struct ENGINE_CORE_API Mat4x4
+{
+	float m[16]{ 0.f, 0.f, 0.f, 0.f,
+				  0.f, 0.f, 0.f, 0.f,
+				  0.f, 0.f, 0.f, 0.f,
+				  0.f, 0.f, 0.f, 0.f };
+
+	constexpr Mat4x4() = default;
+	
+	constexpr Mat4x4 operator*(const Mat4x4& other) const;
+	constexpr Mat4x4 Transposed() const;
+	constexpr Mat4x4 Inverse() const;
+	constexpr float Determinant() const;
+
+	static constexpr Mat4x4 Identity();
+};
+
+constexpr Mat4x4 Mat4x4::operator*(const Mat4x4& other) const
+{
+	Mat4x4 result;
+
+	for (int row = 0; row < 4; ++row)
+	{
+		for (int col = 0; col < 4; ++col)
+		{
+			for (int k = 0; k < 4; ++k)
+			{
+				result.m[row * 4 + col] += m[row * 4 + k] * other.m[k * 4 + col];
+			}
+		}
+	}
+
+	return result;
+}
+
+constexpr Mat4x4 Mat4x4::Transposed() const
+{
+	Mat4x4 result;
+
+	for (int row = 0; row < 4; ++row)
+	{
+		for (int col = 0; col < 4; ++col)
+		{
+			result.m[col * 4 + row] = m[row * 4 + col];
+		}
+	}
+
+	return result;
+}
+
+constexpr float Mat4x4::Determinant() const
+{
+	float s0 = m[0] * m[5] - m[4] * m[1];
+	float s1 = m[0] * m[6] - m[4] * m[2];
+	float s2 = m[0] * m[7] - m[4] * m[3];
+	float s3 = m[1] * m[6] - m[5] * m[2];
+	float s4 = m[1] * m[7] - m[5] * m[3];
+	float s5 = m[2] * m[7] - m[6] * m[3];
+
+	float c0 = m[8] * m[13] - m[12] * m[9];
+	float c1 = m[8] * m[14] - m[12] * m[10];
+	float c2 = m[8] * m[15] - m[12] * m[11];
+	float c3 = m[9] * m[14] - m[13] * m[10];
+	float c4 = m[9] * m[15] - m[13] * m[11];
+	float c5 = m[10] * m[15] - m[14] * m[11];
+
+	return s0 * c5 - s1 * c4 + s2 * c3 + s3 * c2 - s4 * c1 + s5 * c0;
+}
+
+constexpr Mat4x4 Mat4x4::Inverse() const
+{
+	// Compute 2x2 sub-determinants from the top two rows
+	float s0 = m[0] * m[5] - m[4] * m[1];
+	float s1 = m[0] * m[6] - m[4] * m[2];
+	float s2 = m[0] * m[7] - m[4] * m[3];
+	float s3 = m[1] * m[6] - m[5] * m[2];
+	float s4 = m[1] * m[7] - m[5] * m[3];
+	float s5 = m[2] * m[7] - m[6] * m[3];
+
+	// Compute 2x2 sub-determinants from the bottom two rows
+	float c0 = m[8] * m[13] - m[12] * m[9];
+	float c1 = m[8] * m[14] - m[12] * m[10];
+	float c2 = m[8] * m[15] - m[12] * m[11];
+	float c3 = m[9] * m[14] - m[13] * m[10];
+	float c4 = m[9] * m[15] - m[13] * m[11];
+	float c5 = m[10] * m[15] - m[14] * m[11];
+
+	float det = s0 * c5 - s1 * c4 + s2 * c3 + s3 * c2 - s4 * c1 + s5 * c0;
+
+	assert((det > 1e-6f || det < -1e-6f) && "Matrix is not invertible (determinant is ~0).");
+
+	float invDet = 1.0f / det;
+
+	Mat4x4 result;
+
+	result.m[0] = (m[5] * c5 - m[6] * c4 + m[7] * c3) * invDet;
+	result.m[1] = (-m[1] * c5 + m[2] * c4 - m[3] * c3) * invDet;
+	result.m[2] = (m[13] * s5 - m[14] * s4 + m[15] * s3) * invDet;
+	result.m[3] = (-m[9] * s5 + m[10] * s4 - m[11] * s3) * invDet;
+
+	result.m[4] = (-m[4] * c5 + m[6] * c2 - m[7] * c1) * invDet;
+	result.m[5] = (m[0] * c5 - m[2] * c2 + m[3] * c1) * invDet;
+	result.m[6] = (-m[12] * s5 + m[14] * s2 - m[15] * s1) * invDet;
+	result.m[7] = (m[8] * s5 - m[10] * s2 + m[11] * s1) * invDet;
+
+	result.m[8] = (m[4] * c4 - m[5] * c2 + m[7] * c0) * invDet;
+	result.m[9] = (-m[0] * c4 + m[1] * c2 - m[3] * c0) * invDet;
+	result.m[10] = (m[12] * s4 - m[13] * s2 + m[15] * s0) * invDet;
+	result.m[11] = (-m[8] * s4 + m[9] * s2 - m[11] * s0) * invDet;
+
+	result.m[12] = (-m[4] * c3 + m[5] * c1 - m[6] * c0) * invDet;
+	result.m[13] = (m[0] * c3 - m[1] * c1 + m[2] * c0) * invDet;
+	result.m[14] = (-m[12] * s3 + m[13] * s1 - m[14] * s0) * invDet;
+	result.m[15] = (m[8] * s3 - m[9] * s1 + m[10] * s0) * invDet;
+
+	return result;
+}
+
+constexpr Mat4x4 Mat4x4::Identity()
+{
+	Mat4x4 result;
+
+	for (int i = 0; i < 4; ++i)
+	{
+		result.m[i * 4 + i] = 1.0f;
+
+	}
+	return result;
+}
+
+
 constexpr Mat3x3::Mat3x3(float m0, float m1, float m2,
 	float m3, float m4, float m5,
 	float m6, float m7, float m8) : 
@@ -245,6 +376,21 @@ export constexpr Vec3 operator*(const Mat3x3& m, const Vec3 v)
 		for (int k = 0; k < 3; ++k)
 		{
 			result[row] += m.m[row * 3 + k] * v[k];
+		}
+	}
+
+	return result;
+}
+
+export constexpr Vec4 operator*(const Mat4x4& m, const Vec4 v)
+{
+	Vec4 result;
+
+	for (int row = 0; row < 4; ++row)
+	{
+		for (int k = 0; k < 4; ++k)
+		{
+			result[row] += m.m[row * 4 + k] * v[k];
 		}
 	}
 
