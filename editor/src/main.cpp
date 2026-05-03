@@ -16,6 +16,13 @@ Expected<int> ShouldBeEven(int number)
     return std::unexpected<EngineError>({ErrorType::LogicError, "Bloargh"});
 }
 
+void TestM3x3()
+{
+    Vec3 a{ 1, 2, 3 };
+    Vec3 b = Mat3x3::Identity() * a;
+    LOG_INFO("[Foo] identity * a = {}", b);
+}
+
 void TestVec4()
 {
     Vec4 a;
@@ -88,6 +95,7 @@ int main()
     TestVec2();
     TestVec3();
     TestVec4();
+    TestM3x3();
 
     return 0;
 }

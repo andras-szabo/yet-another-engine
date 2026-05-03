@@ -141,6 +141,116 @@ export struct ENGINE_CORE_API Vec4
 	Vec4 NormalizedSafe(const Vec4 fallback = Vec4(1.f, 0.f, 0.f, 0.f)) const;
 };
 
+export struct ENGINE_CORE_API Mat3x3
+{
+	float m[9]{ 0.f, 0.f, 0.f,
+				0.f, 0.f, 0.f,
+				0.f, 0.f, 0.f };
+
+	constexpr Mat3x3() = default;
+	constexpr Mat3x3(float m0, float m1, float m2,
+					 float m3, float m4, float m5,
+					 float m6, float m7, float m8);
+
+	constexpr Mat3x3(const Vec3 r0, const Vec3 r1, const Vec3 r2);
+
+	constexpr Vec3 Row(int index) const;
+	constexpr Vec3 Col(int index) const;
+
+	constexpr float At(int row, int col) const;
+	constexpr float& At(int row, int col);
+
+	constexpr Mat3x3 operator*(const Mat3x3& other) const;
+	constexpr Mat3x3 Transposed() const;
+
+	static constexpr Mat3x3 Identity();
+};
+
+constexpr Mat3x3::Mat3x3(float m0, float m1, float m2,
+	float m3, float m4, float m5,
+	float m6, float m7, float m8) : 
+	m{ m0, m1, m2, m3, m4, m5, m6, m7, m8 } 
+{
+}
+
+constexpr Mat3x3::Mat3x3(const Vec3 r0, const Vec3 r1, const Vec3 r2)
+	: m{ r0.x, r0.y, r0.z,
+		r1.x, r1.y, r1.z,
+		r2.x, r2.y, r2.z }
+{
+}
+
+constexpr Mat3x3 Mat3x3::Identity()
+{
+	return Mat3x3 { 1, 0, 0,
+					0, 1, 0,
+					0, 0, 1 };
+}
+
+constexpr Mat3x3 Mat3x3::Transposed() const
+{
+	return Mat3x3
+	{
+		Col(0),
+		Col(1),
+		Col(2)
+	};
+}
+
+constexpr float Mat3x3::At(int row, int col) const
+{
+	assert(0 <= col && col < 3 && 0 <= row && row < 3 && "Mat3x3 index out of bounds.");
+	return m[row * 3 + col];
+}
+
+constexpr float& Mat3x3::At(int row, int col)
+{
+	assert(0 <= col && col < 3 && 0 <= row && row < 3 && "Mat3x3 index out of bounds.");
+	return m[row * 3 + col];
+}
+
+constexpr Vec3 Mat3x3::Row(int index) const
+{
+	return Vec3(m[index * 3], m[index * 3 + 1], m[index * 3 + 2]);
+}
+
+constexpr Vec3 Mat3x3::Col(int index) const
+{
+	return Vec3(m[index], m[3 + index], m[6 + index]);
+}
+
+constexpr Mat3x3 Mat3x3::operator*(const Mat3x3& other) const
+{
+	Mat3x3 result;
+	for (int row = 0; row < 3; ++row)
+	{
+		for (int col = 0; col < 3; ++col)
+		{
+			for (int k = 0; k < 3; ++k)
+			{
+				result.m[row * 3 + col] += m[row * 3 + k] * other.m[k * 3 + col];
+			}
+		}
+	}
+	return result;
+}
+
+
+export constexpr Vec3 operator*(const Mat3x3& m, const Vec3 v)
+{
+	Vec3 result;
+
+	for (int row = 0; row < 3; ++row)
+	{
+		for (int k = 0; k < 3; ++k)
+		{
+			result[row] += m.m[row * 3 + k] * v[k];
+		}
+	}
+
+	return result;
+}
+
 constexpr float Vec2::operator[](int index) const
 {
 	assert(0 <= index && index < 2 && "Vec2 index out of bounds");
