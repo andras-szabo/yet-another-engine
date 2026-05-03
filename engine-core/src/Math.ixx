@@ -110,6 +110,10 @@ export struct ENGINE_CORE_API Vec4
 	constexpr Vec4(const Vec3, float);
 	constexpr Vec4(const Vec2, const Vec2);
 
+	constexpr Vec3 xyz() const;
+	constexpr Vec2 xy() const;
+	constexpr Vec2 zw() const;
+
 	constexpr float operator[](int index) const;
 	constexpr float& operator[](int index);
 
@@ -285,6 +289,8 @@ export constexpr Vec2 Lerp(const Vec2 a, const Vec2 b, float t) noexcept
 	return Vec2(std::lerp(a.x, b.x, t), std::lerp(a.y, b.y, t));
 }
 
+export constexpr Vec2 operator*(float scalar, const Vec2 v) noexcept { return v * scalar; }
+
 template<>
 struct std::formatter<Vec2>
 {
@@ -311,6 +317,8 @@ public:
 };
 
 constexpr Vec3::Vec3(const Vec2 other) : x{ other.x }, y{ other.y } {}
+
+constexpr Vec3::Vec3(const Vec2 xy, float z_) : x{ xy.x }, y{ xy.y }, z{ z_ } {}
 
 constexpr Vec2 Vec3::xy() const
 {
@@ -479,6 +487,8 @@ export constexpr Vec3 Lerp(const Vec3 a, const Vec3 b, float t) noexcept
 		std::lerp(a.z, b.z, t));
 }
 
+export constexpr Vec3 operator*(float scalar, const Vec3 v) noexcept { return v * scalar; }
+
 template<>
 struct std::formatter<Vec3>
 {
@@ -514,6 +524,10 @@ constexpr Vec4::Vec4(const Vec3 vec3, float w_) : x{ vec3.x }, y{ vec3.y }, z{ v
 constexpr Vec4::Vec4(const Vec2 xy, const Vec2 zw) : x{ xy.x }, y{ xy.y }, z{ zw.x }, w{ zw.y }
 {
 }
+
+constexpr Vec3 Vec4::xyz() const { return Vec3(x, y, z); }
+constexpr Vec2 Vec4::xy()  const { return Vec2(x, y); }
+constexpr Vec2 Vec4::zw()  const { return Vec2(z, w); }
 
 constexpr float Vec4::operator[](int index) const
 {
@@ -660,6 +674,8 @@ export constexpr Vec4 Lerp(const Vec4 a, const Vec4 b, float t) noexcept
 		std::lerp(a.z, b.z, t),
 		std::lerp(a.w, b.w, t));
 }
+
+export constexpr Vec4 operator*(float scalar, const Vec4 v) noexcept { return v * scalar; }
 
 template<>
 struct std::formatter<Vec4>
