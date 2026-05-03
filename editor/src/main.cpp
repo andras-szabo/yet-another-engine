@@ -22,6 +22,10 @@ void TestVec4()
     Vec4 b { 1, 2, 3, 0 };
     Vec4 c { 5, 6, 7, 8 };
     LOG_INFO("[Foo] Vec4: a: {}, b: {}, b + c = {}", a, b, b + c);
+
+    Vec4 d;
+    Vec4 e{ 10, 9, 8, 7 };
+    LOG_INFO("[Foo] Lerp 0.25: {} // 0.75: {}", Lerp(d, e, 0.25f), Lerp(d, e, 0.75f));
 }
 
 void TestVec3()

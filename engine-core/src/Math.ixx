@@ -279,6 +279,12 @@ constexpr Vec2 Vec2::operator-() const
 	return Vec2(-x, -y);
 }
 
+// t is unclamped; values outside [0, 1] will extrapolate
+export constexpr Vec2 Lerp(const Vec2 a, const Vec2 b, float t) noexcept
+{
+	return Vec2(std::lerp(a.x, b.x, t), std::lerp(a.y, b.y, t));
+}
+
 template<>
 struct std::formatter<Vec2>
 {
@@ -465,6 +471,14 @@ Vec3 Vec3::NormalizedSafe(const Vec3 fallback) const
 	return fallback;
 }
 
+// t is not clamped; values outside [0, 1] will extrapolate
+export constexpr Vec3 Lerp(const Vec3 a, const Vec3 b, float t) noexcept
+{
+	return Vec3(std::lerp(a.x, b.x, t), 
+		std::lerp(a.y, b.y, t), 
+		std::lerp(a.z, b.z, t));
+}
+
 template<>
 struct std::formatter<Vec3>
 {
@@ -636,6 +650,15 @@ Vec4 Vec4::NormalizedSafe(const Vec4 fallback) const
 		return Vec4(x / len, y / len, z / len, w / len);
 
 	return fallback;
+}
+
+// t is not clamped; values outside [0, 1] will extrapolate
+export constexpr Vec4 Lerp(const Vec4 a, const Vec4 b, float t) noexcept
+{
+	return Vec4(std::lerp(a.x, b.x, t),
+		std::lerp(a.y, b.y, t),
+		std::lerp(a.z, b.z, t),
+		std::lerp(a.w, b.w, t));
 }
 
 template<>
