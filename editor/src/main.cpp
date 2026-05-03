@@ -16,6 +16,15 @@ Expected<int> ShouldBeEven(int number)
     return std::unexpected<EngineError>({ErrorType::LogicError, "Bloargh"});
 }
 
+void TestVec3()
+{
+    Vec3 a;
+    Vec3 b{ 1, 2, 3 };
+    Vec3 c = a + b;
+    LOG_INFO("[Foo] Vec3: a: {}, b: {}, a + b = {:.2f}", a, b, c);
+}
+
+
 void TestVec2()
 {
     constexpr Vec2 a{};
@@ -66,6 +75,7 @@ int main()
     }
 
     TestVec2();
+    TestVec3();
 
     return 0;
 }
