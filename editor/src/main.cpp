@@ -5,8 +5,6 @@
 // Import the engine-core module.
 // Once engine-core exports real symbols, they will be available here.
 import EngineCore;
-import EngineError;
-import Logger;
 
 Expected<int> ShouldBeEven(int number)
 {
@@ -16,6 +14,39 @@ Expected<int> ShouldBeEven(int number)
     }
 
     return std::unexpected<EngineError>({ErrorType::LogicError, "Bloargh"});
+}
+
+void TestVec2()
+{
+    constexpr Vec2 a{};
+    static_assert(a.x == 0.0f && a.y == 0.0f);
+
+    constexpr Vec2 b{ 1, 2 };
+    static_assert(b.x == 1.0f && b.y == 2.0f);
+
+    Vec2 d = Vec2::Right();
+    d += Vec2::Left();
+    d -= Vec2::Right();
+
+    LOG_INFO("[Foo] right + left - right = {}", d);
+
+    Vec2 e = Vec2::Up() * 12.3456f;
+    LOG_INFO("[Foo] Up * 12.3456f = {:.2f}", e);
+
+    LOG_INFO("[Foo] 'e' normalized = {}", e.Normalized());
+
+    Vec2 f{ 10, 10 };
+    Vec2 g{ 1, 0 };
+    LOG_INFO("[Foo] 'f.g' = {}", f.Dot(g));
+
+    Vec2 h{ 123, 456 };
+    LOG_INFO("[Foo] Before: {}, {}", h[0], h[1]);
+   
+    h[0] = 999.0f;
+    h[1] = -42.0f;
+    LOG_INFO("[Foo] After: {}", h);
+
+    LOG_INFO("Vec2 tests run.");
 }
 
 int main()
@@ -33,6 +64,8 @@ int main()
     {
         LOG_ERROR("Oho. {}", baz.error().message);
     }
+
+    TestVec2();
 
     return 0;
 }
