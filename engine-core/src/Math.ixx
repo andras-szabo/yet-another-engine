@@ -211,7 +211,7 @@ export struct ENGINE_CORE_API Quaternion
 	float x{ 0.0f };
 	float y{ 0.0f };
 	float z{ 0.0f };
-	float w{ 1.0f };
+	float w{ 0.0f };
 
 	constexpr Quaternion() = default;
 	constexpr Quaternion(float w_, float x_, float y_, float z_) : x{ x_ }, y{ y_ }, z{ z_ }, w{ w_ } {}
@@ -229,6 +229,7 @@ export struct ENGINE_CORE_API Quaternion
 	constexpr Quaternion Inverse() const;
 	float Magnitude() const;
 
+	constexpr static Quaternion Identity();
 	static Quaternion Slerp(const Quaternion& a, const Quaternion& b, float t, bool forceLerp);
 	static Quaternion AngleAxis(float angleDegrees, const Vec3 axis);
 	static Quaternion LookRotation(const Vec3 targetDirection, const Vec3 targetRight, const Vec3 targetUp);
@@ -1081,6 +1082,11 @@ Quaternion::Quaternion(const Mat3x3& matrix)
 constexpr Quaternion Quaternion::Inverse() const
 {
 	return Quaternion(w, -x, -y, -z);
+}
+
+constexpr Quaternion Quaternion::Identity()
+{
+	return Quaternion(1, Vec3{});
 }
 
 Quaternion Quaternion::AngleAxis(float angleDegrees, Vec3 axis)
