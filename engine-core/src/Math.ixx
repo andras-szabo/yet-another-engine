@@ -147,9 +147,9 @@ export struct ENGINE_CORE_API Vec4
 
 export struct ENGINE_CORE_API Mat3x3
 {
-	float m[9]{ 1.f, 0.f, 0.f,
-				0.f, 1.f, 0.f,
-				0.f, 0.f, 1.f };
+	float m[9]{ 0.f, 0.f, 0.f,
+				0.f, 0.f, 0.f,
+				0.f, 0.f, 0.f };
 
 	constexpr Mat3x3() = default;
 	constexpr Mat3x3(float m0, float m1, float m2,
@@ -174,10 +174,10 @@ struct Quaternion;
 
 export struct ENGINE_CORE_API Mat4x4
 {
-	float m[16]{ 1.f, 0.f, 0.f, 0.f,
-				  0.f, 1.f, 0.f, 0.f,
-				  0.f, 0.f, 1.f, 0.f,
-				  0.f, 0.f, 0.f, 1.f };
+	float m[16]{ 0.f, 0.f, 0.f, 0.f,
+				  0.f, 0.f, 0.f, 0.f,
+				  0.f, 0.f, 0.f, 0.f,
+				  0.f, 0.f, 0.f, 0.f };
 
 	constexpr Mat4x4() = default;
 
@@ -222,7 +222,6 @@ export struct ENGINE_CORE_API Quaternion
 	constexpr Quaternion operator*(const Quaternion& other) const;
 	constexpr Quaternion operator-(const Quaternion& other) const;
 	constexpr Quaternion operator*(float scalar) const;
-
 	
 	constexpr Quaternion& operator/=(float scalar);
 	constexpr Quaternion& operator+=(const Quaternion& other);
@@ -246,10 +245,12 @@ constexpr Mat4x4 Mat4x4::operator*(const Mat4x4& other) const
 	{
 		for (int col = 0; col < 4; ++col)
 		{
+			float sum = 0.0f;
 			for (int k = 0; k < 4; ++k)
 			{
-				result.m[row * 4 + col] += m[row * 4 + k] * other.m[k * 4 + col];
+				sum += m[row * 4 + k] * other.m[k * 4 + col];
 			}
+			result.m[row * 4 + col] = sum;
 		}
 	}
 
@@ -368,9 +369,9 @@ constexpr Mat3x3::Mat3x3(const Vec3 r0, const Vec3 r1, const Vec3 r2)
 
 constexpr Mat3x3 Mat3x3::Identity()
 {
-	return Mat3x3{ 1, 0, 0,
-					0, 1, 0,
-					0, 0, 1 };
+	return Mat3x3{ 1.0f, 0, 0,
+					0, 1.0f, 0,
+					0, 0, 1.0f };
 }
 
 constexpr Mat3x3 Mat3x3::Transposed() const
@@ -412,10 +413,12 @@ constexpr Mat3x3 Mat3x3::operator*(const Mat3x3& other) const
 	{
 		for (int col = 0; col < 3; ++col)
 		{
+			float sum = 0.0f;
 			for (int k = 0; k < 3; ++k)
 			{
-				result.m[row * 3 + col] += m[row * 3 + k] * other.m[k * 3 + col];
+				sum += m[row * 3 + k] * other.m[k * 3 + col];
 			}
+			result.m[row * 3 + col] = sum;
 		}
 	}
 	return result;
@@ -1082,7 +1085,7 @@ constexpr Quaternion Quaternion::Inverse() const
 
 Quaternion Quaternion::AngleAxis(float angleDegrees, Vec3 axis)
 {
-	const float alpha = (angleDegrees / 2.0f) * (PI / 180.f);
+	const float alpha = (angleDegrees / 2.0f) * TO_RAD;
 	const float w = cosf(alpha);
 	axis *= sinf(alpha);
 	return Quaternion(w, axis.x, axis.y, axis.z);
@@ -1233,12 +1236,11 @@ Quaternion Quaternion::Slerp(const Quaternion& a, const Quaternion& b, float t, 
 	}
 	else
 	{
-		float sinOmega = sqrtf(1.0f - cosOmega * cosOmega);
-		float omega = atan2(sinOmega, cosOmega);
-		float oneOverSinOmega = 1.0f / sinOmega;
+		const float sinOmega = sqrtf(1.0f - cosOmega * cosOmega);
+		const float omega = atan2(sinOmega, cosOmega);
 
-		k0 = sin((1.0f - t) * omega) * oneOverSinOmega;
-		k1 = sin(t * omega) * oneOverSinOmega;
+		k0 = sin((1.0f - t) * omega) / sinOmega;
+		k1 = sin(t * omega) / sinOmega;
 	}
 
 	return Quaternion(w0 * k0 + w1 * k1,
@@ -1265,7 +1267,7 @@ constexpr Mat4x4 Mat4x4::Scale(Vec3 scale)
 
 constexpr Mat4x4 Mat4x4::Scale(float x, float y, float z)
 {
-	Mat4x4 s;
+	Mat4x4 s = Mat4x4::Identity();
 	s.m[0] = x;
 	s.m[5] = y;
 	s.m[10] = z;
@@ -1274,7 +1276,7 @@ constexpr Mat4x4 Mat4x4::Scale(float x, float y, float z)
 
 constexpr Mat4x4 Mat4x4::Translate(Vec3 position)
 {
-	Mat4x4 t;
+	Mat4x4 t = Mat4x4::Identity();
 	t.m[3] = position.x;
 	t.m[7] = position.y;
 	t.m[11] = position.z;
