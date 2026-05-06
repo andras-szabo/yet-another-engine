@@ -16,6 +16,7 @@ generate_export_header(engine-core
 target_sources(engine-core
   PUBLIC
     FILE_SET CXX_MODULES FILES
+      src/Component.ixx
       src/EngineCore.ixx
       src/EngineError.ixx
       src/Logger.ixx

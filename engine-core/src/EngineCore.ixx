@@ -8,6 +8,7 @@
 // or introduce module partitions (e.g. EngineCore:Math, EngineCore:Scene).
 
 export module EngineCore;
+export import Component;
 export import EngineError;
 export import Logger;
 export import Math;

@@ -28,6 +28,8 @@
 | P1-04 — Core utility types | ⚠️ Partial | **Done:** `EngineError` (type + message, DLL-exported constructor) and `Expected<T>` alias over `std::expected<T, EngineError>` in `EngineError.ixx`; `export import`-ed from `EngineCore.ixx` so `import EngineCore;` exposes them transitively. **Remaining:** (1) string helpers needed by the serialiser (trim, split, case); (2) file I/O helpers (`ReadAllText`, `WriteAllText`) returning `Expected<T>` — defer until just before P3. |
 | P1-05 — Math types: Vec2, Vec3, Vec4 | ✅ Done | `Math.ixx` exports `Vec2`, `Vec3`, `Vec4`: arithmetic operators (+, -, *, /), compound-assignment forms, unary negation, commutative `float * Vec` free functions, `Dot`, `Cross` (Vec3 only), `SqrMagnitude`, `Length`, `Normalize`/`NormalizeSafe`/`Normalized`/`NormalizedSafe` (with fallback), `Lerp` free functions (unclamped), swizzle accessors (`Vec3`: xy/xz/yz; `Vec4`: xyz/xy/zw), direction constants (Up/Down/Left/Right/Forward/Back), and `std::formatter` specializations for all three. `export import`-ed from `EngineCore.ixx`. |
 | P1-06 — Mat4 and Quaternion | ✅ Done | In `Math.ixx`. **Mat4x4**: identity, multiply, transpose, inverse (cofactor-expansion, asserts non-zero det), `Scale`/`Translate`/`TRS` factory methods, `FromQuaternion`, `operator*(Mat4x4, Vec4)`. **Mat3x3**: identity, multiply, transpose, row/col accessors, `At`, `operator*(Mat3x3, Vec3)`. **Quaternion**: `Euler` (two overloads, `RotateOrder` enum for all 6 orderings), `Slerp` (falls back to lerp near-parallel), `AngleAxis`, `LookRotation`, `FromTo` (relative rotation), `Inverse` (conjugate, unit-quat only), `Magnitude`, `operator*` (Hamilton product), `operator-` (relative rotation), scalar `operator*`, `operator/=`, `operator+=`, construction from `Mat3x3`. `Mat4x4::TRS` composes all three. |
+| P1-07 — Transform | ⚠️ Partial | `Transform.ixx` exports `Transform` class with local position/rotation/scale storage and a `_localToWorld` matrix, updated via `SetLocalTRS`, `SetLocalPosition`, `SetLocalRotation`, `SetLocalScale`, and `RefreshLocalToWorld`. **Deferred:** parent-chain / hierarchy integration — to be addressed in P2-05 with a data-oriented design (flat world-transform array + parallel arrays for hierarchy, mesh, physics data, etc. so systems like physics can process transforms efficiently). |
+| P2-01 — Component base class | ✅ Done | `Component.ixx` exports `Component` (DLL-exported). Virtual lifecycle hooks: `OnCreate()`, `OnUpdate(float dt)`, `OnDestroy()`; all defaulted no-ops. `GetOwner()` returns `GameObject*` (forward-declared). `IsEnabled()`/`SetEnabled(bool)` with `_enabled = true` default. `_owner` is private, set exclusively by `friend class GameObject`. `export import`-ed from `EngineCore.ixx`. |
 
 ## MVP Goal
 
@@ -51,7 +53,7 @@ Establish the repo layout, CMake configuration, and core utility infrastructure 
 - P1-04: Implement core utility types: result/error type, string helpers, file-system wrappers (std::filesystem)
 - P1-05: ✅ Implement math types: Vec2, Vec3, Vec4 (with arithmetic operators, dot, cross, normalize, lerp)
 - P1-06: ✅ Implement Mat4 (identity, multiply, transpose, inverse) and Quaternion (from euler, slerp, to-matrix)
-- P1-07: Implement Transform struct (position, rotation, scale → local matrix, world matrix from parent chain)
+- P1-07: ⚠️ Implement Transform struct (position, rotation, scale → local matrix, world matrix from parent chain) — basic Transform done; hierarchy deferred to P2-05
 
 ---
 
@@ -59,11 +61,11 @@ Establish the repo layout, CMake configuration, and core utility infrastructure 
 
 The runtime object model at the heart of the engine.
 
-- P2-01: Define Component base class: lifecycle hooks (OnCreate, OnUpdate, OnDestroy), owner pointer, enabled flag
+- P2-01: ✅ Define Component base class: lifecycle hooks (OnCreate, OnUpdate, OnDestroy), owner pointer, enabled flag
 - P2-02: Define field registration macros (REGISTER_FIELD, REGISTER_COMPONENT) and FieldDescriptor type
 - P2-03: Define GameObject class: name, GUID, component map, parent/child pointers, AddComponent / GetComponent
 - P2-04: Implement Transform as a built-in Component; link it as a mandatory component on every GameObject
-- P2-05: Define Scene class: root GameObjects, scene name/GUID, Update(dt) loop that propagates to components
+- P2-05: Define Scene class + data-oriented transform hierarchy: flat world-transform array with parallel arrays for hierarchy relationships, mesh, physics body data, etc. — enabling efficient per-system processing. Also handles scene name/GUID and Update(dt) loop propagating to components.
 - P2-06: Implement scene graph traversal helpers: depth-first iteration, world-transform accumulation
 
 ---
