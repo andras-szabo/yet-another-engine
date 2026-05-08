@@ -1,0 +1,107 @@
+P2-02: Field Registration Macros and FieldDescriptor
+=====================================================
+
+What we did
+-----------
+
+Implemented the reflection foundation for the Component system (P2-02 in the
+engine plan).  Three new/modified files make up the work:
+
+  engine-core/src/Reflection.ixx
+    - Exports FieldType, an enum tagging the C++ types that can be reflected
+      (Float, Int, Bool, String, Vec2, Vec3, Vec4, Quaternion).
+    - Exports FieldDescriptor, a plain struct holding a field's string name,
+      its FieldType tag, and its byte offset within the owning object.
+    - No external dependencies; sits at the bottom of the module graph.
+
+  engine-core/include/ReflectionMacros.h
+    - Companion header (macros cannot be exported from C++ modules).
+    - FIELD(...) — a passive no-op annotation placed before a field
+      declaration to mark it for reflection.
+    - COMPONENT_BODY(ClassName) — placed as the first line inside a
+      Component-derived class body.  Declares:
+        * TypeName (constexpr string_view of the class name)
+        * GetTypeName() — static accessor for TypeName
+        * GetFieldDescriptors() — static function whose definition lives in
+          a separate ClassName.reflected.h seam file
+        * GetReflectedFields() — virtual override that delegates to the
+          static function, enabling runtime access via a Component* pointer
+    - REFLECTED_FIELDS(ClassName, ...) — macro for use inside .reflected.h
+      files; defines GetFieldDescriptors() from a braced list of
+      FieldDescriptor initialisers using offsetof().
+    - REFLECTED_FIELDS_EMPTY(ClassName) — variant for components that
+      participate in the reflection system but have no reflected fields.
+
+  engine-core/src/Component.ixx  (modified)
+    - Added 'import Reflection;' and '#include <span>' to the global fragment.
+    - Added 'virtual GetReflectedFields()' returning an empty span as the
+      base-class default.
+
+  engine-core/src/EngineCore.ixx  (modified)
+    - Added 'export import Reflection;' so any consumer of EngineCore gets
+      FieldType and FieldDescriptor transitively.
+
+  engine-core/CMakeLists.txt  (modified)
+    - Added src/Reflection.ixx to the FILE_SET CXX_MODULES source list.
+
+
+Why we designed it this way
+---------------------------
+
+The original plan called for active macros (REGISTER_FIELD) that would
+directly emit the FieldDescriptor data inline — simple, but with a catch:
+if we ever add a code-generation tool (like Unreal's Unreal Header Tool) to
+parse field annotations and produce registration code automatically, every
+component file would need its REGISTER_FIELD calls removed and replaced.
+That is a mechanical but non-trivial migration across code we may not own.
+
+Instead we adopted the passive/annotation model, taking direct inspiration
+from Unreal's UPROPERTY / GENERATED_BODY / UHT pattern:
+
+  1. FIELD() is a no-op.  It marks a field for the future tool to find, but
+     compiles away to nothing today.
+
+  2. COMPONENT_BODY(ClassName) is the seam point — analogous to Unreal's
+     GENERATED_BODY().  Today it expands to inline declarations; tomorrow
+     the tool can generate a ClassName.reflected.h that COMPONENT_BODY
+     includes, and user-facing source code never changes.
+
+  3. The actual data (FieldDescriptor array + GetFieldDescriptors definition)
+     lives in ClassName.reflected.h, a separate file that is hand-written
+     now and will be machine-generated later.  The transition only requires
+     replacing hand-written .reflected.h files with generated ones — no
+     changes to component class definitions.
+
+Two access paths are provided:
+  - Static  (MyComp::GetFieldDescriptors()) for compile-time / template use.
+  - Virtual (component->GetReflectedFields()) for runtime use via Component*,
+    which is what the serialiser (Phase 3) will need when it holds a
+    heterogeneous list of Component pointers.
+
+
+Usage pattern (for reference when writing future components)
+------------------------------------------------------------
+
+  // In MyComp.ixx — global module fragment:
+  #include "ReflectionMacros.h"
+
+  // Module purview:
+  export module MyComp;
+  import Component;
+  import Reflection;
+
+  export class MyComp : public Component
+  {
+      COMPONENT_BODY(MyComp)
+  public:
+      FIELD() float speed    = 1.0f;
+      FIELD() Vec3  velocity = {};
+  };
+
+  #include "MyComp.reflected.h"   // after the class definition
+
+  // MyComp.reflected.h (hand-written; tool-generated in the future):
+  REFLECTED_FIELDS(MyComp,
+      { "speed",    FieldType::Float, offsetof(MyComp, speed)    },
+      { "velocity", FieldType::Vec3,  offsetof(MyComp, velocity) }
+  )

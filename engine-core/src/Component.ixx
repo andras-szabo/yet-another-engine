@@ -1,8 +1,12 @@
 module;
 
+#include <span>
+
 #include "engine_core_api.h"
 
 export module Component;
+
+import Reflection;
 
 export class GameObject;
 
@@ -17,6 +21,10 @@ public:
 	virtual void OnCreate() {}
 	virtual void OnUpdate([[maybe_unused]] float dt) {}
 	virtual void OnDestroy() {}
+
+	// Returns the reflected field descriptors for this component instance.
+	// Overridden by COMPONENT_BODY — returns an empty span for the base class.
+	virtual std::span<const FieldDescriptor> GetReflectedFields() const { return {}; }
 
 	GameObject* GetOwner() const { return _owner; }
 

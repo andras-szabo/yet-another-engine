@@ -21,6 +21,7 @@ target_sources(engine-core
       src/EngineError.ixx
       src/Logger.ixx
       src/Math.ixx
+      src/Reflection.ixx
       src/Transform.ixx
 )
 
