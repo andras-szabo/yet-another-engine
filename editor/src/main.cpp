@@ -6,25 +6,26 @@
 // Once engine-core exports real symbols, they will be available here.
 import EngineCore;
 
-Expected<int> ShouldBeEven(int number)
+Engine::Expected<int> ShouldBeEven(int number)
 {
     if (number % 2 == 0)
     {
         return number;
     }
 
-    return std::unexpected<EngineError>({ErrorType::LogicError, "Bloargh"});
+    return std::unexpected<Engine::Error>({Engine::ErrorType::LogicError, "Bloargh"});
 }
 
 void TestM3x3()
 {
-    Vec3 a{ 1, 2, 3 };
-    Vec3 b = Mat3x3::Identity() * a;
+    Engine::Vec3 a{ 1, 2, 3 };
+    Engine::Vec3 b = Engine::Mat3x3::Identity() * a;
     LOG_INFO("[Foo] identity * a = {}", b);
 }
 
 void TestVec4()
 {
+    using namespace Engine;
     Vec4 a;
     Vec4 b { 1, 2, 3, 0 };
     Vec4 c { 5, 6, 7, 8 };
@@ -37,6 +38,7 @@ void TestVec4()
 
 void TestVec3()
 {
+    using namespace Engine;
     Vec3 a;
     Vec3 b{ 1, 2, 3 };
     Vec3 c = a + b;
@@ -45,6 +47,7 @@ void TestVec3()
 
 void TestVec2()
 {
+    using namespace Engine;
     constexpr Vec2 a{};
     static_assert(a.x == 0.0f && a.y == 0.0f);
 
@@ -99,7 +102,7 @@ int main()
 
     for (int i = 0; i < 5; ++i)
     {
-        LOG_INFO("Creating a guid: {}", GUID{});
+        LOG_INFO("Creating a guid: {}", Engine::GUID{});
     }
 
     return 0;

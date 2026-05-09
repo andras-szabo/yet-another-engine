@@ -15,7 +15,7 @@ module;	// This tells the compiler that what follows is the global fragment,
 export module Logger;	// closes the global module fragment,
 						// begins the module purview
 
-namespace Logger
+namespace Engine
 {
 	export enum class LogLevel
 	{
@@ -90,18 +90,18 @@ namespace Logger
 // Adding an std::formatter specialization for LogLevel, so that std::format
 // can actually deal with this.
 template<>
-struct std::formatter<Logger::LogLevel> : std::formatter<std::string_view>
+struct std::formatter<Engine::LogLevel> : std::formatter<std::string_view>
 {
-	auto format(Logger::LogLevel level, std::format_context& ctx) const
+	auto format(Engine::LogLevel level, std::format_context& ctx) const
 	{
 		std::string_view name;
 		switch (level)
 		{
-		case Logger::LogLevel::Trace:	name = "Trace"; break;
-		case Logger::LogLevel::Debug:	name = "Debug"; break;
-		case Logger::LogLevel::Info:	name = "Info"; break;
-		case Logger::LogLevel::Warning:	name = "Warning"; break;
-		case Logger::LogLevel::Error:	name = "Error"; break;
+		case Engine::LogLevel::Trace:	name = "Trace"; break;
+		case Engine::LogLevel::Debug:	name = "Debug"; break;
+		case Engine::LogLevel::Info:	name = "Info"; break;
+		case Engine::LogLevel::Warning:	name = "Warning"; break;
+		case Engine::LogLevel::Error:	name = "Error"; break;
 		default:
 			name = "Unknown";
 			break;
@@ -111,7 +111,7 @@ struct std::formatter<Logger::LogLevel> : std::formatter<std::string_view>
 	}
 };
 
-namespace Logger
+namespace Engine
 {
 	// Adding extern before the Log<> template so the compiler sees the
 	// declaration before the template body references it.

@@ -8,30 +8,33 @@ export module Component;
 
 import Reflection;
 
-export class GameObject;
-
-export
-class ENGINE_CORE_API Component
+namespace Engine
 {
-	friend class GameObject;
+	export class GameObject;
 
-public:
-	virtual ~Component() = default;
+	export
+		class ENGINE_CORE_API Component
+	{
+		friend class GameObject;
 
-	virtual void OnCreate() {}
-	virtual void OnUpdate([[maybe_unused]] float dt) {}
-	virtual void OnDestroy() {}
+	public:
+		virtual ~Component() = default;
 
-	// Returns the reflected field descriptors for this component instance.
-	// Overridden by COMPONENT_BODY — returns an empty span for the base class.
-	virtual std::span<const FieldDescriptor> GetReflectedFields() const { return {}; }
+		virtual void OnCreate() {}
+		virtual void OnUpdate([[maybe_unused]] float dt) {}
+		virtual void OnDestroy() {}
 
-	GameObject* GetOwner() const { return _owner; }
+		// Returns the reflected field descriptors for this component instance.
+		// Overridden by COMPONENT_BODY — returns an empty span for the base class.
+		virtual std::span<const FieldDescriptor> GetReflectedFields() const { return {}; }
 
-	bool IsEnabled() const { return _enabled; }
-	void SetEnabled(bool enabled) { _enabled = enabled; }
+		GameObject* GetOwner() const { return _owner; }
 
-private:
-	GameObject* _owner = nullptr;
-	bool _enabled = true;
-};
+		bool IsEnabled() const { return _enabled; }
+		void SetEnabled(bool enabled) { _enabled = enabled; }
+
+	private:
+		GameObject* _owner = nullptr;
+		bool _enabled = true;
+	};
+}

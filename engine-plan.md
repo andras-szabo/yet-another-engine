@@ -16,6 +16,7 @@
 | Serialization | Custom text format |
 | IPC | TCP sockets (WinSock2) |
 | Reflection | Manual field registration (macros) |
+| Namespace | All engine-owned code lives in `namespace Engine` |
 | Renderer | Abstraction layer only for MVP (backend TBD) |
 
 ## Progress
@@ -31,6 +32,7 @@
 | P1-07 — Transform | ⚠️ Partial | `Transform.ixx` exports `Transform` class with local position/rotation/scale storage and a `_localToWorld` matrix, updated via `SetLocalTRS`, `SetLocalPosition`, `SetLocalRotation`, `SetLocalScale`, and `RefreshLocalToWorld`. **Deferred:** parent-chain / hierarchy integration — to be addressed in P2-05 with a data-oriented design (flat world-transform array + parallel arrays for hierarchy, mesh, physics data, etc. so systems like physics can process transforms efficiently). |
 | P2-01 — Component base class | ✅ Done | `Component.ixx` exports `Component` (DLL-exported). Virtual lifecycle hooks: `OnCreate()`, `OnUpdate(float dt)`, `OnDestroy()`; all defaulted no-ops. `GetOwner()` returns `GameObject*` (forward-declared). `IsEnabled()`/`SetEnabled(bool)` with `_enabled = true` default. `_owner` is private, set exclusively by `friend class GameObject`. `export import`-ed from `EngineCore.ixx`. |
 | P2-02 — Field registration macros and FieldDescriptor | ✅ Done |`Reflection.ixx` exports `FieldType` enum (Float, Int, Bool, String, Vec2, Vec3, Vec4, Quaternion) and `FieldDescriptor` (name, type, byte offset). `ReflectionMacros.h` companion header provides: `FIELD(...)` (passive no-op annotation), `COMPONENT_BODY(ClassName)` (declares static `GetTypeName`, `GetFieldDescriptors`, and virtual `GetReflectedFields` override), `REFLECTED_FIELDS(ClassName, ...)` and `REFLECTED_FIELDS_EMPTY(ClassName)` for use in `.reflected.h` seam files. `Component` gains a virtual `GetReflectedFields()` base returning an empty span. `export import`-ed from `EngineCore.ixx`. |
+| P2-03 (prereq) — GUID | ✅ Done | `GUID.ixx` exports `Engine::GUID` (64-bit unsigned int, generated via `thread_local` `mt19937_64` seeded from `random_device`). `Invalid()` static factory returns `GUID(0)`; `IsValid()` checks for non-zero. `operator unsigned long long()` is `explicit` to prevent accidental arithmetic. `operator!=` omitted (synthesized from `operator==` in C++23). `std::hash<Engine::GUID>` and `std::formatter<Engine::GUID>` specializations defined (reachable to importers without needing `export`). `export import`-ed from `EngineCore.ixx`. |
 
 ## MVP Goal
 

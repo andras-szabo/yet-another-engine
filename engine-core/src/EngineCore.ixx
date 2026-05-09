@@ -10,7 +10,7 @@
 export module EngineCore;
 export import Reflection;
 export import Component;
-export import EngineError;
+export import Error;
 export import Logger;
 export import Math;
 export import Transform;

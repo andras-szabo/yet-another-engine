@@ -8,92 +8,89 @@ module;
 
 export module GUID;
 
-export
-struct ENGINE_CORE_API GUID
+namespace Engine
 {
-	constexpr static GUID Invalid();
-	unsigned long long id;
 
-	GUID();
-	constexpr GUID(unsigned long long);
-	constexpr GUID(const GUID& other) = default;
-	constexpr GUID& operator=(const GUID& other) = default;
-	constexpr GUID(GUID&& other) = default;
-	constexpr GUID& operator=(GUID&& other) = default;
+	export
+		struct ENGINE_CORE_API GUID
+	{
+		constexpr static GUID Invalid();
+		unsigned long long id;
 
-	constexpr bool operator==(const GUID& other) const;
-	constexpr bool operator!=(const GUID& other) const;
+		GUID();
+		constexpr GUID(unsigned long long);
+		constexpr GUID(const GUID& other) = default;
+		constexpr GUID& operator=(const GUID& other) = default;
+		constexpr GUID(GUID&& other) = default;
+		constexpr GUID& operator=(GUID&& other) = default;
 
-	constexpr operator unsigned long long() const;
-	constexpr bool IsValid() const;
-};
+		constexpr bool operator==(const GUID& other) const;
+
+		constexpr explicit operator unsigned long long() const;
+		constexpr bool IsValid() const;
+	};
+
+	static thread_local std::random_device randomDevice;
+	static thread_local std::mt19937_64 randomEngine(randomDevice());
+	static thread_local std::uniform_int_distribution<unsigned long long> randomDistribution;
+
+	GUID::GUID() : id{ randomDistribution(randomEngine) }
+	{
+	}
+
+	constexpr GUID::GUID(unsigned long long id_) : id{ id_ }
+	{
+	}
+
+	constexpr GUID GUID::Invalid()
+	{
+		return GUID(0);
+	}
+
+	constexpr GUID::operator unsigned long long() const
+	{
+		return id;
+	}
+
+	constexpr bool GUID::operator==(const GUID& other) const
+	{
+		return id == other.id;
+	}
+
+	constexpr bool GUID::IsValid() const
+	{
+		return id != 0;
+	}
+}
 
 namespace std
 {
 	template<>
-	struct hash<GUID>
+	struct std::formatter<Engine::GUID>
 	{
-		std::size_t operator()(const GUID& guid) const
+	private:
+		mutable std::formatter<unsigned long long> _ulongFormatter;
+
+	public:
+		constexpr auto parse(std::format_parse_context& ctx)
+		{
+			return _ulongFormatter.parse(ctx);
+		}
+
+		auto format(Engine::GUID guid, std::format_context& ctx) const
+		{
+			auto out = ctx.out();
+			out = _ulongFormatter.format(guid.id, ctx);
+			return out;
+		}
+	};
+
+	template<>
+	struct hash<Engine::GUID>
+	{
+		std::size_t operator()(const Engine::GUID& guid) const
 		{
 			return hash<unsigned long long>()(guid.id);
 		}
 	};
 }
-
-static std::random_device randomDevice;
-static std::mt19937_64 randomEngine(randomDevice());
-static std::uniform_int_distribution<unsigned long long> randomDistribution;
-
-GUID::GUID() : id{ randomDistribution(randomEngine) }
-{}
-
-constexpr GUID::GUID(unsigned long long id_) : id{ id_ }
-{}
-
-constexpr GUID GUID::Invalid()
-{
-	return GUID(0);
-}
-
-constexpr GUID::operator unsigned long long() const
-{
-	return id;
-}
-
-constexpr bool GUID::operator==(const GUID& other) const
-{
-	return id == other.id;
-}
-
-constexpr bool GUID::operator!=(const GUID& other) const
-{
-	return id != other.id;
-}
-
-constexpr bool GUID::IsValid() const
-{
-	return id != 0;
-}
-
-template<>
-struct std::formatter<GUID>
-{
-private:
-	mutable std::formatter<unsigned long long> _ulongFormatter;
-
-public:
-	constexpr auto parse(std::format_parse_context& ctx)
-	{
-		return _ulongFormatter.parse(ctx);
-	}
-
-	auto format(GUID guid, std::format_context& ctx) const
-	{
-		auto out = ctx.out();
-		out = _ulongFormatter.format(guid.id, ctx);
-		return out;
-	}
-};
-
-
-

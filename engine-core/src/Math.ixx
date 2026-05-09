@@ -8,6 +8,8 @@ module;
 
 export module Math;
 
+namespace Engine
+{
 export const float ENGINE_CORE_API PI = 3.14159265f;
 export const float ENGINE_CORE_API TO_RAD = PI / 180.0f;
 export const float ENGINE_CORE_API TO_DEG = 180.0f / PI;
@@ -606,30 +608,7 @@ export constexpr Vec2 Lerp(const Vec2 a, const Vec2 b, float t) noexcept
 
 export constexpr Vec2 operator*(float scalar, const Vec2 v) noexcept { return v * scalar; }
 
-template<>
-struct std::formatter<Vec2>
-{
-private:
-	mutable std::formatter<float> _floatFormatter;
 
-public:
-	constexpr auto parse(std::format_parse_context& ctx)
-	{
-		return _floatFormatter.parse(ctx);
-	}
-
-	auto format(Vec2 vec, std::format_context& ctx) const
-	{
-		auto out = ctx.out();
-		*out++ = '(';
-		out = _floatFormatter.format(vec.x, ctx);
-		*out++ = ';';
-		*out++ = ' ';
-		out = _floatFormatter.format(vec.y, ctx);
-		*out++ = ')';
-		return out;
-	}
-};
 
 constexpr Vec3::Vec3(const Vec2 other) : x{ other.x }, y{ other.y } {}
 
@@ -804,33 +783,6 @@ export constexpr Vec3 Lerp(const Vec3 a, const Vec3 b, float t) noexcept
 
 export constexpr Vec3 operator*(float scalar, const Vec3 v) noexcept { return v * scalar; }
 
-template<>
-struct std::formatter<Vec3>
-{
-private:
-	mutable std::formatter<float> _floatFormatter;
-
-public:
-	constexpr auto parse(std::format_parse_context& ctx)
-	{
-		return _floatFormatter.parse(ctx);
-	}
-
-	auto format(Vec3 vec, std::format_context& ctx) const
-	{
-		auto out = ctx.out();
-		*out++ = '(';
-		out = _floatFormatter.format(vec.x, ctx);
-		*out++ = ';';
-		*out++ = ' ';
-		out = _floatFormatter.format(vec.y, ctx);
-		*out++ = ';';
-		*out++ = ' ';
-		out = _floatFormatter.format(vec.z, ctx);
-		*out++ = ')';
-		return out;
-	}
-};
 
 constexpr Vec4::Vec4(const Vec3 vec3, float w_) : x{ vec3.x }, y{ vec3.y }, z{ vec3.z }, w{ w_ }
 {
@@ -992,36 +944,7 @@ export constexpr Vec4 Lerp(const Vec4 a, const Vec4 b, float t) noexcept
 
 export constexpr Vec4 operator*(float scalar, const Vec4 v) noexcept { return v * scalar; }
 
-template<>
-struct std::formatter<Vec4>
-{
-private:
-	mutable std::formatter<float> _floatFormatter;
 
-public:
-	constexpr auto parse(std::format_parse_context& ctx)
-	{
-		return _floatFormatter.parse(ctx);
-	}
-
-	auto format(Vec4 vec, std::format_context& ctx) const
-	{
-		auto out = ctx.out();
-		*out++ = '(';
-		out = _floatFormatter.format(vec.x, ctx);
-		*out++ = ';';
-		*out++ = ' ';
-		out = _floatFormatter.format(vec.y, ctx);
-		*out++ = ';';
-		*out++ = ' ';
-		out = _floatFormatter.format(vec.z, ctx);
-		*out++ = ';';
-		*out++ = ' ';
-		out = _floatFormatter.format(vec.w, ctx);
-		*out++ = ')';
-		return out;
-	}
-};
 
 Quaternion::Quaternion(const Mat3x3& matrix)
 {
@@ -1334,3 +1257,89 @@ constexpr Mat4x4 Mat4x4::FromQuaternion(float w, float x, float y, float z)
 
 	return result;
 }
+} // namespace Engine
+
+template<>
+struct std::formatter<Engine::Vec4>
+{
+private:
+	mutable std::formatter<float> _floatFormatter;
+
+public:
+	constexpr auto parse(std::format_parse_context& ctx)
+	{
+		return _floatFormatter.parse(ctx);
+	}
+
+	auto format(Engine::Vec4 vec, std::format_context& ctx) const
+	{
+		auto out = ctx.out();
+		*out++ = '(';
+		out = _floatFormatter.format(vec.x, ctx);
+		*out++ = ';';
+		*out++ = ' ';
+		out = _floatFormatter.format(vec.y, ctx);
+		*out++ = ';';
+		*out++ = ' ';
+		out = _floatFormatter.format(vec.z, ctx);
+		*out++ = ';';
+		*out++ = ' ';
+		out = _floatFormatter.format(vec.w, ctx);
+		*out++ = ')';
+		return out;
+	}
+};
+
+template<>
+struct std::formatter<Engine::Vec3>
+{
+private:
+	mutable std::formatter<float> _floatFormatter;
+
+public:
+	constexpr auto parse(std::format_parse_context& ctx)
+	{
+		return _floatFormatter.parse(ctx);
+	}
+
+	auto format(Engine::Vec3 vec, std::format_context& ctx) const
+	{
+		auto out = ctx.out();
+		*out++ = '(';
+		out = _floatFormatter.format(vec.x, ctx);
+		*out++ = ';';
+		*out++ = ' ';
+		out = _floatFormatter.format(vec.y, ctx);
+		*out++ = ';';
+		*out++ = ' ';
+		out = _floatFormatter.format(vec.z, ctx);
+		*out++ = ')';
+		return out;
+	}
+};
+
+
+template<>
+struct std::formatter<Engine::Vec2>
+{
+private:
+	mutable std::formatter<float> _floatFormatter;
+
+public:
+	constexpr auto parse(std::format_parse_context& ctx)
+	{
+		return _floatFormatter.parse(ctx);
+	}
+
+	auto format(Engine::Vec2 vec, std::format_context& ctx) const
+	{
+		auto out = ctx.out();
+		*out++ = '(';
+		out = _floatFormatter.format(vec.x, ctx);
+		*out++ = ';';
+		*out++ = ' ';
+		out = _floatFormatter.format(vec.y, ctx);
+		*out++ = ')';
+		return out;
+	}
+};
