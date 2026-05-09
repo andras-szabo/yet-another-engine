@@ -14,6 +14,7 @@ export import EngineError;
 export import Logger;
 export import Math;
 export import Transform;
+export import GUID;
 
 // Nothing exported yet — the module exists so the build graph is wired up
 // correctly from the start. Editor and game-template already import it.

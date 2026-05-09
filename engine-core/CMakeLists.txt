@@ -23,6 +23,7 @@ target_sources(engine-core
       src/Math.ixx
       src/Reflection.ixx
       src/Transform.ixx
+      src/GUID.ixx
 )
 
 # Any target that links engine-core also gets these include paths.

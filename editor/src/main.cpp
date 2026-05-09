@@ -97,5 +97,10 @@ int main()
     TestVec4();
     TestM3x3();
 
+    for (int i = 0; i < 5; ++i)
+    {
+        LOG_INFO("Creating a guid: {}", GUID{});
+    }
+
     return 0;
 }
