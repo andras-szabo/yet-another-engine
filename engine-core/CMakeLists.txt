@@ -17,14 +17,18 @@ target_sources(engine-core
   PUBLIC
     FILE_SET CXX_MODULES FILES
       src/Component.ixx
+      src/IComponentStorage.ixx
+      src/ComponentStorage.ixx
       src/EngineCore.ixx
       src/EngineError.ixx
+      src/EngineInstance.ixx
+      src/GameObject.ixx
+      src/GUID.ixx
       src/Logger.ixx
       src/Math.ixx
       src/Reflection.ixx
       src/Transform.ixx
-      src/GUID.ixx
-)
+     )
 
 # Any target that links engine-core also gets these include paths.
 # CMAKE_CURRENT_BINARY_DIR exposes the generated engine_core_api.h header.
