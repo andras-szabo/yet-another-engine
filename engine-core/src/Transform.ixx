@@ -1,16 +1,17 @@
 module;
 
 #include "engine_core_api.h"
+#include "ReflectionMacros.h"
 
 export module Transform;
 
+import Component;
 import Math;
+import Utility;
 
 namespace Engine
 {
-
-	export
-		class ENGINE_CORE_API Transform
+	export class ENGINE_CORE_API Transform : public Component
 	{
 		// TODO - incorporate this with transform hierarchies
 	public:
@@ -22,6 +23,8 @@ namespace Engine
 		void SetLocalRotation(const Quaternion& rotation);
 		void SetLocalScale(Vec3 scale);
 		void SetLocalTRS(Vec3 position, const Quaternion& rotation, Vec3 scale);
+
+		COMPONENT_ID(Transform)
 
 	private:
 		void RefreshLocalToWorld();

@@ -26,7 +26,10 @@ namespace Engine
 
 	protected:
 		Component* CreateComponentImpl(std::function<std::unique_ptr<Component>()> factory) override;
+#pragma warning(push)
+#pragma warning(disable: 4251)
 		std::vector<std::unique_ptr<Component>> _components;
+#pragma warning(pop)
 	};
 
 	Component* ComponentStorage::CreateComponentImpl(std::function<std::unique_ptr<Component>()> factory)

@@ -7,13 +7,13 @@ module;
 export module Component;
 
 import Reflection;
+import Utility;
 
 namespace Engine
 {
 	export class GameObject;
 
-	export
-		class ENGINE_CORE_API Component
+	export class ENGINE_CORE_API Component
 	{
 		friend class GameObject;
 
@@ -33,8 +33,12 @@ namespace Engine
 		bool IsEnabled() const { return _enabled; }
 		void SetEnabled(bool enabled) { _enabled = enabled; }
 
+		constexpr virtual unsigned int GetTypeID() const { return 0; }
+
 	private:
 		GameObject* _owner = nullptr;
 		bool _enabled = true;
 	};
+
 }
+

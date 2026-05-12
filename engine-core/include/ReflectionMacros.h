@@ -60,6 +60,16 @@ public:                                                                         
     std::span<const FieldDescriptor> GetReflectedFields() const override               \
     { return ClassName::GetFieldDescriptors(); }
 
+#define COMPONENT_ID(ClassName)                                                     \
+public:                                                                             \
+    static constexpr unsigned int StaticTypeID()                                    \
+    {                                                                               \
+        static const unsigned int id = DJBHash(#ClassName);                         \
+        return id;                                                                  \
+    }                                                                               \
+                                                                                    \
+    constexpr unsigned int GetTypeID() const override { return StaticTypeID(); }    \
+
 // REFLECTED_FIELDS(ClassName, ...) — use inside a ClassName.reflected.h file.
 // Defines GetFieldDescriptors() for ClassName with the supplied field list.
 // Each entry is a FieldDescriptor braced-initialiser:
@@ -78,3 +88,25 @@ public:                                                                         
     {                                                                                  \
         return {};                                                                     \
     }
+
+// REGISTER_COMPONENT(ClassName)
+// Registers the component type with an immediately invoked lambda
+
+//#define REGISTER_COMPONENT(ClassName)                                                   \
+//    inline static bool _registered_##ClassName = []() {                                 \
+//        const int hash = DJBHash(#ClassName);                                           \
+//        auto& registry = GetComponentFactoryRegistry();                                 \
+//        if (registry.find(hash) != registry.end()) {                                    \
+//            std::cerr << "Component " #ClassName " is already registered.\n";           \
+//            return false;                                                               \
+//        }                                                                               \
+//        else                                                                            \
+//        {                                                                               \
+//            std::cout << "Registering component " #ClassName ".\n";                     \
+//        }                                                                               \
+//        registry[hash] = []() -> std::unique_ptr<Component> {                           \
+//            return std::make_unique<ClassName>();                                       \
+//        };                                                                              \
+//        return true;                                                                    \
+//    }();                                                                                \
+

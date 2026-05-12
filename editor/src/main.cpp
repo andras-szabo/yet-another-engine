@@ -1,10 +1,12 @@
 #include <iostream>
 #include <string>
+#include <cassert>
 #include "LoggerMacros.h"
 
 // Import the engine-core module.
 // Once engine-core exports real symbols, they will be available here.
 import EngineCore;
+import EngineInstance;
 
 Engine::Expected<int> ShouldBeEven(int number)
 {
@@ -104,6 +106,19 @@ int main()
     {
         LOG_INFO("Creating a guid: {}", Engine::GUID{});
     }
+
+    Engine::Instance.Initialize(std::make_unique<Engine::ComponentStorage>());
+
+    Engine::GameObject g;
+    Engine::Transform* addedComponent = g.AddComponent<Engine::Transform>();
+    assert(addedComponent != nullptr && "Couldn't add transform");
+
+    LOG_INFO("Added trsf, and its value is {}", (std::size_t)addedComponent);
+
+    Engine::Transform* gotComponent = g.GetComponent<Engine::Transform>();
+    assert(addedComponent == gotComponent && "Couldn't get transform");
+
+    LOG_INFO("Yay we could get trsf, and its value is {}", (std::size_t) gotComponent);
 
     return 0;
 }
