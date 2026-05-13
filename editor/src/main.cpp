@@ -110,7 +110,13 @@ int main()
     Engine::Instance.Initialize(std::make_unique<Engine::ComponentStorage>());
 
     Engine::GameObject g;
-    Engine::Transform* addedComponent = g.AddComponent<Engine::Transform>();
+    assert(g.GetTransform() != nullptr && "GameObject created but has no transform.");
+    LOG_INFO("Default gameObject has transform, yay!");
+
+    // Try to add another transform; this should fail.
+    //g.AddComponent<Engine::Transform>();
+
+    /*Engine::Transform* addedComponent = g.AddComponent<Engine::Transform>();
     assert(addedComponent != nullptr && "Couldn't add transform");
 
     LOG_INFO("Added trsf, and its value is {}", (std::size_t)addedComponent);
@@ -118,7 +124,7 @@ int main()
     Engine::Transform* gotComponent = g.GetComponent<Engine::Transform>();
     assert(addedComponent == gotComponent && "Couldn't get transform");
 
-    LOG_INFO("Yay we could get trsf, and its value is {}", (std::size_t) gotComponent);
+    LOG_INFO("Yay we could get trsf, and its value is {}", (std::size_t) gotComponent);*/
 
     return 0;
 }

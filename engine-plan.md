@@ -56,9 +56,9 @@ Establish the repo layout, CMake configuration, and core utility infrastructure 
 - P1-02: Configure C++23 standard, compiler warnings, sanitizers, and Debug/Release build profiles
 - P1-03: Implement a Logger (severity levels: Trace/Debug/Info/Warn/Error; console + file sinks)
 - P1-04: Implement core utility types: result/error type, string helpers, file-system wrappers (std::filesystem)
-- P1-05: ✅ Implement math types: Vec2, Vec3, Vec4 (with arithmetic operators, dot, cross, normalize, lerp)
-- P1-06: ✅ Implement Mat4 (identity, multiply, transpose, inverse) and Quaternion (from euler, slerp, to-matrix)
-- P1-07: ⚠️ Implement Transform struct (position, rotation, scale → local matrix, world matrix from parent chain) — basic Transform done; hierarchy deferred to P2-05
+- P1-05: Implement math types: Vec2, Vec3, Vec4 (with arithmetic operators, dot, cross, normalize, lerp)
+- P1-06: Implement Mat4 (identity, multiply, transpose, inverse) and Quaternion (from euler, slerp, to-matrix)
+- P1-07: Implement Transform struct (position, rotation, scale → local matrix, world matrix from parent chain) — basic Transform done; hierarchy deferred to P2-05
 
 ---
 
@@ -66,7 +66,7 @@ Establish the repo layout, CMake configuration, and core utility infrastructure 
 
 The runtime object model at the heart of the engine.
 
-- P2-01: ✅ Define Component base class: lifecycle hooks (OnCreate, OnUpdate, OnDestroy), owner pointer, enabled flag
+- P2-01: Define Component base class: lifecycle hooks (OnCreate, OnUpdate, OnDestroy), owner pointer, enabled flag
 - P2-02: Define field registration macros (REGISTER_FIELD, REGISTER_COMPONENT) and FieldDescriptor type
 - P2-03: Define GameObject class: name, GUID, component map, parent/child pointers, AddComponent / GetComponent
 - P2-04: Implement Transform as a built-in Component; link it as a mandatory component on every GameObject
