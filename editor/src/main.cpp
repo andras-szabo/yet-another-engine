@@ -113,6 +113,38 @@ int main()
     assert(g.GetTransform() != nullptr && "GameObject created but has no transform.");
     LOG_INFO("Default gameObject has transform, yay!");
 
+    // OK let's try to create a scene, then try to add a node...
+    Engine::Scene::Scene scene("FooScene");
+    LOG_INFO(scene.GetName());
+
+    int newNodeIndex = scene.AddNode(Engine::Mat4x4::Identity(), scene.GetRootIndex(), "FirstChild");
+    LOG_INFO(scene.GetNodeName(newNodeIndex));
+
+    // Add some nodes to the root
+    for (int i = 0; i < 3; ++i)
+    {
+        scene.AddNode(Engine::Mat4x4::Identity(), scene.GetRootIndex(), std::format("child_{}", i));
+    }
+
+    // Add a nested hierarchy to the first child
+    int parentIndex = newNodeIndex;
+    for (int i = 0; i < 3; ++i)
+    {
+        const std::string name = std::format("nested_child_{}", i);
+        parentIndex = scene.AddNode(Engine::Mat4x4::Identity(), parentIndex, name);
+    }
+
+    // Let's walk the scene so far, using a lambda.
+    auto logNodes = [&](int currentIndex) {
+        LOG_INFO("Index: {}, name: {}", currentIndex, scene.GetNodeName(currentIndex));
+    };
+
+    LOG_INFO("Depth-first walk");
+    scene.WalkDepthFirst(0, logNodes);
+
+    LOG_INFO("Breadth-first walk");
+    scene.WalkBreadthFirst(0, logNodes);
+
     // Try to add another transform; this should fail.
     //g.AddComponent<Engine::Transform>();
 

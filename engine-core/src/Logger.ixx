@@ -26,6 +26,19 @@ namespace Engine
 		Error = 4
 	};
 
+	export constexpr std::string_view LevelToString(LogLevel level) noexcept
+	{
+		switch (level)
+		{
+		case LogLevel::Trace:	return "Trace";
+		case LogLevel::Debug:	return "Debug";
+		case LogLevel::Info:	return "Info";
+		case LogLevel::Warning:	return "Warning";
+		case LogLevel::Error:	return "Error";
+		default:				return "Unknown";
+		}
+	}
+
 	namespace ConsoleColor {
 		constexpr const char* Reset = "\033[0m";
 		constexpr const char* Red = "\033[91m";
@@ -113,10 +126,17 @@ struct std::formatter<Engine::LogLevel> : std::formatter<std::string_view>
 
 namespace Engine
 {
-	// Adding extern before the Log<> template so the compiler sees the
-	// declaration before the template body references it.
-	// Type is complete here (LogManager is fully defined above).
 	extern ENGINE_CORE_API LogManager GlobalLoggerInstance;
+
+	// Non-template helper: builds the header and dispatches to GlobalLoggerInstance.
+	// Defined here (in the Logger module) so std::format with LogLevel is always
+	// evaluated in a context where <format> is included and std::formatter<LogLevel>
+	// is fully visible — avoiding consteval failures when Log<> is instantiated
+	// from other named modules.
+	export ENGINE_CORE_API void DoLog(LogLevel level,
+		std::string_view file,
+		unsigned int line,
+		std::string_view formattedMsg);
 
 	// Class template argument deduction (CTAD) guide; a hint to the compiler
 	// that says: when someone constructs a Log with these arg types, deduce
@@ -139,19 +159,20 @@ namespace Engine
 		{
 			if (GlobalLoggerInstance.minLogLevel <= level)
 			{
-				auto header = std::format("{}:{} [{}] ",
-					loc.file_name(),
-					loc.line(),
-					level);
-
 				auto formattedMsg = std::vformat(msg, std::make_format_args(args...));
-				GlobalLoggerInstance.LogMethod(level, header, formattedMsg);
+				DoLog(level, loc.file_name(), loc.line(), formattedMsg);
 			}
 		}
 	};
 
 	template<typename... Args>
 	Log(LogLevel, std::string_view, Args&&...) -> Log<Args...>;
+
+	void DoLog(LogLevel level, std::string_view file, unsigned int line, std::string_view formattedMsg)
+	{
+		auto header = std::format("{}:{} [{}] ", file, line, level);
+		GlobalLoggerInstance.LogMethod(level, header, formattedMsg);
+	}
 
 	void LogManager::LogMethod(LogLevel logLevel, std::string_view header, std::string_view msg)
 	{
