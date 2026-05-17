@@ -45,6 +45,7 @@ namespace Engine
 			constexpr std::string_view GetNodeName(std::size_t nodeIndex) const;
 			int AddNode(const Mat4x4& localTransform, int parent, const std::string& name);
 
+			void UpdateWorldTransforms(Scene& scene);
 			void WalkDepthFirst(Scene& scene, std::size_t startingNode, std::function<void(Scene&, std::size_t)> op);
 			void WalkBreadthFirst(Scene& scene, std::size_t startingNode, std::function<void(Scene&, std::size_t)> op);
 
@@ -82,6 +83,7 @@ namespace Engine
 			constexpr int GetRootIndex() const;
 			constexpr std::string_view GetNodeName(std::size_t index) const;
 
+			void UpdateWorldTransforms();
 			void WalkDepthFirst(std::size_t startingNode, std::function<void(Scene&, std::size_t)> op);
 			void WalkBreadthFirst(std::size_t startingNode, std::function<void(Scene&, std::size_t)> op);
 
@@ -148,6 +150,12 @@ namespace Engine
 			_impl->WalkBreadthFirst(*this, startingNode, op);
 		}
 
+		void Scene::UpdateWorldTransforms()
+		{
+			assert(_impl != nullptr && "Invalid scene; possibly moved-from");
+			_impl->UpdateWorldTransforms(*this);
+		}
+
 		constexpr std::string_view Scene::GetName() const 
 		{ 
 			return GetNodeName(0); 
@@ -172,6 +180,19 @@ namespace Engine
 			_globalTransforms.push_back(Mat4x4::Identity());
 			_localTransforms.push_back(Mat4x4::Identity());
 			_nodeNames.push_back(std::string(name));
+		}
+
+		void SceneImpl::UpdateWorldTransforms(Scene& scene)
+		{
+			WalkDepthFirst(scene, 0, [&](Scene& scene, std::size_t nodeIndex)
+				{
+					if (_hierarchy[nodeIndex].isDirty)
+					{
+						const auto parent = _hierarchy[nodeIndex].parent;
+						_globalTransforms[nodeIndex] = _globalTransforms[parent] * _localTransforms[nodeIndex];
+						_hierarchy[nodeIndex].isDirty = false;
+					}
+				});
 		}
 
 		constexpr std::string_view SceneImpl::GetNodeName(std::size_t nodeIndex) const
