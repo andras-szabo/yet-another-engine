@@ -132,16 +132,19 @@ namespace Engine
 
 		constexpr std::string_view Scene::GetNodeName(std::size_t nodeIndex) const 
 		{ 
+			assert(_impl != nullptr && "Invalid scene; possibly moved-from");
 			return _impl->GetNodeName(nodeIndex); 
 		}
 
 		void Scene::WalkDepthFirst(std::size_t startingNode, std::function<void(Scene&, std::size_t)> op)
 		{
+			assert(_impl != nullptr && "Invalid scene; possibly moved-from");
 			_impl->WalkDepthFirst(*this, startingNode, op);
 		}
 
 		void Scene::WalkBreadthFirst(std::size_t startingNode, std::function<void(Scene&, std::size_t)> op)
 		{
+			assert(_impl != nullptr && "Invalid scene; possibly moved-from");
 			_impl->WalkBreadthFirst(*this, startingNode, op);
 		}
 
@@ -152,6 +155,7 @@ namespace Engine
 
 		int Scene::AddNode(const Mat4x4& localTransform, int parent, const std::string& name)
 		{
+			assert(_impl != nullptr && "Invalid scene; possibly moved-from");
 			return _impl->AddNode(localTransform, parent, name);
 		}
 
@@ -175,7 +179,6 @@ namespace Engine
 			assert(!_nodeNames.empty() && "Uninitialized scene!");
 			return _nodeNames[nodeIndex];
 		}
-
 
 		int SceneImpl::AddNode(const Mat4x4& localTransform, int parent, const std::string& name)
 		{
