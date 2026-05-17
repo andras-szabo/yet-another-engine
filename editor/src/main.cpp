@@ -145,6 +145,10 @@ int main()
     LOG_INFO("Breadth-first walk");
     scene.WalkBreadthFirst(0, logNodes);
 
+    scene.UpdateWorldTransforms();
+
+    LOG_INFO("World transforms updated");
+
     // Try to add another transform; this should fail.
     //g.AddComponent<Engine::Transform>();
 

@@ -42,7 +42,7 @@ namespace Engine
 		public:
 			SceneImpl(std::string_view name, std::size_t expectedNodeCount = 1024);
 
-			constexpr std::string_view GetNodeName(std::size_t nodeIndex) const;
+			std::string_view GetNodeName(std::size_t nodeIndex) const;
 			int AddNode(const Mat4x4& localTransform, int parent, const std::string& name);
 
 			void UpdateWorldTransforms(Scene& scene);
@@ -54,12 +54,11 @@ namespace Engine
 			std::vector<Hierarchy> _hierarchy;
 			std::vector<Mat4x4> _globalTransforms;
 			std::vector<Mat4x4> _localTransforms;
-
 			std::vector<std::string> _nodeNames;
 
-			std::deque<int> _walkHelperQueueContainer;
+			std::deque<int> _walkHelperQueue;
 
-			void WalkBFSImpl(Scene& scene, std::queue<int, std::deque<int>>& nodesToVisit, std::function<void(Scene&, std::size_t)> op);
+			void WalkBFSImpl(Scene& scene, std::function<void(Scene&, std::size_t)> op);
 		};
 
 		export class ENGINE_CORE_API Scene
@@ -79,9 +78,9 @@ namespace Engine
 			Scene(std::string_view name, std::size_t expectedNodeCount = 1024);
 			int AddNode(const Mat4x4& localTransform, int parent, const std::string& name);
 
-			constexpr std::string_view GetName() const;
-			constexpr int GetRootIndex() const;
-			constexpr std::string_view GetNodeName(std::size_t index) const;
+			std::string_view GetName() const;
+			int GetRootIndex() const;
+			std::string_view GetNodeName(std::size_t index) const;
 
 			void UpdateWorldTransforms();
 			void WalkDepthFirst(std::size_t startingNode, std::function<void(Scene&, std::size_t)> op);
@@ -115,6 +114,7 @@ namespace Engine
 		{
 			if (_impl != other._impl)
 			{
+				delete _impl;
 				_impl = other._impl;
 				other._impl = nullptr;
 			}
@@ -127,12 +127,12 @@ namespace Engine
 		{
 		}
 
-		constexpr int Scene::GetRootIndex() const 
+		int Scene::GetRootIndex() const 
 		{ 
 			return 0; 
 		}
 
-		constexpr std::string_view Scene::GetNodeName(std::size_t nodeIndex) const 
+		std::string_view Scene::GetNodeName(std::size_t nodeIndex) const 
 		{ 
 			assert(_impl != nullptr && "Invalid scene; possibly moved-from");
 			return _impl->GetNodeName(nodeIndex); 
@@ -156,7 +156,7 @@ namespace Engine
 			_impl->UpdateWorldTransforms(*this);
 		}
 
-		constexpr std::string_view Scene::GetName() const 
+		std::string_view Scene::GetName() const 
 		{ 
 			return GetNodeName(0); 
 		}
@@ -189,13 +189,20 @@ namespace Engine
 					if (_hierarchy[nodeIndex].isDirty)
 					{
 						const auto parent = _hierarchy[nodeIndex].parent;
-						_globalTransforms[nodeIndex] = _globalTransforms[parent] * _localTransforms[nodeIndex];
+						if (parent == -1)
+						{
+							_globalTransforms[nodeIndex] = _localTransforms[nodeIndex];
+						}
+						else
+						{
+							_globalTransforms[nodeIndex] = _globalTransforms[parent] * _localTransforms[nodeIndex];
+						}
 						_hierarchy[nodeIndex].isDirty = false;
 					}
 				});
 		}
 
-		constexpr std::string_view SceneImpl::GetNodeName(std::size_t nodeIndex) const
+		std::string_view SceneImpl::GetNodeName(std::size_t nodeIndex) const
 		{
 			assert(!_nodeNames.empty() && "Uninitialized scene!");
 			return _nodeNames[nodeIndex];
@@ -237,8 +244,6 @@ namespace Engine
 				_hierarchy[nextNodeToCheck].firstSibling = newNodeIndex;
 			}
 
-			Mat4x4 globalTransform = _globalTransforms[parent] * localTransform;
-
 			_nodes.push_back(Node{});
 			_hierarchy.push_back(Hierarchy{ parent, parentDepth + 1 });
 			_globalTransforms.push_back(_globalTransforms[parent] * localTransform);
@@ -267,26 +272,25 @@ namespace Engine
 
 		void SceneImpl::WalkBreadthFirst(Scene& scene, std::size_t startingNode, std::function<void(Scene& scene, std::size_t currentNodeIndex)> op)
 		{
-			_walkHelperQueueContainer.clear();
-			std::queue<int, std::deque<int>> nodesToVisit{ _walkHelperQueueContainer };
-			nodesToVisit.push(static_cast<int>(startingNode));
+			_walkHelperQueue.clear();
+			_walkHelperQueue.push_back(static_cast<int>(startingNode));
 
-			WalkBFSImpl(scene, nodesToVisit, op);
+			WalkBFSImpl(scene, op);
 		}
 
-		void SceneImpl::WalkBFSImpl(Scene& scene, std::queue<int, std::deque<int>>& nodesToVisit, std::function<void(Scene& scene, std::size_t currentNodeIndex)> op)
+		void SceneImpl::WalkBFSImpl(Scene& scene, std::function<void(Scene& scene, std::size_t currentNodeIndex)> op)
 		{
-			while (!nodesToVisit.empty())
+			while (!_walkHelperQueue.empty())
 			{
-				const auto nextNode = nodesToVisit.front();
-				nodesToVisit.pop();
+				const auto nextNode = _walkHelperQueue.front();
+				_walkHelperQueue.pop_front();
 
 				op(scene, nextNode);
 
 				const auto& node = _hierarchy[nextNode];
 				if (node.firstChild != -1)
 				{
-					nodesToVisit.push(node.firstChild);
+					_walkHelperQueue.push_back(node.firstChild);
 				}
 
 				auto nextSibling = node.firstSibling;
@@ -297,7 +301,7 @@ namespace Engine
 					const auto siblingsFirstChild = _hierarchy[nextSibling].firstChild;
 					if (siblingsFirstChild != -1)
 					{
-						nodesToVisit.push(siblingsFirstChild);
+						_walkHelperQueue.push_back(siblingsFirstChild);
 					}
 
 					nextSibling = _hierarchy[nextSibling].firstSibling;
