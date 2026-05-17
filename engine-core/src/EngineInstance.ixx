@@ -8,6 +8,7 @@ module;
 export module EngineInstance;
 
 import IComponentStorage;
+import Scene;
 
 namespace Engine
 {
@@ -23,12 +24,15 @@ namespace Engine
 		void Shutdown();
 
 		IComponentStorage& GetComponentStorage();
+		Scene::Scene& GetActiveScene();
 
 	private:
 #pragma warning(push)
 #pragma warning(disable: 4251)
 		std::unique_ptr<IComponentStorage> _componentStorage;
 #pragma warning(pop)
+
+		Scene::Scene _activeScene;
 	};
 
 	export ENGINE_CORE_API EngineInstance Instance;
@@ -37,6 +41,11 @@ namespace Engine
 	{
 		assert(_componentStorage != nullptr && "Component storage null; engine instance not initialized?");
 		return *_componentStorage;
+	}
+
+	Scene::Scene& EngineInstance::GetActiveScene()
+	{
+		return _activeScene;
 	}
 
 	void EngineInstance::Initialize(std::unique_ptr<IComponentStorage> componentStorage)

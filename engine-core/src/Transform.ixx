@@ -1,19 +1,23 @@
 module;
 
+#include <cassert>
+#include <string>
+
 #include "engine_core_api.h"
 #include "ReflectionMacros.h"
 
 export module Transform;
 
 import Component;
+import EngineInstance;
 import Math;
+import Scene;
 import Utility;
 
 namespace Engine
 {
 	export class ENGINE_CORE_API Transform : public Component
 	{
-		// TODO - incorporate this with transform hierarchies
 	public:
 		Vec3 GetLocalPosition() const;
 		Quaternion GetLocalRotation() const;
@@ -24,22 +28,39 @@ namespace Engine
 		void SetLocalScale(Vec3 scale);
 		void SetLocalTRS(Vec3 position, const Quaternion& rotation, Vec3 scale);
 
+		void OnSceneNodeIndexChanged(int newIndex) override;
+
+		void AddToScene(Engine::Scene::Scene& scene, const std::string& nodeName);
+
+		int GetSceneNodeIndex() const { return _sceneNodeIndex; }
+
 		COMPONENT_ID(Transform)
 
 	private:
+		Mat4x4 CreateLocalToWorld() const;
 		void RefreshLocalToWorld();
 
-		Mat4x4 _localToWorld{ Mat4x4::Identity() };
+		int _sceneNodeIndex{ -1 };
 
 		Vec3 _localPosition;
 		Quaternion _localRotation{ Quaternion::Identity() };
 		Vec3 _localScale{ Vec3(1.0f, 1.0f, 1.0f) };
 	};
 
+	void Transform::AddToScene(Engine::Scene::Scene& scene, const std::string& nodeName)
+	{
+		assert(_sceneNodeIndex == -1 && "Trying to add transform to multiple scenes!");
+		_sceneNodeIndex = scene.AddNode(CreateLocalToWorld(), scene.GetRootIndex(), nodeName, this);
+	}
+
+	void Transform::OnSceneNodeIndexChanged(int newIndex)
+	{
+		_sceneNodeIndex = newIndex;
+	}
+
 	Vec3 Transform::GetLocalPosition() const
 	{
-		const auto& m = _localToWorld.m;
-		return Vec3(m[3], m[7], m[11]);
+		return _localPosition;
 	}
 
 	Quaternion Transform::GetLocalRotation() const
@@ -64,12 +85,7 @@ namespace Engine
 	void Transform::SetLocalPosition(Vec3 position)
 	{
 		_localPosition = position;
-
-		auto& m = _localToWorld.m;
-
-		m[3] = position.x;
-		m[7] = position.y;
-		m[11] = position.z;
+		RefreshLocalToWorld();
 	}
 
 	void Transform::SetLocalRotation(const Quaternion& rotation)
@@ -84,7 +100,7 @@ namespace Engine
 		RefreshLocalToWorld();
 	}
 
-	void Transform::RefreshLocalToWorld()
+	Mat4x4 Transform::CreateLocalToWorld() const
 	{
 		const auto scale = Mat4x4::Scale(_localScale);
 		const auto rotation = Mat4x4::FromQuaternion(_localRotation.w,
@@ -92,12 +108,19 @@ namespace Engine
 			_localRotation.y,
 			_localRotation.z);
 
-		_localToWorld = rotation * scale;
-		auto& m = _localToWorld.m;
+		Mat4x4 localToWorld = rotation * scale;
+		auto& m = localToWorld.m;
 
 		m[3] = _localPosition.x;
 		m[7] = _localPosition.y;
 		m[11] = _localPosition.z;
 		m[15] = 1.0f;
+
+		return localToWorld;
+	}
+
+	void Transform::RefreshLocalToWorld()
+	{
+		Instance.GetActiveScene().SetLocalTransform(_sceneNodeIndex, CreateLocalToWorld());
 	}
 }

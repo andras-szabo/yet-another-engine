@@ -35,6 +35,8 @@ namespace Engine
 	Component* ComponentStorage::CreateComponentImpl(std::function<std::unique_ptr<Component>()> factory)
 	{	
 		auto& newComponent = _components.emplace_back(factory());
-		return newComponent.get();
+		Component* rawPtr = newComponent.get();
+		rawPtr->OnCreate();
+		return rawPtr;
 	}
 } // namespace Engine

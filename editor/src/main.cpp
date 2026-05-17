@@ -113,6 +113,14 @@ int main()
     assert(g.GetTransform() != nullptr && "GameObject created but has no transform.");
     LOG_INFO("Default gameObject has transform, yay!");
 
+    LOG_INFO("Active scene: {}", Engine::Instance.GetActiveScene().GetName());
+    // Let's walk through it...
+    auto logNodes = [](Engine::Scene::Scene& scene, std::size_t currentIndex) {
+        LOG_INFO("Index: {}, name: {}", currentIndex, scene.GetNodeName(currentIndex));
+        };
+
+    Engine::Instance.GetActiveScene().WalkBreadthFirst(0, logNodes);
+
     // OK let's try to create a scene, then try to add a node...
     Engine::Scene::Scene scene("FooScene");
     LOG_INFO(scene.GetName());
@@ -134,10 +142,6 @@ int main()
         parentIndex = scene.AddNode(Engine::Mat4x4::Identity(), parentIndex, name);
     }
 
-    // Let's walk the scene so far, using a lambda.
-    auto logNodes = [](Engine::Scene::Scene& scene, std::size_t currentIndex) {
-        LOG_INFO("Index: {}, name: {}", currentIndex, scene.GetNodeName(currentIndex));
-    };
 
     LOG_INFO("Depth-first walk");
     scene.WalkDepthFirst(0, logNodes);

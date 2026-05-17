@@ -48,9 +48,10 @@ namespace Engine
 
 	};
 
-	GameObject::GameObject()
+	GameObject::GameObject() : _name { "GameObject" }
 	{
 		_transform = AddComponent<Engine::Transform>();
+		_transform->AddToScene(Instance.GetActiveScene(), _name);
 	}
 
 	Engine::Transform* GameObject::GetTransform()
