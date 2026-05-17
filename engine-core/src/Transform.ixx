@@ -10,8 +10,8 @@ export module Transform;
 
 import Component;
 import EngineInstance;
+import IScene;
 import Math;
-import Scene;
 import Utility;
 
 namespace Engine
@@ -30,7 +30,7 @@ namespace Engine
 
 		void OnSceneNodeIndexChanged(int newIndex) override;
 
-		void AddToScene(Engine::Scene::Scene& scene, const std::string& nodeName);
+		void AddToScene(Engine::IScene& scene, const std::string& nodeName);
 
 		int GetSceneNodeIndex() const { return _sceneNodeIndex; }
 
@@ -47,10 +47,10 @@ namespace Engine
 		Vec3 _localScale{ Vec3(1.0f, 1.0f, 1.0f) };
 	};
 
-	void Transform::AddToScene(Engine::Scene::Scene& scene, const std::string& nodeName)
+	void Transform::AddToScene(Engine::IScene& scene, const std::string& nodeName)
 	{
 		assert(_sceneNodeIndex == -1 && "Trying to add transform to multiple scenes!");
-		_sceneNodeIndex = scene.AddNode(CreateLocalToWorld(), scene.GetRootIndex(), nodeName, this);
+		_sceneNodeIndex = scene.AddNode(CreateLocalToWorld(), 0, nodeName, this);
 	}
 
 	void Transform::OnSceneNodeIndexChanged(int newIndex)

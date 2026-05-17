@@ -8,7 +8,7 @@ module;
 export module EngineInstance;
 
 import IComponentStorage;
-import Scene;
+import IScene;
 
 namespace Engine
 {
@@ -20,11 +20,14 @@ namespace Engine
 		EngineInstance(const EngineInstance& other) = delete;
 		EngineInstance& operator=(const EngineInstance& other) = delete;
 
-		void Initialize(std::unique_ptr<IComponentStorage> componentStorage);
+		//TODO - scene ownership
+		void Initialize(IScene* activeScene,
+			std::unique_ptr<IComponentStorage> componentStorage);
+
 		void Shutdown();
 
 		IComponentStorage& GetComponentStorage();
-		Scene::Scene& GetActiveScene();
+		IScene& GetActiveScene();
 
 	private:
 #pragma warning(push)
@@ -32,7 +35,7 @@ namespace Engine
 		std::unique_ptr<IComponentStorage> _componentStorage;
 #pragma warning(pop)
 
-		Scene::Scene _activeScene;
+		IScene* _activeScene;
 	};
 
 	export ENGINE_CORE_API EngineInstance Instance;
@@ -43,13 +46,15 @@ namespace Engine
 		return *_componentStorage;
 	}
 
-	Scene::Scene& EngineInstance::GetActiveScene()
+	IScene& EngineInstance::GetActiveScene()
 	{
-		return _activeScene;
+		return *_activeScene;
 	}
 
-	void EngineInstance::Initialize(std::unique_ptr<IComponentStorage> componentStorage)
+	void EngineInstance::Initialize(IScene* activeScene,
+		std::unique_ptr<IComponentStorage> componentStorage)
 	{
+		_activeScene = activeScene;
 		_componentStorage = std::move(componentStorage);
 	}
 

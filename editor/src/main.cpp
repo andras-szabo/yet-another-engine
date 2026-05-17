@@ -107,7 +107,10 @@ int main()
         LOG_INFO("Creating a guid: {}", Engine::GUID{});
     }
 
-    Engine::Instance.Initialize(std::make_unique<Engine::ComponentStorage>());
+    Engine::Scene::Scene thisShouldBeOwnedByTheInstance;
+
+    Engine::Instance.Initialize(&thisShouldBeOwnedByTheInstance,
+        std::make_unique<Engine::ComponentStorage>());
 
     Engine::GameObject g;
     assert(g.GetTransform() != nullptr && "GameObject created but has no transform.");
@@ -115,7 +118,7 @@ int main()
 
     LOG_INFO("Active scene: {}", Engine::Instance.GetActiveScene().GetName());
     // Let's walk through it...
-    auto logNodes = [](Engine::Scene::Scene& scene, std::size_t currentIndex) {
+    auto logNodes = [](Engine::IScene& scene, std::size_t currentIndex) {
         LOG_INFO("Index: {}, name: {}", currentIndex, scene.GetNodeName(currentIndex));
         };
 

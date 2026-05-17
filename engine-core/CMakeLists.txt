@@ -27,6 +27,7 @@ target_sources(engine-core
       src/Logger.ixx
       src/Math.ixx
       src/Reflection.ixx
+      src/IScene.ixx
       src/Scene.ixx
       src/Transform.ixx
       src/Utility.ixx

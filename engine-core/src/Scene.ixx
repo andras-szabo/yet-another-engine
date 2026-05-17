@@ -4,6 +4,7 @@ module;
 #include <functional>
 #include <string>
 #include <queue>
+#include <type_traits>
 #include <vector>
 
 #include "engine_core_api.h"
@@ -12,8 +13,10 @@ module;
 export module Scene;
 
 import Component;
+import IScene;
 import Logger;
 import Math;
+import Transform;
 
 namespace Engine
 {
@@ -44,11 +47,10 @@ namespace Engine
 			SceneImpl(std::string_view name, std::size_t expectedNodeCount = 1024);
 
 			std::string_view GetNodeName(std::size_t nodeIndex) const;
-			int AddNode(const Mat4x4& localTransform, int parent, const std::string& name, Component* transformComponent = nullptr);
+			int AddNode(const Mat4x4& localTransform, int parent, const std::string& name, Transform* transformComponent = nullptr);
 
 			void SetLocalTransform(int nodeIndex, const Mat4x4& localTransform);
 			const Mat4x4& GetLocalTransform(int nodeIndex) const;
-			void RegisterComponent(int nodeIndex, Component* component);
 			void UpdateNodeIndex(int oldIndex, int newIndex);
 			void SetParent(int nodeIndex, int newParentIndex);
 
@@ -62,7 +64,7 @@ namespace Engine
 			std::vector<Mat4x4> _globalTransforms;
 			std::vector<Mat4x4> _localTransforms;
 			std::vector<std::string> _nodeNames;
-			std::vector<Component*> _nodeComponents;	// parallel vector: component associated with node i (or nullptr)
+			std::vector<Transform*> _nodeTransformComponents;	// parallel vector: component associated with node i (or nullptr)
 
 			std::deque<int> _walkHelperQueue;
 
@@ -70,7 +72,7 @@ namespace Engine
 			void UpdateDepthsBelow(int nodeIndex, int newDepth);
 		};
 
-		export class ENGINE_CORE_API Scene
+		export class ENGINE_CORE_API Scene : public IScene
 		{
 		public:
 			friend class SceneImpl;
@@ -87,21 +89,28 @@ namespace Engine
 			Scene& operator=(Scene&& other);
 
 			Scene(std::string_view name, std::size_t expectedNodeCount = 1024);
-			int AddNode(const Mat4x4& localTransform, int parent, const std::string& name, Component* transformComponent = nullptr);
 
-			std::string_view GetName() const;
+			// IScene interface
+			int AddNode(const Mat4x4& localTransform, 
+				int parent, 
+				const std::string& name, 
+				Component* transformComponent = nullptr) override;
+
+			void SetLocalTransform(int nodeIndex,
+				const Mat4x4& localTransform) override;
+			//-------------------------------------------------------------------
+
+			std::string_view GetName() const override;
 			int GetRootIndex() const;
 			std::string_view GetNodeName(std::size_t index) const;
 
-			void SetLocalTransform(int nodeIndex, const Mat4x4& localTransform);
 			const Mat4x4& GetLocalTransform(int nodeIndex) const;
-			void RegisterComponent(int nodeIndex, Component* component);
 			void UpdateNodeIndex(int oldIndex, int newIndex);
 			void SetParent(int nodeIndex, int newParentIndex);
 
 			void UpdateWorldTransforms();
-			void WalkDepthFirst(std::size_t startingNode, std::function<void(Scene&, std::size_t)> op);
-			void WalkBreadthFirst(std::size_t startingNode, std::function<void(Scene&, std::size_t)> op);
+			void WalkDepthFirst(std::size_t startingNode, std::function<void(IScene&, std::size_t)> op) override;
+			void WalkBreadthFirst(std::size_t startingNode, std::function<void(IScene&, std::size_t)> op) override;
 
 		private:
 			// Not using a std::unique_ptr here to work around warning related to private std::unique_ptr
@@ -155,13 +164,13 @@ namespace Engine
 			return _impl->GetNodeName(nodeIndex); 
 		}
 
-		void Scene::WalkDepthFirst(std::size_t startingNode, std::function<void(Scene&, std::size_t)> op)
+		void Scene::WalkDepthFirst(std::size_t startingNode, std::function<void(IScene&, std::size_t)> op)
 		{
 			assert(_impl != nullptr && "Invalid scene; possibly moved-from");
 			_impl->WalkDepthFirst(*this, startingNode, op);
 		}
 
-		void Scene::WalkBreadthFirst(std::size_t startingNode, std::function<void(Scene&, std::size_t)> op)
+		void Scene::WalkBreadthFirst(std::size_t startingNode, std::function<void(IScene&, std::size_t)> op)
 		{
 			assert(_impl != nullptr && "Invalid scene; possibly moved-from");
 			_impl->WalkBreadthFirst(*this, startingNode, op);
@@ -181,7 +190,9 @@ namespace Engine
 		int Scene::AddNode(const Mat4x4& localTransform, int parent, const std::string& name, Component* transformComponent)
 		{
 			assert(_impl != nullptr && "Invalid scene; possibly moved-from");
-			return _impl->AddNode(localTransform, parent, name, transformComponent);
+			assert((transformComponent == nullptr || dynamic_cast<Transform*>(transformComponent)) && "Expected transform component");
+
+			return _impl->AddNode(localTransform, parent, name, static_cast<Transform*>(transformComponent));
 		}
 
 		void Scene::SetLocalTransform(int nodeIndex, const Mat4x4& localTransform)
@@ -194,12 +205,6 @@ namespace Engine
 		{
 			assert(_impl != nullptr && "Invalid scene; possibly moved-from");
 			return _impl->GetLocalTransform(nodeIndex);
-		}
-
-		void Scene::RegisterComponent(int nodeIndex, Component* component)
-		{
-			assert(_impl != nullptr && "Invalid scene; possibly moved-from");
-			_impl->RegisterComponent(nodeIndex, component);
 		}
 
 		void Scene::UpdateNodeIndex(int oldIndex, int newIndex)
@@ -221,7 +226,7 @@ namespace Engine
 			_globalTransforms.reserve(expectedNodeCount);
 			_localTransforms.reserve(expectedNodeCount);
 			_nodeNames.reserve(expectedNodeCount);
-			_nodeComponents.reserve(expectedNodeCount);
+			_nodeTransformComponents.reserve(expectedNodeCount);
 
 			// Create the scene root
 			_nodes.push_back(Node{});
@@ -229,7 +234,7 @@ namespace Engine
 			_globalTransforms.push_back(Mat4x4::Identity());
 			_localTransforms.push_back(Mat4x4::Identity());
 			_nodeNames.push_back(std::string(name));
-			_nodeComponents.push_back(nullptr);
+			_nodeTransformComponents.push_back(nullptr);
 		}
 
 		void SceneImpl::UpdateWorldTransforms(Scene& scene)
@@ -259,7 +264,7 @@ namespace Engine
 			return _nodeNames[nodeIndex];
 		}
 
-		int SceneImpl::AddNode(const Mat4x4& localTransform, int parent, const std::string& name, Component* transformComponent)
+		int SceneImpl::AddNode(const Mat4x4& localTransform, int parent, const std::string& name, Transform* transformComponent)
 		{
 			assert(0 <= parent && parent < (int)_nodes.size() && "Specified parent invalid; it should be a non-negative scene node index. (0 = scene root)");
 
@@ -269,7 +274,7 @@ namespace Engine
 				newNodeIndex == (int)_globalTransforms.size() &&
 				newNodeIndex == (int)_localTransforms.size() &&
 				newNodeIndex == (int)_nodeNames.size() &&
-				newNodeIndex == (int)_nodeComponents.size() && "Scene graph vectors out of sync!");
+				newNodeIndex == (int)_nodeTransformComponents.size() && "Scene graph vectors out of sync!");
 
 			// Actually, before pushing back, let's calculate all the things.
 			// 1.) Find the parent.
@@ -301,7 +306,7 @@ namespace Engine
 			_globalTransforms.push_back(_globalTransforms[parent] * localTransform);
 			_localTransforms.push_back(localTransform);
 			_nodeNames.push_back(name);
-			_nodeComponents.push_back(transformComponent);
+			_nodeTransformComponents.push_back(transformComponent);
 
 			return newNodeIndex;
 		};
@@ -375,24 +380,18 @@ namespace Engine
 			return _localTransforms[nodeIndex];
 		}
 
-		void SceneImpl::RegisterComponent(int nodeIndex, Component* component)
-		{
-			assert(nodeIndex >= 0 && nodeIndex < (int)_nodeComponents.size() && "Node index out of range");
-			_nodeComponents[nodeIndex] = component;
-		}
-
 		void SceneImpl::UpdateNodeIndex(int oldIndex, int newIndex)
 		{
-			assert(oldIndex >= 0 && oldIndex < (int)_nodeComponents.size() && "Old node index out of range");
-			assert(newIndex >= 0 && newIndex < (int)_nodeComponents.size() && "New node index out of range");
+			assert(oldIndex >= 0 && oldIndex < (int)_nodeTransformComponents.size() && "Old node index out of range");
+			assert(newIndex >= 0 && newIndex < (int)_nodeTransformComponents.size() && "New node index out of range");
 
-			Component* component = _nodeComponents[oldIndex];
-			_nodeComponents[oldIndex] = nullptr;
-			_nodeComponents[newIndex] = component;
+			auto* transform = _nodeTransformComponents[oldIndex];
+			_nodeTransformComponents[oldIndex] = nullptr;
+			_nodeTransformComponents[newIndex] = transform;
 
-			if (component != nullptr)
+			if (transform != nullptr)
 			{
-				component->OnSceneNodeIndexChanged(newIndex);
+				transform->OnSceneNodeIndexChanged(newIndex);
 			}
 		}
 
