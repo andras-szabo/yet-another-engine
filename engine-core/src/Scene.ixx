@@ -78,7 +78,7 @@ namespace Engine
 			friend class SceneImpl;
 
 			Scene();
-			~Scene();
+			~Scene() override;
 
 			// Maybe we can implement scene copying later;
 			// for now, no ownership issues please.
@@ -98,12 +98,13 @@ namespace Engine
 
 			void SetLocalTransform(int nodeIndex,
 				const Mat4x4& localTransform) override;
-			//-------------------------------------------------------------------
 
 			std::string_view GetName() const override;
-			int GetRootIndex() const;
-			std::string_view GetNodeName(std::size_t index) const;
+			std::string_view GetNodeName(std::size_t index) const override;
+			//-------------------------------------------------------------------
 
+			int GetRootIndex() const;
+			
 			const Mat4x4& GetLocalTransform(int nodeIndex) const;
 			void UpdateNodeIndex(int oldIndex, int newIndex);
 			void SetParent(int nodeIndex, int newParentIndex);

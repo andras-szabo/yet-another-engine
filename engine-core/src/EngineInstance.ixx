@@ -35,7 +35,7 @@ namespace Engine
 		std::unique_ptr<IComponentStorage> _componentStorage;
 #pragma warning(pop)
 
-		IScene* _activeScene;
+		IScene* _activeScene{ nullptr };
 	};
 
 	export ENGINE_CORE_API EngineInstance Instance;
@@ -48,6 +48,7 @@ namespace Engine
 
 	IScene& EngineInstance::GetActiveScene()
 	{
+		assert(_activeScene != nullptr && "Active scene is null; engine instance not initialized?");
 		return *_activeScene;
 	}
 

@@ -13,6 +13,8 @@ namespace Engine
 	export class IScene
 	{
 	public:
+		virtual ~IScene() = default;
+
 		virtual int AddNode(const Mat4x4& localTransform, 
 			int parent, 
 			const std::string& name, 
@@ -24,10 +26,10 @@ namespace Engine
 		virtual std::string_view GetName() const = 0;
 
 		virtual void WalkDepthFirst(std::size_t startingNode,
-			std::function<void(IScene&, std::size_t)>) = 0;
+			std::function<void(IScene&, std::size_t)> op) = 0;
 
 		virtual void WalkBreadthFirst(std::size_t startingNode,
-			std::function<void(IScene&, std::size_t)>) = 0;
+			std::function<void(IScene&, std::size_t)> op) = 0;
 
 		virtual std::string_view GetNodeName(std::size_t) const = 0;
 	};
