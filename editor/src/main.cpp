@@ -135,7 +135,7 @@ int main()
     }
 
     // Let's walk the scene so far, using a lambda.
-    auto logNodes = [&](int currentIndex) {
+    auto logNodes = [](Engine::Scene::Scene& scene, std::size_t currentIndex) {
         LOG_INFO("Index: {}, name: {}", currentIndex, scene.GetNodeName(currentIndex));
     };
 
