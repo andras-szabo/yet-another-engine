@@ -24,11 +24,12 @@ target_sources(engine-core
       src/EngineInstance.ixx
       src/GameObject.ixx
       src/GUID.ixx
+      src/Interfaces.ixx
       src/Logger.ixx
       src/Math.ixx
       src/Reflection.ixx
-      src/IScene.ixx
       src/Scene.ixx
+      src/SceneImpl.ixx
       src/Transform.ixx
       src/Utility.ixx
      )

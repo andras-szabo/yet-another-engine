@@ -10,15 +10,19 @@ export module Transform;
 
 import Component;
 import EngineInstance;
-import IScene;
+import Interfaces;
 import Math;
+import Scene;
 import Utility;
 
 namespace Engine
 {
-	export class ENGINE_CORE_API Transform : public Component
+	export class ENGINE_CORE_API Transform : public Component, 
+											 public ISceneNodeIndexObserver
 	{
 	public:
+		~Transform() override = default;
+
 		Vec3 GetLocalPosition() const;
 		Quaternion GetLocalRotation() const;
 		Vec3 GetLocalScale() const;
@@ -30,7 +34,7 @@ namespace Engine
 
 		void OnSceneNodeIndexChanged(int newIndex) override;
 
-		void AddToScene(Engine::IScene& scene, const std::string& nodeName);
+		void AddToScene(Engine::Scene::Scene& scene, const std::string& nodeName);
 
 		int GetSceneNodeIndex() const { return _sceneNodeIndex; }
 
@@ -47,7 +51,7 @@ namespace Engine
 		Vec3 _localScale{ Vec3(1.0f, 1.0f, 1.0f) };
 	};
 
-	void Transform::AddToScene(Engine::IScene& scene, const std::string& nodeName)
+	void Transform::AddToScene(Engine::Scene::Scene& scene, const std::string& nodeName)
 	{
 		assert(_sceneNodeIndex == -1 && "Trying to add transform to multiple scenes!");
 		_sceneNodeIndex = scene.AddNode(CreateLocalToWorld(), 0, nodeName, this);

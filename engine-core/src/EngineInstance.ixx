@@ -8,7 +8,7 @@ module;
 export module EngineInstance;
 
 import IComponentStorage;
-import IScene;
+import Scene;
 
 namespace Engine
 {
@@ -21,13 +21,13 @@ namespace Engine
 		EngineInstance& operator=(const EngineInstance& other) = delete;
 
 		//TODO - scene ownership
-		void Initialize(IScene* activeScene,
+		void Initialize(Scene::Scene* activeScene,
 			std::unique_ptr<IComponentStorage> componentStorage);
 
 		void Shutdown();
 
 		IComponentStorage& GetComponentStorage();
-		IScene& GetActiveScene();
+		Scene::Scene& GetActiveScene();
 
 	private:
 #pragma warning(push)
@@ -35,7 +35,7 @@ namespace Engine
 		std::unique_ptr<IComponentStorage> _componentStorage;
 #pragma warning(pop)
 
-		IScene* _activeScene{ nullptr };
+		Scene::Scene* _activeScene{ nullptr };
 	};
 
 	export ENGINE_CORE_API EngineInstance Instance;
@@ -46,13 +46,13 @@ namespace Engine
 		return *_componentStorage;
 	}
 
-	IScene& EngineInstance::GetActiveScene()
+	Scene::Scene& EngineInstance::GetActiveScene()
 	{
 		assert(_activeScene != nullptr && "Active scene is null; engine instance not initialized?");
 		return *_activeScene;
 	}
 
-	void EngineInstance::Initialize(IScene* activeScene,
+	void EngineInstance::Initialize(Scene::Scene* activeScene,
 		std::unique_ptr<IComponentStorage> componentStorage)
 	{
 		_activeScene = activeScene;

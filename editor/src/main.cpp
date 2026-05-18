@@ -118,7 +118,7 @@ int main()
 
     LOG_INFO("Active scene: {}", Engine::Instance.GetActiveScene().GetName());
     // Let's walk through it...
-    auto logNodes = [](Engine::IScene& scene, std::size_t currentIndex) {
+    auto logNodes = [](Engine::Scene::Scene& scene, std::size_t currentIndex) {
         LOG_INFO("Index: {}, name: {}", currentIndex, scene.GetNodeName(currentIndex));
         };
 
