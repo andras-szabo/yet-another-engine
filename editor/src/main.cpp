@@ -128,13 +128,13 @@ int main()
     Engine::Scene::Scene scene("FooScene");
     LOG_INFO(scene.GetName());
 
-    int newNodeIndex = scene.AddNode(Engine::Mat4x4::Identity(), scene.GetRootIndex(), "FirstChild");
+    int newNodeIndex = scene.AddNode(Engine::Mat4x4::Identity(), 0, "FirstChild");
     LOG_INFO(scene.GetNodeName(newNodeIndex));
 
     // Add some nodes to the root
     for (int i = 0; i < 3; ++i)
     {
-        scene.AddNode(Engine::Mat4x4::Identity(), scene.GetRootIndex(), std::format("child_{}", i));
+        scene.AddNode(Engine::Mat4x4::Identity(), 0, std::format("child_{}", i));
     }
 
     // Add a nested hierarchy to the first child

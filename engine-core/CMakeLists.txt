@@ -29,7 +29,6 @@ target_sources(engine-core
       src/Math.ixx
       src/Reflection.ixx
       src/Scene.ixx
-      src/SceneImpl.ixx
       src/Transform.ixx
       src/Utility.ixx
      )
