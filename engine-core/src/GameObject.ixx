@@ -42,16 +42,16 @@ namespace Engine
 
 #pragma warning(push)
 #pragma warning(disable: 4251)		// 4251: complaining about no DLL access to private members
-		std::string _name;
+		std::string _name{ "GameObject" };
 		std::vector<Component*> _components;		// Non-owning pointers!
 #pragma warning(pop)
 
 	};
 
-	GameObject::GameObject() : _name { "GameObject" }
+	GameObject::GameObject() 
 	{
-		_transform = AddComponent<Engine::Transform>();
-		_transform->AddToScene(Instance.GetActiveScene(), _name);
+		TransformStorage* storage = Engine::Instance.GetActiveScene().GetTransformStorage();
+		_transform = AddComponent<Engine::Transform>(storage, _name);
 	}
 
 	Engine::Transform* GameObject::GetTransform()

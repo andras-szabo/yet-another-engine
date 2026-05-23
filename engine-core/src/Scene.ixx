@@ -17,6 +17,7 @@ import Interfaces;
 import Logger;
 import Math;
 import SceneImpl;
+import Transform;
 
 namespace Engine
 {
@@ -41,7 +42,7 @@ namespace Engine
 			int AddNode(const Mat4x4& localTransform,
 				int parent,
 				const std::string& name,
-				ISceneNodeIndexObserver* transformComponent = nullptr);
+				Transform* transformComponent = nullptr);
 
 			void SetLocalTransform(int nodeIndex,
 				const Mat4x4& localTransform);
@@ -58,6 +59,8 @@ namespace Engine
 			void UpdateWorldTransforms();
 			void WalkDepthFirst(std::size_t startingNode, std::function<void(Scene&, std::size_t)> op);
 			void WalkBreadthFirst(std::size_t startingNode, std::function<void(Scene&, std::size_t)> op);
+
+			TransformStorage* GetTransformStorage();
 
 		private:
 			// Not using a std::unique_ptr here to work around warning related to private std::unique_ptr
@@ -100,6 +103,11 @@ namespace Engine
 		{
 		}
 
+		TransformStorage* Scene::GetTransformStorage()
+		{
+			return _impl->GetTransformStorage();
+		}
+
 		int Scene::GetRootIndex() const 
 		{ 
 			return 0; 
@@ -140,7 +148,8 @@ namespace Engine
 			return GetNodeName(0); 
 		}
 
-		int Scene::AddNode(const Mat4x4& localTransform, int parent, const std::string& name, ISceneNodeIndexObserver* transformComponent)
+		int Scene::AddNode(const Mat4x4& localTransform, int parent, 
+			const std::string& name, Transform* transformComponent)
 		{
 			assert(_impl != nullptr && "Invalid scene; possibly moved-from");
 			return _impl->AddNode(localTransform, parent, name, transformComponent);

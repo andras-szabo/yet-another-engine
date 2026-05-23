@@ -11,6 +11,7 @@ export module SceneImpl;
 import Component;
 import Interfaces;
 import Math;
+import Transform;
 
 namespace Engine
 {
@@ -33,7 +34,8 @@ namespace Engine
 			int mesh{ -1 };
 		};
 
-		class Transform;
+		//TODO cleanup
+		//class Transform;
 
 		export class SceneImpl
 		{
@@ -41,7 +43,8 @@ namespace Engine
 			SceneImpl(std::string_view name, std::size_t expectedNodeCount = 1024);
 
 			std::string_view GetNodeName(std::size_t nodeIndex) const;
-			int AddNode(const Mat4x4& localTransform, int parent, const std::string& name, ISceneNodeIndexObserver* transformComponent = nullptr);
+			int AddNode(const Mat4x4& localTransform, int parent, 
+				const std::string& name, Transform* transformComponent = nullptr);
 
 			void SetLocalTransform(int nodeIndex, const Mat4x4& localTransform);
 			const Mat4x4& GetLocalTransform(int nodeIndex) const;
@@ -52,13 +55,16 @@ namespace Engine
 			void WalkDepthFirst(std::size_t startingNode, std::function<void(std::size_t)> op);
 			void WalkBreadthFirst(std::size_t startingNode, std::function<void(std::size_t)> op);
 
+			TransformStorage* GetTransformStorage();
+
 		private:
 			std::vector<Node> _nodes;
-			std::vector<Hierarchy> _hierarchy;
-			std::vector<Mat4x4> _globalTransforms;
-			std::vector<Mat4x4> _localTransforms;
-			std::vector<std::string> _nodeNames;
-			std::vector<ISceneNodeIndexObserver*> _nodeTransformComponents;	// parallel vector: component associated with node i (or nullptr)
+			TransformStorage _storage;
+			//std::vector<Hierarchy> hierarchies;
+			//std::vector<Mat4x4> globalTransforms;
+			//std::vector<Mat4x4> localTransforms;
+			//std::vector<std::string> _nodeNames;
+			//std::vector<ISceneNodeIndexObserver*> _nodeTransformComponents;	// parallel vector: component associated with node i (or nullptr)
 
 			std::deque<int> _walkHelperQueue;
 
@@ -67,58 +73,73 @@ namespace Engine
 		};
 
 		SceneImpl::SceneImpl(std::string_view name, std::size_t expectedNodeCount)
+			: _storage{ expectedNodeCount , name }
 		{
 			_nodes.reserve(expectedNodeCount);
-			_hierarchy.reserve(expectedNodeCount);
-			_globalTransforms.reserve(expectedNodeCount);
-			_localTransforms.reserve(expectedNodeCount);
-			_nodeNames.reserve(expectedNodeCount);
-			_nodeTransformComponents.reserve(expectedNodeCount);
-
-			// Create the scene root
 			_nodes.push_back(Node{});
-			_hierarchy.push_back(Hierarchy{ -1, 0 });
-			_globalTransforms.push_back(Mat4x4::Identity());
-			_localTransforms.push_back(Mat4x4::Identity());
+
+			/*hierarchies.reserve(expectedNodeCount);
+			globalTransforms.reserve(expectedNodeCount);
+			localTransforms.reserve(expectedNodeCount);
+			_nodeNames.reserve(expectedNodeCount);
+			_nodeTransformComponents.reserve(expectedNodeCount);*/
+
+			/*hierarchies.push_back(Hierarchy{ -1, 0 });
+			globalTransforms.push_back(Mat4x4::Identity());
+			localTransforms.push_back(Mat4x4::Identity());
 			_nodeNames.push_back(std::string(name));
-			_nodeTransformComponents.push_back(nullptr);
+			_nodeTransformComponents.push_back(nullptr);*/
+		}
+
+		TransformStorage* SceneImpl::GetTransformStorage()
+		{
+			return &_storage;
 		}
 
 		void SceneImpl::UpdateWorldTransforms()
 		{
-			WalkDepthFirst(0, [&](std::size_t nodeIndex)
-				{
-					if (_hierarchy[nodeIndex].isDirty)
-					{
-						const auto parent = _hierarchy[nodeIndex].parent;
-						if (parent == -1)
-						{
-							_globalTransforms[nodeIndex] = _localTransforms[nodeIndex];
-						}
-						else
-						{
-							_globalTransforms[nodeIndex] = _globalTransforms[parent] * _localTransforms[nodeIndex];
-						}
-						_hierarchy[nodeIndex].isDirty = false;
-					}
-				});
+			_storage.UpdateWorldTransforms();
+			//WalkDepthFirst(0, [&](std::size_t nodeIndex)
+			//	{
+			//		if (hierarchies[nodeIndex].isDirty)
+			//		{
+			//			const auto parent = hierarchies[nodeIndex].parent;
+			//			if (parent == -1)
+			//			{
+			//				globalTransforms[nodeIndex] = localTransforms[nodeIndex];
+			//			}
+			//			else
+			//			{
+			//				globalTransforms[nodeIndex] = globalTransforms[parent] * localTransforms[nodeIndex];
+			//			}
+			//			hierarchies[nodeIndex].isDirty = false;
+			//		}
+			//	});
 		}
 
 		std::string_view SceneImpl::GetNodeName(std::size_t nodeIndex) const
 		{
-			assert(!_nodeNames.empty() && "Uninitialized scene!");
-			return _nodeNames[nodeIndex];
+			assert(!_storage.names.empty() && "Uninitialized scene!");
+			return _storage.names[nodeIndex];
+
+			//assert(!_nodeNames.empty() && "Uninitialized scene!");
+			//return _nodeNames[nodeIndex];
 		}
 
-		int SceneImpl::AddNode(const Mat4x4& localTransform, int parent, const std::string& name, ISceneNodeIndexObserver* transformComponent)
+		int SceneImpl::AddNode(const Mat4x4& localTransform,
+			int parent,
+			const std::string& name,
+			Transform* transformComponent)
 		{
-			assert(0 <= parent && parent < (int)_nodes.size() && "Specified parent invalid; it should be a non-negative scene node index. (0 = scene root)");
+			_nodes.push_back(Node{});
+			return _storage.AddTransform(localTransform, parent, name, transformComponent);
+			/*assert(0 <= parent && parent < (int)_nodes.size() && "Specified parent invalid; it should be a non-negative scene node index. (0 = scene root)");
 
 			const int newNodeIndex = static_cast<int>(std::size(_nodes));
 
-			assert(newNodeIndex == (int)_hierarchy.size() &&
-				newNodeIndex == (int)_globalTransforms.size() &&
-				newNodeIndex == (int)_localTransforms.size() &&
+			assert(newNodeIndex == (int)hierarchies.size() &&
+				newNodeIndex == (int)globalTransforms.size() &&
+				newNodeIndex == (int)localTransforms.size() &&
 				newNodeIndex == (int)_nodeNames.size() &&
 				newNodeIndex == (int)_nodeTransformComponents.size() && "Scene graph vectors out of sync!");
 
@@ -131,7 +152,7 @@ namespace Engine
 			//			otherwise, continue going for siblings until you find a -1, and overwrite _that_.
 			//				Bob's your uncle.
 
-			auto& parentH = _hierarchy[parent];
+			auto& parentH = hierarchies[parent];
 			int parentDepth = parentH.depth;
 			if (parentH.firstChild == -1)
 			{
@@ -140,28 +161,28 @@ namespace Engine
 			else
 			{
 				int nextNodeToCheck = parentH.firstChild;
-				while (_hierarchy[nextNodeToCheck].firstSibling != -1)
+				while (hierarchies[nextNodeToCheck].firstSibling != -1)
 				{
-					nextNodeToCheck = _hierarchy[nextNodeToCheck].firstSibling;
+					nextNodeToCheck = hierarchies[nextNodeToCheck].firstSibling;
 				}
-				_hierarchy[nextNodeToCheck].firstSibling = newNodeIndex;
+				hierarchies[nextNodeToCheck].firstSibling = newNodeIndex;
 			}
 
 			_nodes.push_back(Node{});
-			_hierarchy.push_back(Hierarchy{ parent, parentDepth + 1 });
-			_globalTransforms.push_back(_globalTransforms[parent] * localTransform);
-			_localTransforms.push_back(localTransform);
+			hierarchies.push_back(Hierarchy{ parent, parentDepth + 1 });
+			globalTransforms.push_back(globalTransforms[parent] * localTransform);
+			localTransforms.push_back(localTransform);
 			_nodeNames.push_back(name);
 			_nodeTransformComponents.push_back(transformComponent);
 
-			return newNodeIndex;
+			return newNodeIndex;*/
 		};
 
 		void SceneImpl::WalkDepthFirst(std::size_t startingNode, std::function<void(std::size_t currentNodeIndex)> op)
 		{
 			op(startingNode);
 
-			const auto node = _hierarchy[startingNode];
+			const auto node = _storage.hierarchies[startingNode];
 			if (node.firstChild != -1)
 			{
 				WalkDepthFirst(node.firstChild, op);
@@ -174,7 +195,8 @@ namespace Engine
 			}
 		}
 
-		void SceneImpl::WalkBreadthFirst(std::size_t startingNode, std::function<void(std::size_t currentNodeIndex)> op)
+		void SceneImpl::WalkBreadthFirst(std::size_t startingNode, 
+			std::function<void(std::size_t currentNodeIndex)> op)
 		{
 			_walkHelperQueue.clear();
 			_walkHelperQueue.push_back(static_cast<int>(startingNode));
@@ -191,7 +213,7 @@ namespace Engine
 
 				op(nextNode);
 
-				const auto& node = _hierarchy[nextNode];
+				const auto& node = _storage.hierarchies[nextNode];
 				if (node.firstChild != -1)
 				{
 					_walkHelperQueue.push_back(node.firstChild);
@@ -202,38 +224,41 @@ namespace Engine
 				{
 					op(nextSibling);
 
-					const auto siblingsFirstChild = _hierarchy[nextSibling].firstChild;
+					const auto siblingsFirstChild = _storage.hierarchies[nextSibling].firstChild;
 					if (siblingsFirstChild != -1)
 					{
 						_walkHelperQueue.push_back(siblingsFirstChild);
 					}
 
-					nextSibling = _hierarchy[nextSibling].firstSibling;
+					nextSibling = _storage.hierarchies[nextSibling].firstSibling;
 				}
 			}
 		}
 
 		void SceneImpl::SetLocalTransform(int nodeIndex, const Mat4x4& localTransform)
 		{
-			assert(nodeIndex >= 0 && nodeIndex < (int)_localTransforms.size() && "Node index out of range");
-			_localTransforms[nodeIndex] = localTransform;
-			_hierarchy[nodeIndex].isDirty = true;
+			assert(nodeIndex >= 0 && nodeIndex < (int)_storage.localTransforms.size() && 
+				"Node index out of range");
+
+			_storage.localTransforms[nodeIndex] = localTransform;
+			_storage.hierarchies[nodeIndex].isDirty = true;
 		}
 
 		const Mat4x4& SceneImpl::GetLocalTransform(int nodeIndex) const
 		{
-			assert(nodeIndex >= 0 && nodeIndex < (int)_localTransforms.size() && "Node index out of range");
-			return _localTransforms[nodeIndex];
+			assert(nodeIndex >= 0 && nodeIndex < (int)_storage.localTransforms.size() && 
+				"Node index out of range");
+			return _storage.localTransforms[nodeIndex];
 		}
 
 		void SceneImpl::UpdateNodeIndex(int oldIndex, int newIndex)
 		{
-			assert(oldIndex >= 0 && oldIndex < (int)_nodeTransformComponents.size() && "Old node index out of range");
-			assert(newIndex >= 0 && newIndex < (int)_nodeTransformComponents.size() && "New node index out of range");
+			assert(oldIndex >= 0 && oldIndex < (int)_storage.transformComponents.size() && "Old node index out of range");
+			assert(newIndex >= 0 && newIndex < (int)_storage.transformComponents.size() && "New node index out of range");
 
-			auto* transform = _nodeTransformComponents[oldIndex];
-			_nodeTransformComponents[oldIndex] = nullptr;
-			_nodeTransformComponents[newIndex] = transform;
+			auto* transform = _storage.transformComponents[oldIndex];
+			_storage.transformComponents[oldIndex] = nullptr;
+			_storage.transformComponents[newIndex] = transform;
 
 			if (transform != nullptr)
 			{
@@ -247,55 +272,58 @@ namespace Engine
 			assert(nodeIndex != newParentIndex && "Cannot set a node as its own parent");
 			assert(newParentIndex >= 0 && newParentIndex < (int)_nodes.size() && "New parent index is out of range");
 
-			const int currentParent = _hierarchy[nodeIndex].parent;
+			const int currentParent = _storage.hierarchies[nodeIndex].parent;
 
 			// Unlink from current parent's child/sibling chain
-			if (_hierarchy[currentParent].firstChild == nodeIndex)
+			if (_storage.hierarchies[currentParent].firstChild == nodeIndex)
 			{
-				_hierarchy[currentParent].firstChild = _hierarchy[nodeIndex].firstSibling;
+				_storage.hierarchies[currentParent].firstChild = 
+					_storage.hierarchies[nodeIndex].firstSibling;
 			}
 			else
 			{
-				int prev = _hierarchy[currentParent].firstChild;
-				while (_hierarchy[prev].firstSibling != nodeIndex)
+				int prev = _storage.hierarchies[currentParent].firstChild;
+				while (_storage.hierarchies[prev].firstSibling != nodeIndex)
 				{
-					prev = _hierarchy[prev].firstSibling;
+					prev = _storage.hierarchies[prev].firstSibling;
 					assert(prev != -1 && "Node not found in parent's sibling chain");
 				}
-				_hierarchy[prev].firstSibling = _hierarchy[nodeIndex].firstSibling;
+
+				_storage.hierarchies[prev].firstSibling = 
+					_storage.hierarchies[nodeIndex].firstSibling;
 			}
 
 			// Clear old sibling link before re-linking
-			_hierarchy[nodeIndex].firstSibling = -1;
+			_storage.hierarchies[nodeIndex].firstSibling = -1;
 
 			// Append as last child of the new parent
-			if (_hierarchy[newParentIndex].firstChild == -1)
+			if (_storage.hierarchies[newParentIndex].firstChild == -1)
 			{
-				_hierarchy[newParentIndex].firstChild = nodeIndex;
+				_storage.hierarchies[newParentIndex].firstChild = nodeIndex;
 			}
 			else
 			{
-				int lastChild = _hierarchy[newParentIndex].firstChild;
-				while (_hierarchy[lastChild].firstSibling != -1)
+				int lastChild = _storage.hierarchies[newParentIndex].firstChild;
+				while (_storage.hierarchies[lastChild].firstSibling != -1)
 				{
-					lastChild = _hierarchy[lastChild].firstSibling;
+					lastChild = _storage.hierarchies[lastChild].firstSibling;
 				}
-				_hierarchy[lastChild].firstSibling = nodeIndex;
+				_storage.hierarchies[lastChild].firstSibling = nodeIndex;
 			}
 
-			_hierarchy[nodeIndex].parent = newParentIndex;
-			UpdateDepthsBelow(nodeIndex, _hierarchy[newParentIndex].depth + 1);
-			_hierarchy[nodeIndex].isDirty = true;
+			_storage.hierarchies[nodeIndex].parent = newParentIndex;
+			UpdateDepthsBelow(nodeIndex, _storage.hierarchies[newParentIndex].depth + 1);
+			_storage.hierarchies[nodeIndex].isDirty = true;
 		}
 
 		void SceneImpl::UpdateDepthsBelow(int nodeIndex, int newDepth)
 		{
-			_hierarchy[nodeIndex].depth = newDepth;
-			int child = _hierarchy[nodeIndex].firstChild;
+			_storage.hierarchies[nodeIndex].depth = newDepth;
+			int child = _storage.hierarchies[nodeIndex].firstChild;
 			while (child != -1)
 			{
 				UpdateDepthsBelow(child, newDepth + 1);
-				child = _hierarchy[child].firstSibling;
+				child = _storage.hierarchies[child].firstSibling;
 			}
 		}
 	} // namespace Scene
