@@ -6,6 +6,7 @@ export module EngineCore;
 
 export import Component;
 export import ComponentStorage;
+export import DataFile;
 export import Error;
 export import GameObject;
 export import GUID;

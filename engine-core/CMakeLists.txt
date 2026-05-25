@@ -19,6 +19,7 @@ target_sources(engine-core
       src/Component.ixx
       src/IComponentStorage.ixx
       src/ComponentStorage.ixx
+      src/DataFile.ixx
       src/EngineCore.ixx
       src/EngineError.ixx
       src/EngineInstance.ixx
