@@ -17,6 +17,7 @@ namespace Engine
 		LogicError = 1,
 		NotFound = 2,
 		OutOfBounds = 3,
+		FileError = 4,
 		// ... TODO add more as needed
 	};
 
@@ -34,7 +35,8 @@ namespace Engine
 	{
 	}
 
-	export
-		template<typename T>
+	export template<typename T>
 	using Expected = std::expected<T, Error>;
+
+	export using Unexpected = std::unexpected<Error>;
 }

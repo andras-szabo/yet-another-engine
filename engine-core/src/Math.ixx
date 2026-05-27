@@ -8,6 +8,8 @@ module;
 
 export module Math;
 
+import DataFile;
+
 namespace Engine
 {
 export const float ENGINE_CORE_API PI = 3.14159265f;
@@ -146,6 +148,31 @@ export struct ENGINE_CORE_API Vec4
 	Vec4 Normalized() const;
 	Vec4 NormalizedSafe(const Vec4 fallback = Vec4(1.f, 0.f, 0.f, 0.f)) const;
 };
+
+export ENGINE_CORE_API
+void DF_Set(Engine::DataFile& df, const Vec2& v)
+{
+	df.SetFloats(2, v.x, v.y);
+}
+
+export ENGINE_CORE_API
+void DF_Set(Engine::DataFile& df, const Vec3& v)
+{
+	df.SetFloats(3, v.x, v.y, v.z);
+}
+
+export ENGINE_CORE_API
+Vec2 DF_GetVec2(const Engine::DataFile& df)
+{
+	return Vec2{ df.GetFloat(0), df.GetFloat(1) };
+}
+
+export ENGINE_CORE_API
+Vec3 DF_GetVec3(const Engine::DataFile& df)
+{
+	return Vec3{ df.GetFloat(0), df.GetFloat(1), df.GetFloat(2) };
+}
+
 
 export struct ENGINE_CORE_API Mat3x3
 {

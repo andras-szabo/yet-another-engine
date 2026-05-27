@@ -1,6 +1,7 @@
 module;
 
 #include <cassert>
+#include <cstdarg>
 #include <functional>
 #include <fstream>
 #include <limits>
@@ -23,14 +24,11 @@ namespace Engine
 	export class ENGINE_CORE_API DataFile
 	{
 	public:
-		static std::string EscapeString(const std::string& str, const char separator);
-		static bool Serialize(const DataFile& data,
-			const std::string& fileName,
-			const std::string& indent = "  ",
-			const char separator = ',');
-		static DataFile Deserialize(const std::string& fileName, const char separator = ',');
-		static DataFile FromStream(std::istream& stream, const char separator = ',');
-		static DataFile FromString(const std::string& asString, const char separator = ',');
+		static std::string EscapeString(const std::string& str);
+		static bool Serialize(const DataFile& data, const std::string& fileName, const std::string& indent = "  ");
+		static Expected<DataFile> Deserialize(const std::string& fileName);
+		static Expected<DataFile> FromStream(std::istream& stream);
+		static Expected<DataFile> FromString(const std::string& asString);
 
 		DataFile() = default;
 		explicit DataFile(std::size_t expectedChildrenCount);
@@ -47,6 +45,7 @@ namespace Engine
 		void SetUInt(unsigned int i, int index = 0);
 		void SetULong(unsigned long long ulong, int index = 0);
 		void SetFloat(float f, int index = 0);
+		void SetFloats(int count, ...);
 
 		void CreateLeaf() const;
 		void Clear();
@@ -57,7 +56,7 @@ namespace Engine
 		unsigned int GetUInt(int index = 0) const;
 		unsigned long long GetULong(int index = 0) const;
 		float GetFloat(int index = 0) const;
-		std::string& ToString(const std::string& indent = "  ", const char separator = ',') const;
+		std::string ToString(const std::string& indent = "  ") const;
 
 	private:
 		std::vector<std::string> _content;
@@ -66,9 +65,10 @@ namespace Engine
 		std::unordered_map<std::string, int> _childIndexByName;
 	};
 
-	std::string DataFile::EscapeString(const std::string& str, const char separator)
+	std::string DataFile::EscapeString(const std::string& str)
 	{
 		std::string escaped;
+		const char separator{ ',' };
 
 		for (const auto c : str)
 		{
@@ -84,10 +84,9 @@ namespace Engine
 
 	bool DataFile::Serialize(const DataFile& data,
 		const std::string& fileName,
-		const std::string& indent,
-		const char separator)
+		const std::string& indent)
 	{
-		const std::string comma = std::string(1, separator) + " ";
+		const std::string comma{ ", " };
 
 		std::function<void(const DataFile&, std::ofstream&, int)> Write = [&]
 		(const DataFile& d, std::ofstream& f, int currentIndent)
@@ -120,7 +119,7 @@ namespace Engine
 							f << comma;
 						}
 
-						f << EscapeString(d.GetString(i), separator);
+						f << EscapeString(d.GetString(i));
 					}
 
 					f << "\n";
@@ -151,7 +150,7 @@ namespace Engine
 		return false;
 	}
 
-	DataFile DataFile::FromStream(std::istream& stream, const char separator)
+	Expected<DataFile> DataFile::FromStream(std::istream& stream)
 	{
 		DataFile df(8192);
 
@@ -198,7 +197,7 @@ namespace Engine
 				auto& currentNode = stk.top().get();
 				std::istringstream asStringStream{ line };
 
-				for (std::string value; std::getline(asStringStream, value, separator);)
+				for (std::string value; std::getline(asStringStream, value, ',');)
 				{
 					const auto index = static_cast<int>(currentNode.GetValueCount());
 					trim(lineView = value);
@@ -210,22 +209,22 @@ namespace Engine
 		return df;
 	}
 
-	DataFile DataFile::FromString(const std::string& asString, const char separator)
+	Expected<DataFile> DataFile::FromString(const std::string& asString)
 	{
 		std::stringstream stream{ asString };
-		return FromStream(stream, separator);
+		return FromStream(stream);
 	}
 
-	DataFile DataFile::Deserialize(const std::string& fileName, const char separator)
+	Expected<DataFile> DataFile::Deserialize(const std::string& fileName)
 	{
 		if (std::ifstream file(fileName); file.is_open())
 		{
-			auto df = FromStream(file, separator);
+			auto df = FromStream(file);
 			file.close();
 			return df;
 		}
 
-		return DataFile{ };
+		return Unexpected({ Engine::ErrorType::FileError, "Couldn't open file" });
 	}
 
 	DataFile::DataFile(std::size_t expectedChildrenCount)
@@ -286,6 +285,17 @@ namespace Engine
 	void DataFile::SetFloat(float f, int index)
 	{
 		SetString(std::to_string(f), index);
+	}
+
+	void DataFile::SetFloats(int count, ...)
+	{
+		std::va_list args;
+		va_start(args, count);
+		for (int i = 0; i < count; ++i)
+		{
+			SetFloat(va_arg(args, double), i);
+		}
+		va_end(args);
 	}
 
 	void DataFile::CreateLeaf() const
@@ -352,6 +362,62 @@ namespace Engine
 	float DataFile::GetFloat(int index) const
 	{
 		return std::stof(GetString(index));
+	}
+
+	std::string DataFile::ToString(const std::string& indent) const
+	{
+		const std::string comma{ ", " };
+
+		std::function<void(const DataFile&, std::ostream&, int)> Write = [&]
+		(const DataFile& d, std::ostream& f, int currentIndent)
+			{
+				auto indentStr = [&](int count, const std::string& indent) -> std::string
+					{
+						std::string is;
+						for (int i = 0; i < count; ++i)
+						{
+							is += indent;
+						}
+						return is;
+					};
+
+				// Write contents
+				if (d.GetValueCount() == 0 && d._children.size() == 0)
+				{
+					return;
+				}
+
+				const auto contentSize = d.GetValueCount();
+				if (contentSize > 0)
+				{
+					f << indentStr(currentIndent, indent);
+
+					for (auto i = 0; i < contentSize; ++i)
+					{
+						if (i > 0)
+						{
+							f << comma;
+						}
+
+						f << EscapeString(d.GetString(i));
+					}
+
+					f << "\n";
+				}
+
+				int  childIndex = 0;
+				for (const auto& childNode : d._children)
+				{
+					f << indentStr(currentIndent, indent) << "[" << d._childrenNames.at(childIndex++) << "]\n";
+					f << indentStr(currentIndent, indent) << "{\n";
+					Write(childNode, f, currentIndent + 1);
+					f << indentStr(currentIndent, indent) << "}\n";
+				}
+			};
+
+		std::stringstream stream;
+		Write(*this, stream, 0);
+		return stream.str();
 	}
 
 
