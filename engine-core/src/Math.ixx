@@ -16,13 +16,19 @@ export const float ENGINE_CORE_API PI = 3.14159265f;
 export const float ENGINE_CORE_API TO_RAD = PI / 180.0f;
 export const float ENGINE_CORE_API TO_DEG = 180.0f / PI;
 
-export struct ENGINE_CORE_API Vec2
+export struct ENGINE_CORE_API Vec2 : public ISerializable
 {
 	float x{ 0.f };
 	float y{ 0.f };
 
 	constexpr Vec2() = default;
 	constexpr Vec2(float x_, float y_) : x{ x_ }, y{ y_ } {}
+
+	// ISerializable
+	explicit Vec2(const DataFile&);
+	ISerializable& operator=(const DataFile& df) override;
+	void ToDataFile(DataFile& df) const override;
+	void FromDataFile(const DataFile& df) override;
 
 	constexpr float operator[](int index) const;
 	constexpr float& operator[](int index);
@@ -56,7 +62,7 @@ export struct ENGINE_CORE_API Vec2
 	static constexpr Vec2 Left();
 };
 
-export struct ENGINE_CORE_API Vec3
+export struct ENGINE_CORE_API Vec3 : public ISerializable
 {
 	float x{ 0.f };
 	float y{ 0.f };
@@ -66,6 +72,12 @@ export struct ENGINE_CORE_API Vec3
 	constexpr Vec3(float x_, float y_, float z_) : x{ x_ }, y{ y_ }, z{ z_ } {}
 	constexpr explicit Vec3(const Vec2 other);
 	constexpr Vec3(const Vec2, float);
+
+	// ISerializable
+	explicit Vec3(const DataFile&);
+	ISerializable& operator=(const DataFile& df) override;
+	void ToDataFile(DataFile& df) const override;
+	void FromDataFile(const DataFile& df) override;
 
 	constexpr Vec2 xy() const;
 	constexpr Vec2 xz() const;
@@ -106,7 +118,7 @@ export struct ENGINE_CORE_API Vec3
 	static constexpr Vec3 Back();
 };
 
-export struct ENGINE_CORE_API Vec4
+export struct ENGINE_CORE_API Vec4 : public ISerializable
 {
 	float x{ 0.f };
 	float y{ 0.f };
@@ -121,6 +133,12 @@ export struct ENGINE_CORE_API Vec4
 	constexpr Vec3 xyz() const;
 	constexpr Vec2 xy() const;
 	constexpr Vec2 zw() const;
+
+	// ISerializable
+	explicit Vec4(const DataFile&);
+	ISerializable& operator=(const DataFile& df) override;
+	void ToDataFile(DataFile& df) const override;
+	void FromDataFile(const DataFile& df) override;
 
 	constexpr float operator[](int index) const;
 	constexpr float& operator[](int index);
@@ -148,31 +166,6 @@ export struct ENGINE_CORE_API Vec4
 	Vec4 Normalized() const;
 	Vec4 NormalizedSafe(const Vec4 fallback = Vec4(1.f, 0.f, 0.f, 0.f)) const;
 };
-
-export ENGINE_CORE_API
-void DF_Set(Engine::DataFile& df, const Vec2& v)
-{
-	df.SetFloats(2, v.x, v.y);
-}
-
-export ENGINE_CORE_API
-void DF_Set(Engine::DataFile& df, const Vec3& v)
-{
-	df.SetFloats(3, v.x, v.y, v.z);
-}
-
-export ENGINE_CORE_API
-Vec2 DF_GetVec2(const Engine::DataFile& df)
-{
-	return Vec2{ df.GetFloat(0), df.GetFloat(1) };
-}
-
-export ENGINE_CORE_API
-Vec3 DF_GetVec3(const Engine::DataFile& df)
-{
-	return Vec3{ df.GetFloat(0), df.GetFloat(1), df.GetFloat(2) };
-}
-
 
 export struct ENGINE_CORE_API Mat3x3
 {
@@ -485,6 +478,28 @@ export constexpr Vec4 operator*(const Mat4x4& m, const Vec4 v)
 	return result;
 }
 
+Vec2::Vec2(const DataFile& df)
+{
+	FromDataFile(df);
+}
+
+ISerializable& Vec2::operator=(const DataFile& df)
+{
+	FromDataFile(df);
+	return *this;
+}
+
+void Vec2::ToDataFile(DataFile& df) const
+{
+	df.SetFloats(2, x, y);
+}
+
+void Vec2::FromDataFile(const DataFile& df)
+{
+	x = df.GetFloat(0);
+	y = df.GetFloat(1);
+}
+
 constexpr float Vec2::operator[](int index) const
 {
 	assert(0 <= index && index < 2 && "Vec2 index out of bounds");
@@ -635,7 +650,28 @@ export constexpr Vec2 Lerp(const Vec2 a, const Vec2 b, float t) noexcept
 
 export constexpr Vec2 operator*(float scalar, const Vec2 v) noexcept { return v * scalar; }
 
+Vec3::Vec3(const DataFile& df)
+{
+	FromDataFile(df);
+}
 
+ISerializable& Vec3::operator=(const DataFile& df)
+{
+	FromDataFile(df);
+	return *this;
+}
+
+void Vec3::ToDataFile(DataFile& df) const
+{
+	df.SetFloats(3, x, y, z);
+}
+
+void Vec3::FromDataFile(const DataFile& df)
+{
+	x = df.GetFloat(0);
+	y = df.GetFloat(1);
+	z = df.GetFloat(2);
+}
 
 constexpr Vec3::Vec3(const Vec2 other) : x{ other.x }, y{ other.y } {}
 
@@ -810,6 +846,29 @@ export constexpr Vec3 Lerp(const Vec3 a, const Vec3 b, float t) noexcept
 
 export constexpr Vec3 operator*(float scalar, const Vec3 v) noexcept { return v * scalar; }
 
+Vec4::Vec4(const DataFile& df)
+{
+	FromDataFile(df);
+}
+
+ISerializable& Vec4::operator=(const DataFile& df)
+{
+	FromDataFile(df);
+	return *this;
+}
+
+void Vec4::ToDataFile(DataFile& df) const
+{
+	df.SetFloats(4, x, y, z, w);
+}
+
+void Vec4::FromDataFile(const DataFile& df)
+{
+	x = df.GetFloat(0);
+	y = df.GetFloat(1);
+	z = df.GetFloat(2);
+	w = df.GetFloat(3);
+}
 
 constexpr Vec4::Vec4(const Vec3 vec3, float w_) : x{ vec3.x }, y{ vec3.y }, z{ vec3.z }, w{ w_ }
 {

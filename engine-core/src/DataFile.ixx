@@ -21,6 +21,8 @@ namespace Engine
 {
 	const std::string EMPTY_STRING{ "" };
 
+	class ISerializable;
+
 	export class ENGINE_CORE_API DataFile
 	{
 	public:
@@ -32,6 +34,10 @@ namespace Engine
 
 		DataFile() = default;
 		explicit DataFile(std::size_t expectedChildrenCount);
+		DataFile& operator=(float f);
+		DataFile& operator=(int i);
+		DataFile& operator=(const std::string& s);
+		DataFile& operator=(const ISerializable& serializable);
 
 		DataFile& operator[](const std::string& name);
 		const DataFile& operator[](const std::string& name) const;
@@ -64,6 +70,40 @@ namespace Engine
 		std::vector<std::string> _childrenNames;
 		std::unordered_map<std::string, int> _childIndexByName;
 	};
+
+	export class ENGINE_CORE_API ISerializable
+	{
+	public:
+		virtual ~ISerializable() = default;
+		virtual ISerializable& operator=(const DataFile& df) = 0;
+
+		virtual void ToDataFile(DataFile& df) const = 0;
+		virtual void FromDataFile(const DataFile& df) = 0;
+	};
+
+	DataFile& DataFile::operator=(float f)
+	{
+		SetFloat(f);
+		return *this;
+	}
+
+	DataFile& DataFile::operator=(int i)
+	{
+		SetInt(i);
+		return *this;
+	}
+
+	DataFile& DataFile::operator=(const std::string& s)
+	{
+		SetString(s);
+		return *this;
+	}
+
+	DataFile& DataFile::operator=(const ISerializable& serializable)
+	{
+		serializable.ToDataFile(*this);
+		return *this;
+	}
 
 	std::string DataFile::EscapeString(const std::string& str)
 	{

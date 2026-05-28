@@ -42,7 +42,7 @@ void TestVec3()
 {
     using namespace Engine;
     Vec3 a;
-    Vec3 b{ 1, 2, 3 };
+    Vec3 b{ 1, 2.23, 3 };
     Vec3 c = a + b;
     LOG_INFO("[Foo] Vec3: a: {}, b: {}, a + b = {:.2f}", a, b, c);
 }
@@ -81,6 +81,26 @@ void TestVec2()
     LOG_INFO("Vec2 tests run.");
 }
 
+void TestDF()
+{
+    LOG_INFO("Starting datafile test ---");
+
+    using namespace Engine;
+    DataFile df;
+
+    df["Foo"] = 1234.f;
+    df["Bar"] = 42;
+    df["Baz"] = "Baz";
+
+    Vec2 v{ -123.4, 3.14 };
+    df["Position"] = v;
+
+    Vec2 vCopy{ df["Position"] };
+
+    LOG_INFO("Df with assignment ops: {}", df.ToString());
+    LOG_INFO("Df deserialized: {}", vCopy);
+}
+
 int main()
 {
     LOG_INFO("This is an info");
@@ -101,6 +121,7 @@ int main()
     TestVec3();
     TestVec4();
     TestM3x3();
+    TestDF();
 
     for (int i = 0; i < 5; ++i)
     {
