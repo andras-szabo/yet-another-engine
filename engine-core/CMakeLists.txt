@@ -30,6 +30,7 @@ target_sources(engine-core
       src/Math.ixx
       src/Reflection.ixx
       src/Scene.ixx
+      src/Serialization.ixx
       src/Transform.ixx
       src/Utility.ixx
      )
