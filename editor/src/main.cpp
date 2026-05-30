@@ -1,3 +1,4 @@
+#include <array>
 #include <iostream>
 #include <string>
 #include <cassert>
@@ -101,6 +102,40 @@ void TestDF()
     LOG_INFO("Df deserialized: {}", vCopy);
 }
 
+void TestSrsly()
+{
+    struct TestType
+    {
+        int foo;
+        int bar;
+        float baz;
+    };
+
+    Engine::FieldDescriptor f_foo{ "foo", Engine::FieldType::Int, offsetof(TestType, foo) };
+    Engine::FieldDescriptor f_bar{ "bar", Engine::FieldType::Int, offsetof(TestType, bar) };
+    Engine::FieldDescriptor f_baz{ "baz", Engine::FieldType::Float, offsetof(TestType, baz) };
+
+    std::array<Engine::FieldDescriptor, 3> fields
+    {
+        f_foo, f_bar, f_baz
+    };
+
+    TestType t;
+    t.foo = 123;
+    t.bar = -234;
+    t.baz = 45.424f;
+
+    Engine::DataFile df{};
+
+    Engine::SerializeFields(&t, fields, df);
+    LOG_INFO("Serialization at work: {}", df.ToString());
+
+    LOG_INFO("And now to deserialize...");
+    TestType read;
+    Engine::DeserializeFields(&read, fields, df);
+    LOG_INFO("Deserialized: foo = {}, bar = {}, baz = {}", read.foo, read.bar, read.baz);
+}
+
 int main()
 {
     LOG_INFO("This is an info");
@@ -122,6 +157,7 @@ int main()
     TestVec4();
     TestM3x3();
     TestDF();
+    TestSrsly();
 
     for (int i = 0; i < 5; ++i)
     {
