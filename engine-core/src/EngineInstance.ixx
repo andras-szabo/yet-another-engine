@@ -16,13 +16,12 @@ namespace Engine
 	{
 	public:
 		EngineInstance() = default;
-		~EngineInstance() = default;
+		~EngineInstance();
 		EngineInstance(const EngineInstance& other) = delete;
 		EngineInstance& operator=(const EngineInstance& other) = delete;
 
-		//TODO - scene ownership
-		void Initialize(Scene::Scene* activeScene,
-			std::unique_ptr<IComponentStorage> componentStorage);
+		// TODO scene ownership?
+		void Initialize(std::unique_ptr<IComponentStorage> componentStorage);
 
 		void Shutdown();
 
@@ -38,6 +37,11 @@ namespace Engine
 		Scene::Scene* _activeScene{ nullptr };
 	};
 
+	EngineInstance::~EngineInstance()
+	{
+		delete _activeScene;
+	}
+
 	export ENGINE_CORE_API EngineInstance Instance;
 
 	IComponentStorage& EngineInstance::GetComponentStorage()
@@ -52,11 +56,10 @@ namespace Engine
 		return *_activeScene;
 	}
 
-	void EngineInstance::Initialize(Scene::Scene* activeScene,
-		std::unique_ptr<IComponentStorage> componentStorage)
+	void EngineInstance::Initialize(std::unique_ptr<IComponentStorage> componentStorage)
 	{
-		_activeScene = activeScene;
 		_componentStorage = std::move(componentStorage);
+		_activeScene = new Engine::Scene::Scene(_componentStorage.get(), "UntitledScene");
 	}
 
 	void EngineInstance::Shutdown()

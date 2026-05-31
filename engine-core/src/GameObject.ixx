@@ -34,9 +34,12 @@ namespace Engine
 		requires std::is_base_of_v<Component, T>
 		T* GetComponent();
 
+		void SetTransform(Transform* trsf);
 		Transform* GetTransform();
 
 	private:
+		void SetGUID(GUID guid);
+
 		GUID _guid;
 		Transform* _transform{ nullptr };
 
@@ -55,6 +58,16 @@ namespace Engine
 	GameObject::GameObject(std::string_view name)		
 		: _name{ name }
 	{
+	}
+
+	void GameObject::SetGUID(GUID guid)
+	{
+		_guid = guid;
+	}
+
+	void GameObject::SetTransform(Transform* trsf)
+	{
+		_transform = trsf;
 	}
 
 	Engine::Transform* GameObject::GetTransform()

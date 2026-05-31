@@ -28,8 +28,6 @@ namespace Engine
 			int mesh{ -1 };
 		};
 
-		class Scene;
-
 		struct SceneImpl
 		{
 			SceneImpl(IComponentStorage* componentStorage, std::string_view, std::size_t expectedNodeCount = 1024);
@@ -47,7 +45,9 @@ namespace Engine
 		export class ENGINE_CORE_API Scene
 		{
 		public:
+			Scene();
 			Scene(IComponentStorage* componentStorage, std::string_view name, std::size_t expectedNodeCount = 1024);
+			~Scene();
 
 			std::string_view GetName() const;
 			std::string_view GetNodeName(std::size_t nodeIndex) const;
@@ -67,6 +67,11 @@ namespace Engine
 			void WalkBreadthFirst(std::size_t startingNode,
 				std::function<void(Scene&, std::size_t)> op);
 
+			GameObject* CreateGameObject(IComponentStorage* storage,
+				std::string_view name,
+				int parentNodeIndex);
+			GameObject* GetGameObject(std::size_t nodeIndex);
+
 			TransformStorage* GetTransformStorage();
 
 		private:
@@ -79,6 +84,18 @@ namespace Engine
 			void WalkBFSImpl(std::function<void(Scene&, std::size_t)> op);
 			void UpdateDepthsBelow(int nodeIndex, int newDepth);
 		};
+
+		Scene::~Scene()
+		{
+			delete _impl;
+		}
+
+		GameObject* Scene::GetGameObject(std::size_t nodeIndex)
+		{
+			assert(nodeIndex < _impl->gameObjects.size() && "Node index out of bounds.");
+
+			return _impl->gameObjects[nodeIndex].get();
+		}
 
 		SceneImpl::SceneImpl(IComponentStorage* componentStorage,
 			std::string_view sceneName, 
@@ -94,14 +111,27 @@ namespace Engine
 			CreateGameObject(componentStorage, rootName, -1);
 		}
 
+		GameObject* Scene::CreateGameObject(IComponentStorage* componentStorage,
+			std::string_view name,
+			int parentNodeIndex)
+		{
+			return _impl->CreateGameObject(componentStorage, name, parentNodeIndex);
+		}
+
 		GameObject* SceneImpl::CreateGameObject(IComponentStorage* componentStorage,
 			std::string_view name,
 			int parentNodeIndex)
 		{
 			auto go = std::make_unique<GameObject>(name);
-			go->AddComponent<Engine::Transform>(componentStorage, &storage, name, parentNodeIndex);
+			auto transform = go->AddComponent<Engine::Transform>(componentStorage, &storage, name, parentNodeIndex);
+			go->SetTransform(transform);
+			gameObjects.push_back(std::move(go));
 
-			return go.get();
+			return (*gameObjects.rbegin()).get();
+		}
+
+		Scene::Scene()
+		{
 		}
 
 		Scene::Scene(IComponentStorage* componentStorage, std::string_view name, std::size_t expectedNodeCount)
