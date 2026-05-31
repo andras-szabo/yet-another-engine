@@ -22,8 +22,6 @@ namespace Engine
 		ComponentStorage(const ComponentStorage& other) = delete;
 		ComponentStorage& operator=(const ComponentStorage& other) = delete;
 
-		void Foo() override {}
-
 	protected:
 		Component* CreateComponentImpl(std::function<std::unique_ptr<Component>()> factory) override;
 #pragma warning(push)
@@ -36,7 +34,6 @@ namespace Engine
 	{	
 		auto& newComponent = _components.emplace_back(factory());
 		Component* rawPtr = newComponent.get();
-		rawPtr->OnCreate();
 		return rawPtr;
 	}
 } // namespace Engine

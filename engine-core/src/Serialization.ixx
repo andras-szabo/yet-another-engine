@@ -10,6 +10,7 @@ export module Serialization;
 import DataFile;
 import Math;
 import Reflection;
+import Scene;
 
 namespace Engine
 {
@@ -169,5 +170,9 @@ namespace Engine
 			}
 			}
 		}
+	}
+
+	void SerializeScene(const Engine::Scene::Scene& scene, DataFile& out)
+	{
 	}
 } // namespace Engine

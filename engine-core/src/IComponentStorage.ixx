@@ -22,8 +22,6 @@ namespace Engine
 		requires std::is_base_of_v<Component, T>
 		Component* CreateComponent(Args&&... args);
 
-		virtual void Foo() = 0;
-
 	protected:
 		virtual Component* CreateComponentImpl(std::function<std::unique_ptr<Component>()> factory) = 0;
 	};

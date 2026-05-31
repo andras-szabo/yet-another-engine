@@ -3,6 +3,7 @@ module;
 #include <cassert>
 #include <deque>
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -11,6 +12,8 @@ module;
 export module Scene;
 
 import Component;
+import IComponentStorage;
+import GameObject;
 import Interfaces;
 import Math;
 import Transform;
@@ -29,24 +32,28 @@ namespace Engine
 
 		struct SceneImpl
 		{
-			SceneImpl(std::string_view, std::size_t expectedNodeCount = 1024);
+			SceneImpl(IComponentStorage* componentStorage, std::string_view, std::size_t expectedNodeCount = 1024);
 
 			std::vector<Node> nodes;
+			std::vector<std::unique_ptr<GameObject>> gameObjects;
 			TransformStorage storage;
 			std::deque<int> walkHelperQueue;
+
+			GameObject* CreateGameObject(IComponentStorage* componentStorage,
+				std::string_view name,
+				int parentNodeIndex = 0);
 		};
 
 		export class ENGINE_CORE_API Scene
 		{
 		public:
-			Scene();
-			Scene(std::string_view name, std::size_t expectedNodeCount = 1024);
+			Scene(IComponentStorage* componentStorage, std::string_view name, std::size_t expectedNodeCount = 1024);
 
 			std::string_view GetName() const;
 			std::string_view GetNodeName(std::size_t nodeIndex) const;
 
-			int AddNode(const Mat4x4& localTransform, int parent,
-				const std::string& name, Transform* transformComponent = nullptr);
+			//int AddNode(const Mat4x4& localTransform, int parent,
+			//		const std::string& name, Transform* transformComponent = nullptr);
 
 			void SetLocalTransform(int nodeIndex, const Mat4x4& localTransform);
 			const Mat4x4& GetLocalTransform(int nodeIndex) const;
@@ -73,19 +80,32 @@ namespace Engine
 			void UpdateDepthsBelow(int nodeIndex, int newDepth);
 		};
 
-		Scene::Scene() : Scene("NewScene", 1024)
-		{
-		}
-
-		SceneImpl::SceneImpl(std::string_view name, std::size_t expectedNodeCount)
-			: storage{ expectedNodeCount, name }
+		SceneImpl::SceneImpl(IComponentStorage* componentStorage,
+			std::string_view sceneName, 
+			std::size_t expectedNodeCount)
+			: storage{ expectedNodeCount }
 		{
 			nodes.reserve(expectedNodeCount);
 			nodes.push_back(Node{});
+
+			gameObjects.reserve(expectedNodeCount);
+
+			const std::string rootName = std::string{ sceneName } + "_root";
+			CreateGameObject(componentStorage, rootName, -1);
 		}
 
-		Scene::Scene(std::string_view name, std::size_t expectedNodeCount)
-			: _impl{ new SceneImpl(name, expectedNodeCount) }
+		GameObject* SceneImpl::CreateGameObject(IComponentStorage* componentStorage,
+			std::string_view name,
+			int parentNodeIndex)
+		{
+			auto go = std::make_unique<GameObject>(name);
+			go->AddComponent<Engine::Transform>(componentStorage, &storage, name, parentNodeIndex);
+
+			return go.get();
+		}
+
+		Scene::Scene(IComponentStorage* componentStorage, std::string_view name, std::size_t expectedNodeCount)
+			: _impl{ new SceneImpl(componentStorage, name, expectedNodeCount) }
 		{
 		}
 
@@ -110,14 +130,14 @@ namespace Engine
 			return _impl->storage.names[nodeIndex];
 		}
 
-		int Scene::AddNode(const Mat4x4& localTransform,
-			int parent,
-			const std::string& name,
-			Transform* transformComponent)
-		{
-			_impl->nodes.push_back(Node{});
-			return _impl->storage.AddTransform(localTransform, parent, name, transformComponent);
-		};
+		//int Scene::AddNode(const Mat4x4& localTransform,
+		//	int parent,
+		//	const std::string& name,
+		//	Transform* transformComponent)
+		//{
+		//	_impl->nodes.push_back(Node{});
+		//	return _impl->storage.AddTransform(localTransform, parent, name, transformComponent);
+		//};
 
 		void Scene::WalkDepthFirst(std::size_t startingNode,
 			std::function<void(Scene& scene, std::size_t currentNodeIndex)> op)

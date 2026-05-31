@@ -32,12 +32,11 @@ namespace Engine
 
 	export struct TransformStorage
 	{
-		TransformStorage(std::size_t expectedCount,
-			const std::string_view& rootName);
+		TransformStorage(std::size_t expectedCount);
 
 		int AddTransform(const Mat4x4& localTransform,
 						 int parentIndex,
-						 const std::string& name,
+						 std::string_view name,
 						 Transform* transform);
 
 		void UpdateWorldTransforms();
@@ -55,7 +54,9 @@ namespace Engine
 	{
 	public:
 		~Transform() override = default;
-		Transform(TransformStorage* storage, const std::string& name);
+		Transform(TransformStorage* storage, 
+			std::string_view name,
+			int parentNodeIndex = 0);
 
 		Vec3 GetLocalPosition() const;
 		Quaternion GetLocalRotation() const;
@@ -84,8 +85,7 @@ namespace Engine
 		Vec3 _localScale{ Vec3(1.0f, 1.0f, 1.0f) };
 	};
 
-	TransformStorage::TransformStorage(std::size_t expectedNodeCount,
-		const std::string_view& rootName)
+	TransformStorage::TransformStorage(std::size_t expectedNodeCount)
 	{
 		hierarchies.reserve(expectedNodeCount);
 		globalTransforms.reserve(expectedNodeCount);
@@ -93,18 +93,31 @@ namespace Engine
 		names.reserve(expectedNodeCount);
 		transformComponents.reserve(expectedNodeCount);
 
-		hierarchies.emplace_back( -1, 0 );
-		globalTransforms.emplace_back(Mat4x4::Identity());
-		localTransforms.emplace_back(Mat4x4::Identity());
-		names.emplace_back(rootName);
-		transformComponents.emplace_back(nullptr);
+		//hierarchies.emplace_back( -1, 0 );
+		//globalTransforms.emplace_back(Mat4x4::Identity());
+		//localTransforms.emplace_back(Mat4x4::Identity());
+		//names.emplace_back(rootName);
+		//transformComponents.emplace_back(nullptr);
 	}
 
 	int TransformStorage::AddTransform(const Mat4x4& localTransform, 
 		int parentIndex, 
-		const std::string& name, 
+		std::string_view name,
 		Transform* transform)
 	{
+		if (parentIndex == -1)		// We're dealing with a scene root
+		{
+			assert(hierarchies.empty() && "Scene can only have one root!");
+
+			hierarchies.emplace_back(-1, 0);
+			globalTransforms.emplace_back(localTransform);
+			localTransforms.emplace_back(localTransform);
+			names.emplace_back(name);
+			transformComponents.emplace_back(transform);
+
+			return 0;
+		}
+
 		assert(0 <= parentIndex && parentIndex < (int)hierarchies.size() && 
 			"Specified parent invalid; it should be a non-negative scene node index. (0 = scene root)");
 
@@ -132,11 +145,11 @@ namespace Engine
 			hierarchies[nextNodeToCheck].firstSibling = newNodeIndex;
 		}
 
-		hierarchies.push_back({ parentIndex, parent.depth });
-		globalTransforms.push_back(globalTransforms[parentIndex] * localTransform);
-		localTransforms.push_back(localTransform);
-		names.push_back(name);
-		transformComponents.push_back(transform);
+		hierarchies.emplace_back(parentIndex, parent.depth);
+		globalTransforms.emplace_back(globalTransforms[parentIndex] * localTransform);
+		localTransforms.emplace_back(localTransform);
+		names.emplace_back(name);
+		transformComponents.emplace_back(transform);
 
 		return newNodeIndex;
 	}
@@ -179,10 +192,16 @@ namespace Engine
 		}
 	}
 
-	Transform::Transform(TransformStorage* storage, const std::string& name)
+	Transform::Transform(TransformStorage* storage, 
+		std::string_view name,
+		int parentNodeIndex)
 	{
 		assert(storage != nullptr && "Trying to create transform with null storage");
-		_sceneNodeIndex = storage->AddTransform(CalculateLocalToWorldMatrix(),  0, name, this);
+
+		_sceneNodeIndex = storage->AddTransform(CalculateLocalToWorldMatrix(),  
+			parentNodeIndex, 
+			name,
+			this);
 	}
 
 	void Transform::OnSceneNodeIndexChanged(int newIndex)

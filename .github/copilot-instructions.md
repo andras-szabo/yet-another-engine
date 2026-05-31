@@ -35,7 +35,9 @@ Three CMake targets, all using C++23:
 
 Both `editor` and `game-template` link against the same `engine-core.dll`, so engine-managed state (registries, type system, logger) is never duplicated across the DLL boundary.
 
-`engine-core` exposes everything via `import EngineCore;`, which re-exports all sub-modules transitively (`Math`, `Logger`, `Component`, `Reflection`, `Transform`, `EngineError`, `GUID`).
+`engine-core` exposes everything via `import EngineCore;`, which re-exports all sub-modules transitively (`Math`, `Logger`, `Component`, `Reflection`, `Transform`, `Error`, `GUID`, `Scene`, `DataFile`, `Serialization`, `Utility`, etc.). **Exception: `EngineInstance` is NOT re-exported** — any module that needs the global instance must `import EngineInstance;` explicitly.
+
+All engine-owned code lives in `namespace Engine`. The `Scene` class lives in `namespace Engine::Scene`.
 
 The long-term process model is **editor process + game process communicating over TCP (WinSock2)**. The object model is **GameObject / Component** (no ECS). Custom components live in a user-authored C++ DLL, hot-reloaded by the engine.
 
@@ -99,21 +101,34 @@ Both a console sink (ANSI colours) and a file sink (`EngineLog.txt`) are active 
 
 ### Error Handling
 
-Use `Expected<T>` (alias for `std::expected<T, EngineError>`) for fallible operations:
+Use `Expected<T>` (alias for `std::expected<T, Error>`) and `Unexpected` (alias for `std::unexpected<Error>`) for fallible operations. The error module name is `Error` (file `EngineError.ixx`):
 ```cpp
-import EngineError;
+import Error;  // NOT "EngineError"
 
 Expected<MyType> DoSomething()
 {
     if (failed)
-        return std::unexpected(EngineError{ ErrorType::NotFound, "message" });
+        return Unexpected{ Error{ ErrorType::NotFound, "message" } };
     return result;
 }
 ```
 
+### EngineInstance
+
+`Engine::Instance` is a DLL-exported global `EngineInstance`. It must be initialized before any `GameObject` is constructed (since the constructor immediately registers with the active scene). Access it by importing `EngineInstance`:
+```cpp
+import EngineInstance;  // NOT re-exported by EngineCore
+
+Engine::Instance.Initialize(myScene, std::make_unique<ComponentStorage>());
+```
+
+`ComponentStorage` owns all components via `std::unique_ptr<Component>`. `GameObject` stores only non-owning raw pointers into that storage.
+
+---
+
 ### Reflection System
 
-Components use a **passive annotation + seam file** pattern (inspired by Unreal's UHT):
+Components use a **passive annotation + seam file** pattern (inspired by Unreal's UHT). Two macros work together — **both are required**:
 
 ```cpp
 // MyComp.ixx — global fragment:
@@ -122,7 +137,8 @@ Components use a **passive annotation + seam file** pattern (inspired by Unreal'
 // Module purview:
 export class MyComp : public Component
 {
-    COMPONENT_BODY(MyComp)          // declares GetTypeName, GetFieldDescriptors, GetReflectedFields
+    COMPONENT_BODY(MyComp)   // declares GetTypeName, GetFieldDescriptors, GetReflectedFields
+    COMPONENT_ID(MyComp)     // declares StaticTypeID() and GetTypeID() — required for GetComponent<T>()
 public:
     FIELD() float speed = 1.0f;    // FIELD() is a no-op annotation; compiles away
     FIELD() Vec3  velocity = {};

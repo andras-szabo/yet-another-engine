@@ -112,10 +112,6 @@ namespace Engine
 
 	private:
 		DataFile_Impl _impl;
-		//std::vector<std::string> _content;
-		//std::vector<DataFile> _children;
-		//std::vector<std::string> _childrenNames;
-		//std::unordered_map<std::string, int, StringViewHash, StringViewEq> _childIndexByName;
 	};
 
 	export class ENGINE_CORE_API ISerializable
