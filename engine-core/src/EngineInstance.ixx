@@ -59,6 +59,10 @@ namespace Engine
 	void EngineInstance::Initialize(std::unique_ptr<IComponentStorage> componentStorage)
 	{
 		_componentStorage = std::move(componentStorage);
+
+		delete _activeScene;
+		_activeScene = nullptr;
+
 		_activeScene = new Engine::Scene::Scene(_componentStorage.get(), "UntitledScene");
 	}
 

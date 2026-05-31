@@ -45,7 +45,6 @@ namespace Engine
 		export class ENGINE_CORE_API Scene
 		{
 		public:
-			Scene();
 			Scene(IComponentStorage* componentStorage, std::string_view name, std::size_t expectedNodeCount = 1024);
 			~Scene();
 
@@ -103,8 +102,6 @@ namespace Engine
 			: storage{ expectedNodeCount }
 		{
 			nodes.reserve(expectedNodeCount);
-			nodes.push_back(Node{});
-
 			gameObjects.reserve(expectedNodeCount);
 
 			const std::string rootName = std::string{ sceneName } + "_root";
@@ -125,13 +122,11 @@ namespace Engine
 			auto go = std::make_unique<GameObject>(name);
 			auto transform = go->AddComponent<Engine::Transform>(componentStorage, &storage, name, parentNodeIndex);
 			go->SetTransform(transform);
+
 			gameObjects.push_back(std::move(go));
+			nodes.push_back(Node{});
 
 			return (*gameObjects.rbegin()).get();
-		}
-
-		Scene::Scene()
-		{
 		}
 
 		Scene::Scene(IComponentStorage* componentStorage, std::string_view name, std::size_t expectedNodeCount)
