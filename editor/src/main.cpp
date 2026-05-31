@@ -1,5 +1,6 @@
 #include <array>
 #include <iostream>
+#include <span>
 #include <string>
 #include <cassert>
 #include "LoggerMacros.h"
@@ -43,7 +44,7 @@ void TestVec3()
 {
     using namespace Engine;
     Vec3 a;
-    Vec3 b{ 1, 2.23, 3 };
+    Vec3 b{ 1, 2.23f, 3 };
     Vec3 c = a + b;
     LOG_INFO("[Foo] Vec3: a: {}, b: {}, a + b = {:.2f}", a, b, c);
 }
@@ -93,13 +94,36 @@ void TestDF()
     df["Bar"] = 42;
     df["Baz"] = "Baz";
 
-    Vec2 v{ -123.4, 3.14 };
+    Vec2 v{ -123.4f, 3.14f };
     df["Position"] = v;
 
     Vec2 vCopy{ df["Position"] };
 
     LOG_INFO("Df with assignment ops: {}", df.ToString());
     LOG_INFO("Df deserialized: {}", vCopy);
+}
+
+struct NestedType
+{
+    int john{ 0 };
+    float paul{ 0.f };
+    Engine::Vec3 george;
+    Engine::Quaternion ringo;
+};
+
+std::span<const Engine::FieldDescriptor> GetNestedTypeFieldDescriptors()
+{
+    static Engine::FieldDescriptor nt_john{ "john", Engine::FieldType::Int, offsetof(NestedType, john) };
+    static Engine::FieldDescriptor nt_paul{ "paul", Engine::FieldType::Float, offsetof(NestedType, paul) };
+    static Engine::FieldDescriptor nt_george{ "george", Engine::FieldType::Vec3, offsetof(NestedType, george) };
+    static Engine::FieldDescriptor nt_ringo{ "ringo", Engine::FieldType::Quaternion, offsetof(NestedType, ringo) };
+
+    static std::array<Engine::FieldDescriptor, 4> fields
+    {
+        nt_john, nt_paul, nt_george, nt_ringo
+    };
+
+    return fields;
 }
 
 void TestSrsly()
@@ -109,26 +133,32 @@ void TestSrsly()
         int foo;
         int bar;
         float baz;
+        NestedType fizz;
     };
 
     Engine::FieldDescriptor f_foo{ "foo", Engine::FieldType::Int, offsetof(TestType, foo) };
     Engine::FieldDescriptor f_bar{ "bar", Engine::FieldType::Int, offsetof(TestType, bar) };
     Engine::FieldDescriptor f_baz{ "baz", Engine::FieldType::Float, offsetof(TestType, baz) };
+    Engine::FieldDescriptor f_fizz{ "fizz", Engine::FieldType::Composite, offsetof(TestType, fizz), GetNestedTypeFieldDescriptors };
 
-    std::array<Engine::FieldDescriptor, 3> fields
+    std::array<Engine::FieldDescriptor, 4> fields
     {
-        f_foo, f_bar, f_baz
+        f_foo, f_bar, f_baz, f_fizz
     };
 
     TestType t;
     t.foo = 123;
     t.bar = -234;
     t.baz = 45.424f;
+    t.fizz.john = 99;
+    t.fizz.paul = -42.f;
+    t.fizz.george = { -5.0f, -6.0f, -7.0f };
+    t.fizz.ringo = Engine::Quaternion::Identity();
 
     Engine::DataFile df{};
 
     Engine::SerializeFields(&t, fields, df);
-    LOG_INFO("Serialization at work: {}", df.ToString());
+    LOG_INFO("Serialization at work:\n{}", df.ToString());
 
     LOG_INFO("And now to deserialize...");
     TestType read;
