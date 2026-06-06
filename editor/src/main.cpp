@@ -7,8 +7,18 @@
 
 // Import the engine-core module.
 // Once engine-core exports real symbols, they will be available here.
+#if defined ( __INTELLISENSE__ )
+#include "../../engine-core/src/EngineError.ixx"
+#include "../../engine-core/src/EngineInstance.ixx"
+#include "../../engine-core/src/Logger.ixx"
+#include "../../engine-core/src/Math.ixx"
+#include "../../engine-core/src/Reflection.ixx"
+#include "../../engine-core/src/Scene.ixx"
+#include "../../engine-core/src/Serialization.ixx"
+#else
 import EngineCore;
 import EngineInstance;
+#endif
 
 using namespace Engine;
 
@@ -260,6 +270,20 @@ int main()
     Engine::SerializeScene(scene, fOut);
 
     LOG_INFO("Serialized scene: {}", fOut.ToString());
+
+    // And now,, the deserialization... o.O
+    auto sceneMaybe = Engine::DeserializeScene(fOut, Engine::Instance.GetComponentStorage());
+    if (!sceneMaybe.has_value())
+    {
+        LOG_ERROR("Uh-oh. {}", sceneMaybe.error().message);
+    }
+    else
+    {
+        LOG_INFO("My word. We deserialized a scene! Let's try to log it! \n\n");
+        auto& newScene = sceneMaybe.value();
+        LOG_INFO("Break here...");
+        newScene.WalkDepthFirst(0, logNodes);
+    }
 
     // Try to add another transform; this should fail.
     //g.AddComponent<Engine::Transform>();

@@ -60,7 +60,13 @@ namespace Engine
 			return Unexpected({ ErrorType::NotFound, std::format("No component found with type ID: {}", typeID) });
 		}
 
-		return storage.CreateComponentDynamic((*item).second);
+		auto* component = storage.CreateComponentDynamic((*item).second);
+		if (component == nullptr)
+		{
+			return Unexpected({ ErrorType::Undefined, std::format("Error when creating component with type ID: {}", typeID) });
+		}
+
+		return component;
 	}
 
 	void ComponentRegistry::Register(unsigned int typeID, ComponentFactoryFn fn)

@@ -57,6 +57,11 @@ namespace Engine
 
 			~Scene();
 
+			Scene(const Scene&)			   = delete;
+			Scene& operator=(const Scene&) = delete;
+			Scene(Scene&& other) noexcept;
+			Scene& operator=(Scene&& other) noexcept;
+
 			std::string_view GetSceneName() const;
 			std::string_view GetNodeName(std::size_t nodeIndex) const;
 
@@ -95,6 +100,24 @@ namespace Engine
 			void UpdateDepthsBelow(int nodeIndex, int newDepth);
 		};
 
+		Scene::Scene(Scene&& other) noexcept
+			: _impl{ other._impl }
+		{
+			other._impl = nullptr;
+		}
+
+		Scene& Scene::operator=(Scene&& other) noexcept
+		{
+			if (this != &other)
+			{
+				delete _impl;
+				_impl = other._impl;
+				other._impl = nullptr;
+			}
+
+			return *this;
+		}
+
 		Scene::~Scene()
 		{
 			delete _impl;
@@ -116,6 +139,10 @@ namespace Engine
 			gameObjects.reserve(expectedNodeCount);
 
 			const std::string rootName = std::string{ sceneName } + "_root";
+			if (rootGuid == 0)
+			{
+				rootGuid = GUID().id;
+			}
 			CreateGameObject(componentStorage, rootName, -1, rootGuid);
 		}
 

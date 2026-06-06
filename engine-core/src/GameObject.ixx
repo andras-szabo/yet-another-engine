@@ -49,6 +49,7 @@ namespace Engine
 			requires std::is_base_of_v<Component, T>
 		T* GetComponent();
 
+		void AddComponentRaw(Component* component);
 		void SetTransform(Transform* trsf);
 		Transform* GetTransform();
 		std::vector<Component*> GetComponents();
@@ -140,5 +141,11 @@ namespace Engine
 	std::vector<Component*> GameObject::GetComponents()
 	{
 		return _gimpl->_components;
+	}
+
+	void GameObject::AddComponentRaw(Component* component)
+	{
+		component->_owner = this;
+		_gimpl->_components.push_back(component);
 	}
 }

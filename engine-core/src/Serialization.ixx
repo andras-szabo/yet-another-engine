@@ -1,5 +1,6 @@
 module;
 
+#include <cassert>
 #include <format>
 #include <span>
 #include <stdexcept>
@@ -196,7 +197,7 @@ namespace Engine
 	}
 
 	export ENGINE_CORE_API
-		Engine::Expected<Engine::Scene::Scene> DeserializeScene(const Engine::DataFile& in,
+	Engine::Expected<Engine::Scene::Scene> DeserializeScene(const Engine::DataFile& in,
 			IComponentStorage& componentStorage)
 	{
 		try
@@ -220,7 +221,8 @@ namespace Engine
 			}
 
 			const int nodeCount_v = nodeCount.value();
-			std::vector<Engine::Hierarchy> hierarchies(nodeCount_v * 3);
+			std::vector<Engine::Hierarchy> hierarchies;
+			hierarchies.reserve(nodeCount_v);
 
 			if (nodeCount_v <= 0)
 			{
@@ -243,7 +245,17 @@ namespace Engine
 			}
 
 			const auto& nodes = in[KEY_NODES];
-			const auto& rootGuidAsString = nodes.GetChildrenNames()[0];
+
+			// Testing
+			for (const auto& childName : nodes.GetChildrenNames())
+			{
+				LOG_INFO("Child: {}", childName);
+			}
+
+			//return Engine::Unexpected({ Engine::ErrorType::Deserialization, "Just testing" });
+
+			//-------------------------
+			const auto rootGuidAsString = nodes.GetChildrenNames()[0];
 			const auto rootGuid = std::stoull(rootGuidAsString);
 
 			Engine::Scene::Scene scene{ &componentStorage,
@@ -270,28 +282,30 @@ namespace Engine
 					for (const auto& componentTypeID : componentTypeIDs)
 					{
 						const unsigned int typeID = std::stoul(componentTypeID);
+						Component* component{ nullptr };
 						if (typeID == Transform::StaticTypeID())
 						{
-							// Update transform
+							component = static_cast<Component*>(go->GetTransform());
 						}
 						else
 						{
 							auto componentMaybe = GlobalComponentRegistry.Create(typeID, componentStorage);
+							if (!componentMaybe.has_value())
+							{
+								LOG_WARN("Component read fail: {}", componentMaybe.error().message);
+								continue;
+							}
+
+							component = componentMaybe.value();
+							go->AddComponentRaw(component);
 						}
 
-					}
+						assert(component != nullptr);
 
-					// And now, deserialize all the components of the scene;
-					// but how should we deal w/ transforms? Either we allow for gameObjects without transforms,
-					// or we handle it as a special case here.
-					//
-					// Either way, what we need to do now is:
-					//	- get the names of the children of nodes[guidAsString][KEY_COMPONENTS]
-					//	- these children will be the component type guids
-					//	- then we need to call the component factory with the type guid
-					//	- and then deserialize based on that.
-					//	- but in order for _this_ to work, we need... the component factory, and the
-					//	  component type registration. Aha. So we did end up here after all.
+						const auto& componentNode = nodes[guidStr][KEY_COMPONENTS][componentTypeID];
+						DeserializeFields(component, component->GetReflectedFields(), componentNode);
+						component->OnCreate();
+					}
 
 				}
 
@@ -302,6 +316,7 @@ namespace Engine
 		}
 		catch (std::runtime_error e)
 		{
+			LOG_ERROR("this.");
 			return Engine::Unexpected({ Engine::ErrorType::Deserialization, e.what() });
 		}
 	}
