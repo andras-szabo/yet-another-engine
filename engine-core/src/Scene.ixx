@@ -48,7 +48,7 @@ namespace Engine
 			Scene(IComponentStorage* componentStorage, std::string_view name, std::size_t expectedNodeCount = 1024);
 			~Scene();
 
-			std::string_view GetName() const;
+			std::string_view GetSceneName() const;
 			std::string_view GetNodeName(std::size_t nodeIndex) const;
 
 			//int AddNode(const Mat4x4& localTransform, int parent,
@@ -89,10 +89,9 @@ namespace Engine
 			delete _impl;
 		}
 
-		GameObject* Scene::GetGameObject(std::size_t nodeIndex)
+		Engine::GameObject* Scene::GetGameObject(std::size_t nodeIndex)
 		{
 			assert(nodeIndex < _impl->gameObjects.size() && "Node index out of bounds.");
-
 			return _impl->gameObjects[nodeIndex].get();
 		}
 
@@ -144,7 +143,7 @@ namespace Engine
 			_impl->storage.UpdateWorldTransforms();
 		}
 
-		std::string_view Scene::GetName() const
+		std::string_view Scene::GetSceneName() const
 		{
 			return GetNodeName(0);
 		}

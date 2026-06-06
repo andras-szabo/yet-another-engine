@@ -10,6 +10,8 @@
 import EngineCore;
 import EngineInstance;
 
+using namespace Engine;
+
 Engine::Expected<int> ShouldBeEven(int number)
 {
     if (number % 2 == 0)
@@ -17,7 +19,7 @@ Engine::Expected<int> ShouldBeEven(int number)
         return number;
     }
 
-    return std::unexpected<Engine::Error>({Engine::ErrorType::LogicError, "Bloargh"});
+    return std::unexpected<Engine::Error>({Engine::ErrorType::Logic, "Bloargh"});
 }
 
 void TestM3x3()
@@ -157,13 +159,14 @@ void TestSrsly()
 
     Engine::DataFile df{};
 
-    Engine::SerializeFields(&t, fields, df);
+    /*Engine::SerializeFields(&t, fields, df);
     LOG_INFO("Serialization at work:\n{}", df.ToString());
 
     LOG_INFO("And now to deserialize...");
     TestType read;
     Engine::DeserializeFields(&read, fields, df);
     LOG_INFO("Deserialized: foo = {}, bar = {}, baz = {}", read.foo, read.bar, read.baz);
+    */
 }
 
 int main()
@@ -201,9 +204,11 @@ int main()
         .GetActiveScene()
         .CreateGameObject(&Engine::Instance.GetComponentStorage(), "Foo", 0);
 
+    g->GetName();
+
     assert(g->GetTransform() != nullptr && "GameObject created but has no transform.");
     LOG_INFO("G has a transform, yay!");
-    LOG_INFO("Active scene: {}", Engine::Instance.GetActiveScene().GetName());
+    LOG_INFO("Active scene: {}", Engine::Instance.GetActiveScene().GetSceneName());
 
     // Let's walk through it...
     auto logNodes = [](Engine::Scene::Scene& scene, std::size_t currentIndex) {
@@ -250,6 +255,11 @@ int main()
     scene.UpdateWorldTransforms();
 
     LOG_INFO("World transforms updated");
+
+    Engine::DataFile fOut;
+    Engine::SerializeScene(scene, fOut);
+
+    LOG_INFO("Serialized scene: {}", fOut.ToString());
 
     // Try to add another transform; this should fail.
     //g.AddComponent<Engine::Transform>();

@@ -9,3 +9,4 @@ int main()
     std::cout << "[game-template] stub — game loop will go here\n";
     return 0;
 }
+

@@ -14,10 +14,11 @@ namespace Engine
 		enum class ErrorType
 	{
 		Undefined = 0,
-		LogicError = 1,
+		Logic = 1,
 		NotFound = 2,
 		OutOfBounds = 3,
-		FileError = 4,
+		File = 4,
+		Deserialization = 5,
 		// ... TODO add more as needed
 	};
 

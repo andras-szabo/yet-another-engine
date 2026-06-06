@@ -11,8 +11,6 @@ import Utility;
 
 namespace Engine
 {
-	export class GameObject;
-
 	export class ENGINE_CORE_API Component
 	{
 		friend class GameObject;

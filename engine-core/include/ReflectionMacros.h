@@ -52,16 +52,13 @@
 //   - GetFieldDescriptors() : static function defined in ClassName.reflected.h
 //   - GetReflectedFields()  : virtual override that delegates to the static
 //                             function, enabling runtime access via Component*
-#define COMPONENT_BODY(ClassName)                                                      \
-public:                                                                                \
-    static constexpr std::string_view TypeName { #ClassName };                        \
-    static std::string_view GetTypeName() { return TypeName; }                        \
-    static std::span<const FieldDescriptor> GetFieldDescriptors();                    \
-    std::span<const FieldDescriptor> GetReflectedFields() const override               \
-    { return ClassName::GetFieldDescriptors(); }
-
-#define COMPONENT_ID(ClassName)                                                     \
+#define COMPONENT_BODY(ClassName)                                                   \
 public:                                                                             \
+    static constexpr std::string_view TypeName { #ClassName };                      \
+    static std::string_view GetTypeName() { return TypeName; }                      \
+    static std::span<const FieldDescriptor> GetFieldDescriptors();                  \
+    std::span<const FieldDescriptor> GetReflectedFields() const override            \
+    { return ClassName::GetFieldDescriptors(); }                                    \
     static constexpr unsigned int StaticTypeID()                                    \
     {                                                                               \
         static const unsigned int id = DJBHash(#ClassName);                         \
@@ -77,7 +74,7 @@ public:                                                                         
 #define REFLECTED_FIELDS(ClassName, ...)                                               \
     std::span<const FieldDescriptor> ClassName::GetFieldDescriptors()                  \
     {                                                                                  \
-        static const FieldDescriptor fields[] { __VA_ARGS__ };                        \
+        static const FieldDescriptor fields[] { __VA_ARGS__ };                         \
         return fields;                                                                 \
     }
 

@@ -1,13 +1,23 @@
 module;
 
+#include <format>
 #include <span>
+#include <stdexcept>
 #include <string>
+#include <string_view>
 
+#include "LoggerMacros.h"
 #include "engine_core_api.h"
+
+#define KEY_NODES "Nodes"
+#define KEY_COMPONENTS "Components"
+#define KEY_HIERARCHY "Hierarchy"
 
 export module Serialization;
 
+import IComponentStorage;
 import DataFile;
+import Logger;
 import Math;
 import Reflection;
 import Scene;
@@ -15,9 +25,9 @@ import Scene;
 namespace Engine
 {
 	export ENGINE_CORE_API
-	void SerializeFields(const void* base,
-						 std::span<const FieldDescriptor> fields, 
-						 DataFile& out)
+		void SerializeFields(const void* base,
+			std::span<const Engine::FieldDescriptor> fields,
+			Engine::DataFile& out)
 	{
 		const char* baseAsCharPtr = reinterpret_cast<const char*>(base);
 		for (const auto& field : fields)
@@ -83,7 +93,7 @@ namespace Engine
 	}
 
 	export ENGINE_CORE_API
-	void DeserializeFields(void* base, std::span<const FieldDescriptor> fields, const DataFile& in)
+		void DeserializeFields(void* base, std::span<const FieldDescriptor> fields, const DataFile& in)
 	{
 		char* baseAsCharPtr = reinterpret_cast<char*>(base);
 		for (const auto& field : fields)
@@ -172,7 +182,108 @@ namespace Engine
 		}
 	}
 
-	void SerializeScene(const Engine::Scene::Scene& scene, DataFile& out)
+	//const std::string KEY_HIERARCHY = "Hierarchy";
+	//const std::string KEY_NODES = "Nodes";
+	//const std::string KEY_COMPONENTS = "Components";
+
+
+	export ENGINE_CORE_API
+	Engine::Expected<Engine::Scene::Scene> DeserializeScene(const Engine::DataFile& in,
+			IComponentStorage& componentStorage)
 	{
+		try
+		{
+			const auto name = in.TryGetString(0);
+			if (!name.has_value())
+			{
+				return Engine::Unexpected(name.error());
+			}
+
+			if (!in.HasChild(KEY_HIERARCHY))
+			{
+				return Engine::Unexpected({ Engine::ErrorType::Deserialization, std::format("No key {} found", KEY_HIERARCHY)});
+			}
+
+			const auto& hierarchy = in[KEY_HIERARCHY];
+			const auto nodeCount = hierarchy.TryGetInt(0);
+			if (!nodeCount.has_value())
+			{
+				return Engine::Unexpected(nodeCount.error());
+			}
+
+			const int nodeCount_v = nodeCount.value();
+			Engine::Scene::Scene scene{ &componentStorage, name.value(), static_cast<std::size_t>(nodeCount_v) };
+
+			// read hierarchy info
+			// read GameObject
+
+			//Engine::TransformStorage storage{ static_cast<std::size_t>(nodeCount_v) };
+
+			//int index = 1;
+			//for (int i = 0; i < nodeCount_v; ++i)
+			//{
+			//	const int parent = hierarchy.GetInt(index++);
+			//	const int firstChild = hierarchy.GetInt(index++);
+			//	const int firstSibling = hierarchy.GetInt(index++);
+
+			//	storage.hierarchies.emplace_back(Engine::Hierarchy { parent, firstChild, firstSibling });
+			//	storage.globalTransforms.emplace_back(Engine::Mat4x4::Identity());
+			//	storage.localTransforms.emplace_back(Engine::Mat4x4::Identity());
+			//	storage.names.emplace_back("TBA");
+			//	storage.transformComponents.emplace_back(nullptr);
+			//}
+
+			return scene;
+		}
+		catch (std::runtime_error e)
+		{
+			return Engine::Unexpected({ Engine::ErrorType::Deserialization, e.what() });
+		}
 	}
+
+	export ENGINE_CORE_API
+	void SerializeScene(Engine::Scene::Scene& scene, Engine::DataFile& out)
+	{
+		auto srlz = [&](Engine::Scene::Scene& scene_, std::size_t nodeIndex)
+			{
+				auto& nodes = out[KEY_NODES];
+				Engine::GameObject* go = scene_.GetGameObject(nodeIndex);
+				const unsigned long long guid = go->GetGUID().id;
+				const std::string guidAsString = std::to_string(guid);
+				const std::string goName = std::string{ go->GetName() };
+
+				nodes[guidAsString].SetString(goName);
+				Engine::DataFile& components = nodes[guidAsString][KEY_COMPONENTS];
+
+				for (const auto& component : go->GetComponents())
+				{
+					const std::string typeID = std::to_string(component->GetTypeID());
+					auto& componentParts = components[typeID];
+					SerializeFields(component, component->GetReflectedFields(), componentParts);
+				}
+			};
+
+		// 0th thing: name
+		out.SetString(scene.GetSceneName());
+
+		// 1st thing: serialize the transform storage
+		auto& hierarchy = out[KEY_HIERARCHY];
+		const Engine::TransformStorage* storage = scene.GetTransformStorage();
+
+		// store only parent, firstchild, firstsibling triplets
+		int index = 0;
+
+		hierarchy.SetInt(storage->hierarchies.size(), index++);
+
+		for (const Engine::Hierarchy& hierarchy_stored : storage->hierarchies)
+		{
+			hierarchy.SetInt(hierarchy_stored.parent, index++);
+			hierarchy.SetInt(hierarchy_stored.firstChild, index++);
+			hierarchy.SetInt(hierarchy_stored.firstSibling, index++);
+		}
+
+		scene.WalkDepthFirst(0, srlz);
+	}
+
 } // namespace Engine
+

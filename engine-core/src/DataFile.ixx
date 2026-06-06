@@ -2,6 +2,7 @@ module;
 
 #include <cassert>
 #include <cstdarg>
+#include <format>
 #include <functional>
 #include <fstream>
 #include <limits>
@@ -93,6 +94,7 @@ namespace Engine
 		bool HasChild(std::string_view name) const;
 
 		void SetString(const std::string& str, int index = 0);
+		void SetString(const std::string_view str, int index = 0);
 		void SetInt(int i, int index = 0);
 		void SetUInt(unsigned int i, int index = 0);
 		void SetULong(unsigned long long ulong, int index = 0);
@@ -109,6 +111,9 @@ namespace Engine
 		unsigned long long GetULong(int index = 0) const;
 		float GetFloat(int index = 0) const;
 		std::string ToString(const std::string& indent = "  ") const;
+
+		Engine::Expected<std::string> TryGetString(int index = 0) const;
+		Engine::Expected<int> TryGetInt(int index = 0) const;
 
 	private:
 		DataFile_Impl _impl;
@@ -307,7 +312,7 @@ namespace Engine
 			return df;
 		}
 
-		return Unexpected({ Engine::ErrorType::FileError, "Couldn't open file" });
+		return Unexpected({ Engine::ErrorType::File, "Couldn't open file" });
 	}
 
 	DataFile::DataFile(std::size_t expectedChildrenCount)
@@ -406,6 +411,11 @@ namespace Engine
 		_impl.childIndexByName.clear();
 	}
 
+	void DataFile::SetString(const std::string_view strView, int index)
+	{
+		SetString(std::string{ strView }, index);
+	}
+
 	void DataFile::SetString(const std::string& str, int index)
 	{
 		if (0 <= index)
@@ -419,6 +429,16 @@ namespace Engine
 		}
 	}
 
+	Engine::Expected<std::string> DataFile::TryGetString(int index) const
+	{
+		if (0 <= index && index < _impl.content.size())
+		{
+			return _impl.content[index];
+		}
+
+		return Engine::Unexpected({ Engine::ErrorType::OutOfBounds, std::format("Read error at index {}", index) });
+	}
+
 	const std::string& DataFile::GetString(int index) const
 	{
 		if (0 <= index && index < _impl.content.size())
@@ -427,6 +447,16 @@ namespace Engine
 		}
 
 		return EMPTY_STRING;
+	}
+
+	Engine::Expected<int> DataFile::TryGetInt(int index) const
+	{
+		if (0 <= index && index < _impl.content.size())
+		{
+			return GetInt(index);
+		}
+
+		return Engine::Unexpected({ Engine::ErrorType::OutOfBounds, std::format("Read error at index {}", index) });
 	}
 
 	int DataFile::GetInt(int index) const

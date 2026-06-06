@@ -20,6 +20,12 @@ namespace Engine
 	export struct Hierarchy
 	{
 		Hierarchy(int parent_, int depth_) : parent{ parent_ }, depth{ depth_ } {}
+		Hierarchy(int parent_, int firstChild_, int firstSibling_) :
+			parent{ parent_ },
+			firstChild{ firstChild_ },
+			firstSibling{ firstSibling_ }
+		{
+		}
 
 		int parent{ -1 };
 		int firstChild{ -1 };
@@ -52,6 +58,8 @@ namespace Engine
 	export class ENGINE_CORE_API Transform : public Component, 
 											 public ISceneNodeIndexObserver
 	{
+		COMPONENT_BODY(Transform)
+
 	public:
 		~Transform() override = default;
 		Transform(TransformStorage* storage, 
@@ -71,8 +79,6 @@ namespace Engine
 
 		int GetSceneNodeIndex() const { return _sceneNodeIndex; }
 
-		COMPONENT_ID(Transform)
-
 	private:
 		Mat4x4 CalculateLocalToWorldMatrix() const;
 		void RefreshLocalToWorld();
@@ -84,6 +90,12 @@ namespace Engine
 		Quaternion _localRotation{ Quaternion::Identity() };
 		Vec3 _localScale{ Vec3(1.0f, 1.0f, 1.0f) };
 	};
+
+	REFLECTED_FIELDS(Transform, { "_sceneNodeIndex", Engine::FieldType::Int, offsetof(Transform, _sceneNodeIndex) },
+		{ "_localPosition", Engine::FieldType::Vec3, offsetof(Transform, _localPosition) }, 
+		{ "_localRotation", Engine::FieldType::Quaternion, offsetof(Transform, _localRotation) },
+		{ "_localScale", Engine::FieldType::Vec3, offsetof(Transform, _localScale) })
+
 
 	TransformStorage::TransformStorage(std::size_t expectedNodeCount)
 	{
