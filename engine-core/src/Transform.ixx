@@ -1,7 +1,6 @@
 module;
 
 #include <cassert>
-#include <functional>
 #include <string>
 #include <vector>
 

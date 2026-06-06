@@ -1,10 +1,10 @@
 #pragma once
 
 #include <cstddef>      // offsetof
+#include <functional>
+#include <memory>
 #include <span>
 #include <string_view>
-
-#include "ComponentRegistryAPI.h"
 
 // Companion header for the Reflection module.
 // Macros cannot be exported from C++ modules, so they live here.

@@ -2,8 +2,11 @@ module;
 
 #include <cassert>
 #include <format>
+#include <functional>
+#include <memory>
 #include <unordered_map>
 
+#include "engine_core_api.h"
 #include "LoggerMacros.h"
 #include "ReflectionMacros.h"
 

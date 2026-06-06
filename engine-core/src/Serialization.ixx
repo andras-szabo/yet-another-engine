@@ -23,6 +23,7 @@ export module Serialization;
 #include "Math.ixx"
 #include "Reflection.ixx"
 #include "Scene.ixx"
+#include "Transform.ixx"
 #else
 import IComponentStorage;
 import DataFile;
