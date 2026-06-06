@@ -47,6 +47,8 @@
 // Optional arguments (e.g. FIELD(EditAnywhere)) are accepted and ignored.
 #define FIELD(...)
 
+// TODO - unify COMPONENT_BODY and REGISTER_COMPONENT
+
 // COMPONENT_BODY(ClassName) — place as the first line inside a
 // Component-derived class body.  Declares:
 //   - TypeName           : compile-time string_view of the class name

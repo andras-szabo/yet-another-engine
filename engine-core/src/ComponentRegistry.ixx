@@ -27,7 +27,7 @@ namespace Engine
 		void Register(unsigned int typeID, ComponentFactoryFn fn);
 		void Unregister(unsigned int typeID);
 
-	//	Expected<Component*> Create(unsigned int typeID, IComponentStorage& storage);
+		Expected<Component*> Create(unsigned int typeID, IComponentStorage& storage);
 	//	bool Has(unsigned int typeID) const;
 
 	private:
@@ -52,6 +52,17 @@ module :private;
 
 namespace Engine
 {
+	Expected<Component*> ComponentRegistry::Create(unsigned int typeID, IComponentStorage& storage)
+	{
+		const auto item = _factories.find(typeID);
+		if (item == _factories.end())
+		{
+			return Unexpected({ ErrorType::NotFound, std::format("No component found with type ID: {}", typeID) });
+		}
+
+		return storage.CreateComponentDynamic((*item).second);
+	}
+
 	void ComponentRegistry::Register(unsigned int typeID, ComponentFactoryFn fn)
 	{
 		assert(_factories.find(typeID) == _factories.end() && std::format("Double component registration! Type ID: {}", typeID).c_str());

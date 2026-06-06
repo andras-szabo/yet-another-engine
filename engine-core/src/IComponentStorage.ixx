@@ -13,6 +13,8 @@ import Component;
 
 namespace Engine
 {
+	using ComponentFactoryFn = std::function<std::unique_ptr<Component>()>;
+
 	export class ENGINE_CORE_API IComponentStorage
 	{
 	public:
@@ -21,10 +23,16 @@ namespace Engine
 		template <typename T, typename... Args>
 		requires std::is_base_of_v<Component, T>
 		Component* CreateComponent(Args&&... args);
+		Component* CreateComponentDynamic(ComponentFactoryFn factory);
 
 	protected:
 		virtual Component* CreateComponentImpl(std::function<std::unique_ptr<Component>()> factory) = 0;
 	};
+
+	Component* IComponentStorage::CreateComponentDynamic(ComponentFactoryFn factory)
+	{
+		return CreateComponentImpl(factory);
+	}
 
 	template<typename T, typename... Args>
 	requires std::is_base_of_v<Component, T>

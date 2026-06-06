@@ -16,6 +16,7 @@ module;
 export module Serialization;
 
 #if defined( __INTELLISENSE__ )
+#include "ComponentRegistry.ixx"
 #include "IComponentStorage.ixx"
 #include "DataFile.ixx"
 #include "GameObject.ixx"
@@ -25,6 +26,7 @@ export module Serialization;
 #include "Scene.ixx"
 #include "Transform.ixx"
 #else
+import ComponentRegistry;
 import IComponentStorage;
 import DataFile;
 import Logger;
@@ -262,6 +264,22 @@ namespace Engine
 						gameObjectName,
 						parentNodeIndex,
 						guid);
+
+					const auto& componentTypeIDs = nodes[guidStr][KEY_COMPONENTS].GetChildrenNames();
+					
+					for (const auto& componentTypeID : componentTypeIDs)
+					{
+						const unsigned int typeID = std::stoul(componentTypeID);
+						if (typeID == Transform::StaticTypeID())
+						{
+							// Update transform
+						}
+						else
+						{
+							auto componentMaybe = GlobalComponentRegistry.Create(typeID, componentStorage);
+						}
+
+					}
 
 					// And now, deserialize all the components of the scene;
 					// but how should we deal w/ transforms? Either we allow for gameObjects without transforms,
