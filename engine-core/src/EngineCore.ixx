@@ -5,6 +5,7 @@ module;
 export module EngineCore;
 
 export import Component;
+export import ComponentRegistry;
 export import ComponentStorage;
 export import DataFile;
 export import Error;

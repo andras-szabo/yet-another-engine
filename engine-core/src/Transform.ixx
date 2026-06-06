@@ -11,6 +11,7 @@ module;
 export module Transform;
 
 import Component;
+import ComponentRegistry;
 import Interfaces;
 import Math;
 import Utility;
@@ -19,6 +20,8 @@ namespace Engine
 {
 	export struct Hierarchy
 	{
+		Hierarchy() = default;
+
 		Hierarchy(int parent_, int depth_) : parent{ parent_ }, depth{ depth_ } {}
 		Hierarchy(int parent_, int firstChild_, int firstSibling_) :
 			parent{ parent_ },
@@ -59,9 +62,13 @@ namespace Engine
 											 public ISceneNodeIndexObserver
 	{
 		COMPONENT_BODY(Transform)
+		REGISTER_COMPONENT(Transform)
 
 	public:
+		// NOTE: Components must have default ctors :/
+		Transform() = default;
 		~Transform() override = default;
+
 		Transform(TransformStorage* storage, 
 			std::string_view name,
 			int parentNodeIndex = 0);

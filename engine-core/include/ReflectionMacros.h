@@ -4,6 +4,8 @@
 #include <span>
 #include <string_view>
 
+#include "ComponentRegistryAPI.h"
+
 // Companion header for the Reflection module.
 // Macros cannot be exported from C++ modules, so they live here.
 //
@@ -86,9 +88,31 @@ public:                                                                         
         return {};                                                                     \
     }
 
+// Register/unregister component via creation of a specific RAII type
+
+#define REGISTER_COMPONENT(ClassName)                                   \
+private:                                                                \
+    struct ClassName##_Registrar                                        \
+    {                                                                   \
+        ClassName##_Registrar()                                         \
+        {                                                               \
+            Engine::RegisterComponent(ClassName::StaticTypeID(),        \
+                    []() -> std::unique_ptr<Engine::Component> {        \
+                        return std::make_unique<ClassName>();           \
+                    });                                                 \
+        }                                                               \
+        ~ClassName##_Registrar()                                        \
+        {                                                               \
+            Engine::UnregisterComponent(ClassName::StaticTypeID());     \
+        }                                                               \
+    };                                                                  \
+                                                                        \
+    inline static ClassName##_Registrar _##ClassName##_registrar{};     \
+public:                                                                 \
+
+
 // REGISTER_COMPONENT(ClassName)
 // Registers the component type with an immediately invoked lambda
-
 //#define REGISTER_COMPONENT(ClassName)                                                   \
 //    inline static bool _registered_##ClassName = []() {                                 \
 //        const int hash = DJBHash(#ClassName);                                           \

@@ -14,6 +14,7 @@ export module Scene;
 import Component;
 import IComponentStorage;
 import GameObject;
+import GUID;
 import Interfaces;
 import Math;
 import Transform;
@@ -30,7 +31,10 @@ namespace Engine
 
 		struct SceneImpl
 		{
-			SceneImpl(IComponentStorage* componentStorage, std::string_view, std::size_t expectedNodeCount = 1024);
+			SceneImpl(IComponentStorage* componentStorage, 
+				std::string_view, 
+				std::size_t expectedNodeCount = 1024,
+				unsigned long long rootGuid = 0);
 
 			std::vector<Node> nodes;
 			std::vector<std::unique_ptr<GameObject>> gameObjects;
@@ -39,13 +43,18 @@ namespace Engine
 
 			GameObject* CreateGameObject(IComponentStorage* componentStorage,
 				std::string_view name,
-				int parentNodeIndex = 0);
+				int parentNodeIndex = 0,
+				unsigned long long guid = 0);
 		};
 
 		export class ENGINE_CORE_API Scene
 		{
 		public:
-			Scene(IComponentStorage* componentStorage, std::string_view name, std::size_t expectedNodeCount = 1024);
+			Scene(IComponentStorage* componentStorage, 
+				std::string_view name, 
+				std::size_t expectedNodeCount = 1024,
+				unsigned long long rootGuid = 0);
+
 			~Scene();
 
 			std::string_view GetSceneName() const;
@@ -68,7 +77,9 @@ namespace Engine
 
 			GameObject* CreateGameObject(IComponentStorage* storage,
 				std::string_view name,
-				int parentNodeIndex);
+				int parentNodeIndex,
+				unsigned long long guid = 0);
+
 			GameObject* GetGameObject(std::size_t nodeIndex);
 
 			TransformStorage* GetTransformStorage();
@@ -97,28 +108,37 @@ namespace Engine
 
 		SceneImpl::SceneImpl(IComponentStorage* componentStorage,
 			std::string_view sceneName, 
-			std::size_t expectedNodeCount)
+			std::size_t expectedNodeCount,
+			unsigned long long rootGuid)
 			: storage{ expectedNodeCount }
 		{
 			nodes.reserve(expectedNodeCount);
 			gameObjects.reserve(expectedNodeCount);
 
 			const std::string rootName = std::string{ sceneName } + "_root";
-			CreateGameObject(componentStorage, rootName, -1);
+			CreateGameObject(componentStorage, rootName, -1, rootGuid);
 		}
 
 		GameObject* Scene::CreateGameObject(IComponentStorage* componentStorage,
 			std::string_view name,
-			int parentNodeIndex)
+			int parentNodeIndex,
+			unsigned long long guid)
 		{
-			return _impl->CreateGameObject(componentStorage, name, parentNodeIndex);
+			if (guid == 0)
+			{
+				guid = Engine::GUID().id;
+			}
+
+			return _impl->CreateGameObject(componentStorage, name, parentNodeIndex, guid);
 		}
+
 
 		GameObject* SceneImpl::CreateGameObject(IComponentStorage* componentStorage,
 			std::string_view name,
-			int parentNodeIndex)
+			int parentNodeIndex,
+			unsigned long long guid)
 		{
-			auto go = std::make_unique<GameObject>(name);
+			auto go = std::make_unique<GameObject>(name, guid);
 			auto transform = go->AddComponent<Engine::Transform>(componentStorage, &storage, name, parentNodeIndex);
 			go->SetTransform(transform);
 
@@ -128,8 +148,11 @@ namespace Engine
 			return (*gameObjects.rbegin()).get();
 		}
 
-		Scene::Scene(IComponentStorage* componentStorage, std::string_view name, std::size_t expectedNodeCount)
-			: _impl{ new SceneImpl(componentStorage, name, expectedNodeCount) }
+		Scene::Scene(IComponentStorage* componentStorage, 
+			std::string_view name, 
+			std::size_t expectedNodeCount,
+			unsigned long long rootGuid)
+			: _impl{ new SceneImpl(componentStorage, name, expectedNodeCount, rootGuid) }
 		{
 		}
 

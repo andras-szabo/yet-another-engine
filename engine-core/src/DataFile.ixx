@@ -111,6 +111,8 @@ namespace Engine
 		unsigned long long GetULong(int index = 0) const;
 		float GetFloat(int index = 0) const;
 		std::string ToString(const std::string& indent = "  ") const;
+		std::vector<DataFile> GetChildren() const;
+		std::vector<std::string> GetChildrenNames() const;
 
 		Engine::Expected<std::string> TryGetString(int index = 0) const;
 		Engine::Expected<int> TryGetInt(int index = 0) const;
@@ -401,6 +403,16 @@ namespace Engine
 	bool DataFile::HasChild(std::string_view name) const
 	{
 		return _impl.childIndexByName.find(name) != _impl.childIndexByName.end();
+	}
+
+	std::vector<DataFile> DataFile::GetChildren() const
+	{
+		return _impl.children;
+	}
+
+	std::vector<std::string> DataFile::GetChildrenNames() const
+	{
+		return _impl.childrenNames;
 	}
 
 	void DataFile::Clear()

@@ -15,12 +15,22 @@ module;
 
 export module Serialization;
 
+#if defined( __INTELLISENSE__ )
+#include "IComponentStorage.ixx"
+#include "DataFile.ixx"
+#include "GameObject.ixx"
+#include "Logger.ixx"
+#include "Math.ixx"
+#include "Reflection.ixx"
+#include "Scene.ixx"
+#else
 import IComponentStorage;
 import DataFile;
 import Logger;
 import Math;
 import Reflection;
 import Scene;
+#endif
 
 namespace Engine
 {
@@ -182,13 +192,8 @@ namespace Engine
 		}
 	}
 
-	//const std::string KEY_HIERARCHY = "Hierarchy";
-	//const std::string KEY_NODES = "Nodes";
-	//const std::string KEY_COMPONENTS = "Components";
-
-
 	export ENGINE_CORE_API
-	Engine::Expected<Engine::Scene::Scene> DeserializeScene(const Engine::DataFile& in,
+		Engine::Expected<Engine::Scene::Scene> DeserializeScene(const Engine::DataFile& in,
 			IComponentStorage& componentStorage)
 	{
 		try
@@ -201,7 +206,7 @@ namespace Engine
 
 			if (!in.HasChild(KEY_HIERARCHY))
 			{
-				return Engine::Unexpected({ Engine::ErrorType::Deserialization, std::format("No key {} found", KEY_HIERARCHY)});
+				return Engine::Unexpected({ Engine::ErrorType::Deserialization, std::format("No key {} found", KEY_HIERARCHY) });
 			}
 
 			const auto& hierarchy = in[KEY_HIERARCHY];
@@ -212,26 +217,67 @@ namespace Engine
 			}
 
 			const int nodeCount_v = nodeCount.value();
-			Engine::Scene::Scene scene{ &componentStorage, name.value(), static_cast<std::size_t>(nodeCount_v) };
+			std::vector<Engine::Hierarchy> hierarchies(nodeCount_v * 3);
 
-			// read hierarchy info
-			// read GameObject
+			if (nodeCount_v <= 0)
+			{
+				return Engine::Unexpected({ Engine::ErrorType::Deserialization, "No nodes found; at least one root node expected." });
+			}
 
-			//Engine::TransformStorage storage{ static_cast<std::size_t>(nodeCount_v) };
+			int index = 1;
+			for (int i = 0; i < nodeCount_v; ++i)
+			{
+				const int parent = hierarchy.GetInt(index++);
+				const int firstChild = hierarchy.GetInt(index++);
+				const int firstSibling = hierarchy.GetInt(index++);
 
-			//int index = 1;
-			//for (int i = 0; i < nodeCount_v; ++i)
-			//{
-			//	const int parent = hierarchy.GetInt(index++);
-			//	const int firstChild = hierarchy.GetInt(index++);
-			//	const int firstSibling = hierarchy.GetInt(index++);
+				hierarchies.emplace_back(Engine::Hierarchy{ parent, firstChild, firstSibling });
+			}
 
-			//	storage.hierarchies.emplace_back(Engine::Hierarchy { parent, firstChild, firstSibling });
-			//	storage.globalTransforms.emplace_back(Engine::Mat4x4::Identity());
-			//	storage.localTransforms.emplace_back(Engine::Mat4x4::Identity());
-			//	storage.names.emplace_back("TBA");
-			//	storage.transformComponents.emplace_back(nullptr);
-			//}
+			if (!in.HasChild(KEY_NODES))
+			{
+				return Engine::Unexpected({ Engine::ErrorType::Deserialization, std::format("No key {} found", KEY_NODES) });
+			}
+
+			const auto& nodes = in[KEY_NODES];
+			const auto& rootGuidAsString = nodes.GetChildrenNames()[0];
+			const auto rootGuid = std::stoull(rootGuidAsString);
+
+			Engine::Scene::Scene scene{ &componentStorage,
+				name.value(),
+				static_cast<std::size_t>(nodeCount_v),
+				rootGuid };
+
+			std::size_t nodeIndex = 0;
+			for (const std::string& guidStr : nodes.GetChildrenNames())
+			{
+				// The root should already have been saved
+				if (nodeIndex > 0)
+				{
+					const auto guid = std::stoull(guidStr);		// The node (gameObject) guid
+					const auto gameObjectName = nodes[guidStr].GetString();
+					const auto parentNodeIndex = hierarchies[nodeIndex].parent;
+					auto* go = scene.CreateGameObject(&componentStorage,
+						gameObjectName,
+						parentNodeIndex,
+						guid);
+
+					// And now, deserialize all the components of the scene;
+					// but how should we deal w/ transforms? Either we allow for gameObjects without transforms,
+					// or we handle it as a special case here.
+					//
+					// Either way, what we need to do now is:
+					//	- get the names of the children of nodes[guidAsString][KEY_COMPONENTS]
+					//	- these children will be the component type guids
+					//	- then we need to call the component factory with the type guid
+					//	- and then deserialize based on that.
+					//	- but in order for _this_ to work, we need... the component factory, and the
+					//	  component type registration. Aha. So we did end up here after all.
+
+				}
+
+				nodeIndex++;
+			}
 
 			return scene;
 		}
@@ -242,7 +288,7 @@ namespace Engine
 	}
 
 	export ENGINE_CORE_API
-	void SerializeScene(Engine::Scene::Scene& scene, Engine::DataFile& out)
+		void SerializeScene(Engine::Scene::Scene& scene, Engine::DataFile& out)
 	{
 		auto srlz = [&](Engine::Scene::Scene& scene_, std::size_t nodeIndex)
 			{

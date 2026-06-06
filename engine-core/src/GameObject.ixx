@@ -19,15 +19,23 @@ namespace Engine
 {
 	export struct GOImpl
 	{
+		GOImpl() = default;
+
+		GOImpl(std::string_view name);
 		std::string _name{ "GameObject" };
 		std::vector<Component*> _components;		// Non-owning pointers!
 	};
+
+	GOImpl::GOImpl(std::string_view name)
+		: _name{ name }
+	{
+	}
 
 	export class ENGINE_CORE_API GameObject
 	{
 	public:
 		GameObject();
-		GameObject(std::string_view name);
+		GameObject(std::string_view name, unsigned long long guid = 0);
 		~GameObject();
 
 		std::string_view GetName() const;
@@ -99,10 +107,9 @@ namespace Engine
 	{
 	}
 
-	GameObject::GameObject(std::string_view name)
-		: _gimpl{ new GOImpl() }
+	GameObject::GameObject(std::string_view name, unsigned long long guid)
+		: _gimpl{ new GOImpl(name) }, _guid{ guid }
 	{
-		_gimpl->_name = name;
 	}
 
 	void GameObject::SetGUID(GUID guid)
