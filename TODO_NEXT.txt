@@ -1,0 +1,79 @@
+	Review Findings
+
+🔴 P0 — Bugs causing incorrect behaviour
+
+BUG-1 · Serialization order mismatch (the reported bug)
+Serialization.ixx → SerializeScene
+
+KEY_HIERARCHY is written in flat storage order (iterating storage->hierarchies sequentially, indices 0…n−1). But KEY_NODES is written in DFS order via WalkDepthFirst. In DeserializeScene, nodeIndex is the DFS-visitation counter while hierarchies[nodeIndex].parent indexes the storage array — these only agree for a perfectly linear scene.
+
+Fix: Replace scene.WalkDepthFirst(0, srlz) in SerializeScene with a plain storage-order loop (iterate index 0…nodeCount−1). Both arrays will then use the same indices and parent references will be valid. Storage order is safe because AddTransform guarantees parent.index < child.index always.
+
+-----------------------------------------------------------------------------------------------------
+
+BUG-2 · _sceneNodeIndex must not be serialized
+Transform.ixx → REFLECTED_FIELDS
+
+_sceneNodeIndex is runtime state assigned by TransformStorage::AddTransform when the node is created. Deserializing it overwrites the already-correct value set by CreateGameObject. If storage order is preserved (BUG-1 fix), the overwrite is a no-op at best; without that fix it silently corrupts the Transform's storage pointer. Remove _sceneNodeIndex from REFLECTED_FIELDS(Transform, ...).
+
+-----------------------------------------------------------------------------------------------------
+
+BUG-3 · Deserialized position/rotation/scale are never applied to the storage matrix
+Transform.ixx / Serialization.ixx → DeserializeScene
+
+DeserializeFields writes directly to _localPosition, _localRotation, _localScale, bypassing the setters that call RefreshLocalToWorld(). After deserialization the storage array localTransforms[_sceneNodeIndex] still holds the identity matrix placed there during construction — the scene will render as if all transforms were default.
+
+Fix: Override Transform::OnCreate() to call RefreshLocalToWorld(). The deserialization loop already calls component->OnCreate() after DeserializeFields, so no other change is needed.
+
+-----------------------------------------------------------------------------------------------------
+
+BUG-4 · Scene name grows a _root suffix on every serialization round-trip
+Scene.ixx → GetSceneName / SceneImpl constructor
+
+GetSceneName() returns GetNodeName(0) = sceneName + "_root". That string is saved to file, then used as the scene name on load, and SceneImpl appends "_root" again — so the root becomes "MyScene_root_root" after one round-trip.
+
+Fix: Add a std::string _sceneName field to SceneImpl (set from the constructor sceneName parameter, before appending _root to the root node name). Return it from GetSceneName() instead of delegating to GetNodeName(0).
+
+-----------------------------------------------------------------------------------------------------
+
+🟡 P1 — Defects worth fixing soon
+
+BUG-5 · std::format() in assert evaluates unconditionally in Release
+ComponentRegistry.ixx → Register()
+
+assert(... && std::format("...", typeID).c_str()) calls std::format and performs a heap allocation on every registration call even in Release builds, because && operands are always evaluated. Replace with:
+
+ assert(_factories.find(typeID) == _factories.end() && "Double component registration!");
+
+DEFECT-1 · ComponentRegistry class missing ENGINE_CORE_API
+ComponentRegistry.ixx
+
+Create() is called directly on GlobalComponentRegistry from Serialization.ixx. Without ENGINE_CORE_API on the class (or at minimum on Create()), the method symbol is not exported across the DLL boundary. Add ENGINE_CORE_API to the class, or add a free-function wrapper CreateComponent(typeID, storage) alongside RegisterComponent/UnregisterComponent.
+
+DEFECT-2 · Debug/test code left in DeserializeScene
+Serialization.ixx
+
+The // Testing LOG_INFO loop and the commented-out early return should be removed.
+
+DEFECT-3 · Exception caught by value
+Serialization.ixx → catch block
+
+catch (std::runtime_error e) copies the exception. Change to catch (const std::runtime_error& e).
+
+-----------------------------------------------------------------------------------------------------
+
+🔵 P2 — Code quality / future-proofing
+
+IMPROVE-1 · Transform should be explicitly imported in Serialization.ixx
+Transform::StaticTypeID() is used in DeserializeScene but only reachable transitively via import Scene (which does import Transform, not export import Transform). MSVC permits this today but it violates the standard and will fail on Clang/GCC.
+
+IMPROVE-2 · AddTransform sets child depth to parent.depth instead of parent.depth + 1
+hierarchies.emplace_back(parentIndex, parent.depth) gives children the same depth as their parent. Not currently critical (depth isn't used in serialization) but will cause silent bugs when depth-dependent features appear (culling, LOD, sorting).
+
+IMPROVE-3 · AddComponentRaw should document the absent OnCreate call
+The omission is intentional (callers must deserialize fields first, then call OnCreate). A one-line comment prevents someone from "fixing" it later and breaking deserialization.
+
+IMPROVE-4 · Unify COMPONENT_BODY and REGISTER_COMPONENT
+Already tracked with a TODO comment in the header. A component with COMPONENT_BODY but without REGISTER_COMPONENT silently fails to deserialize — the two macros should be one.
+
+	
