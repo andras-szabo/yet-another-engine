@@ -43,9 +43,9 @@ namespace Engine
 		TransformStorage(std::size_t expectedCount);
 
 		int AddTransform(const Mat4x4& localTransform,
-						 int parentIndex,
-						 std::string_view name,
-						 Transform* transform);
+			int parentIndex,
+			std::string_view name,
+			Transform* transform);
 
 		void UpdateWorldTransforms();
 		void WalkDepthFirst(std::size_t startingNode, std::function<void(std::size_t currentNodeIndex)> op);
@@ -57,18 +57,18 @@ namespace Engine
 		std::vector<Transform*> transformComponents;
 	};
 
-	export class ENGINE_CORE_API Transform : public Component, 
-											 public ISceneNodeIndexObserver
+	export class ENGINE_CORE_API Transform : public Component,
+		public ISceneNodeIndexObserver
 	{
 		COMPONENT_BODY(Transform)
-		REGISTER_COMPONENT(Transform)
+			REGISTER_COMPONENT(Transform)
 
 	public:
 		// NOTE: Components must have default ctors :/
 		Transform() = default;
 		~Transform() override = default;
 
-		Transform(TransformStorage* storage, 
+		Transform(TransformStorage* storage,
 			std::string_view name,
 			int parentNodeIndex = 0);
 
@@ -82,6 +82,7 @@ namespace Engine
 		void SetLocalTRS(Vec3 position, const Quaternion& rotation, Vec3 scale);
 
 		void OnSceneNodeIndexChanged(int newIndex) override;
+		void OnCreate() override;
 
 		int GetSceneNodeIndex() const { return _sceneNodeIndex; }
 
@@ -97,11 +98,16 @@ namespace Engine
 		Vec3 _localScale{ Vec3(1.0f, 1.0f, 1.0f) };
 	};
 
-	REFLECTED_FIELDS(Transform, 
-		{ "_localPosition", Engine::FieldType::Vec3, offsetof(Transform, _localPosition) }, 
+	REFLECTED_FIELDS(Transform,
+		{ "_localPosition", Engine::FieldType::Vec3, offsetof(Transform, _localPosition) },
 		{ "_localRotation", Engine::FieldType::Quaternion, offsetof(Transform, _localRotation) },
 		{ "_localScale", Engine::FieldType::Vec3, offsetof(Transform, _localScale) })
+} // namespace Engine
 
+module :private;
+
+namespace Engine
+{
 	TransformStorage::TransformStorage(std::size_t expectedNodeCount)
 	{
 		hierarchies.reserve(expectedNodeCount);
@@ -109,12 +115,6 @@ namespace Engine
 		localTransforms.reserve(expectedNodeCount);
 		names.reserve(expectedNodeCount);
 		transformComponents.reserve(expectedNodeCount);
-
-		//hierarchies.emplace_back( -1, 0 );
-		//globalTransforms.emplace_back(Mat4x4::Identity());
-		//localTransforms.emplace_back(Mat4x4::Identity());
-		//names.emplace_back(rootName);
-		//transformComponents.emplace_back(nullptr);
 	}
 
 	int TransformStorage::AddTransform(const Mat4x4& localTransform, 
@@ -212,6 +212,7 @@ namespace Engine
 	Transform::Transform(TransformStorage* storage, 
 		std::string_view name,
 		int parentNodeIndex)
+		: _storage{ storage }
 	{
 		assert(storage != nullptr && "Trying to create transform with null storage");
 
@@ -292,4 +293,9 @@ namespace Engine
 		_storage->localTransforms[_sceneNodeIndex] = CalculateLocalToWorldMatrix();
 		_storage->hierarchies[_sceneNodeIndex].isDirty = true;
 	}
-}
+
+	void Transform::OnCreate()
+	{
+		RefreshLocalToWorld();
+	}
+} // namespace Engine
