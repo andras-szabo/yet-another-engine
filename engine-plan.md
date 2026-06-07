@@ -42,8 +42,8 @@
 | P2-02 extension — Composite field support | ✅ Done | `Reflection.ixx` extended: `FieldType::Composite` added to the enum; `GetDescriptorsFn` alias (`std::span<const FieldDescriptor>(*)()`) introduced; `FieldDescriptor` gains a `getChildren` function-pointer field (defaults to `nullptr`). Composite descriptors point to the child type's static `GetFieldDescriptors()`, enabling recursive serialization without any virtual dispatch or inheritance on field types. |
 | P3-05 & P3-06 — Component ↔ DataFile via FieldDescriptors | ✅ Done | `Serialization.ixx` (new module) exports `SerializeFields(const void* base, span<FieldDescriptor>, DataFile&)` and `DeserializeFields(void* base, span<FieldDescriptor>, const DataFile&)`. Both functions use `reinterpret_cast` with `offsetof`-derived byte offsets to read/write each field directly. All `FieldType` values handled: Bool, Float, Int, String, Vec2, Vec3, Vec4, Quaternion (stored as 2/3/4 comma-separated floats; Quaternion order: w, x, y, z), and Composite (recurses into a child DataFile node using `getChildren()`). `DeserializeFields` guards every field access with `HasChild` — missing keys are silently skipped, giving forward-compatible deserialization. |
 | P3-07 prereq — GameObject hierarchy infrastructure | ✅ Done | `Scene` now owns `GameObject`s via a `std::vector<std::unique_ptr<GameObject>>` parallel array in `SceneImpl`. `Scene::CreateGameObject(IComponentStorage*, name, parentNodeIndex)` is the exclusive creation path — it atomically allocates a `GameObject`, calls `AddComponent<Transform>` with the correct parent, and stores the `unique_ptr`. The old public `AddNode` is removed. `Transform::Transform` now accepts `parentNodeIndex` (no longer hardcodes root). `Component::_owner` is assigned before `OnCreate()` is called (previously a bug — `_owner` was never set). `Scene` has a proper destructor; `EngineInstance::Initialize` safely deletes the old scene before creating a new one. **Agreed serialization format:** GUID as the DataFile node key; `name` as a leaf value; components nested under `[components]`; child GameObjects nested under `[children]`. |
-| P3-07 — Scene serialization | ⬅️ **Next** | Implement `SerializeScene(const Scene&, DataFile&)` in `Serialization.ixx`. Walk DFS from the root's children (skip node 0). For each node: GUID as key, `name` as leaf, component fields into `[components]` (each component keyed by its type name, fields via `SerializeFields`), child GameObjects into `[children]` recursively. `Transform` is serialized like any other component — no special-casing needed on the write path. |
-| P3-08 — Scene deserialization | 📋 Pending | Implement `DeserializeScene(const DataFile&, IComponentStorage&) -> Scene`. Recursively walk `[children]` nodes; for each: parse GUID from key, read `name`, call `scene.CreateGameObject(name, parentNodeIndex)`, restore GUID, then for each entry in `[components]` call `DeserializeFields`. **Special case:** `Transform` is already created by `CreateGameObject` — only load its fields into the existing instance; never create a second one. |
+| P3-07 — Scene serialization | ✅ Done | `SerializeScene(const Scene&, DataFile&)` implemented in `Serialization.ixx`. Walks DFS from root's children (skips node 0). For each node: GUID as key, `name` as leaf, component fields into `[components]` (each component keyed by its type name, fields via `SerializeFields`), child GameObjects into `[children]` recursively. `Transform` is serialized like any other component — no special-casing on the write path. |
+| P3-08 — Scene deserialization | ✅ Done | `DeserializeScene(const DataFile&, IComponentStorage&) -> Scene` implemented in `Serialization.ixx`. Recursively walks `[children]` nodes; for each: parses GUID from key, reads `name`, calls `scene.CreateGameObject(name, parentNodeIndex)`, restores GUID, then for each entry in `[components]` calls `DeserializeFields`. **Special case:** `Transform` is already created by `CreateGameObject` — fields loaded into the existing instance; no second instance created. |
 
 ## MVP Goal
 
@@ -100,28 +100,28 @@ A simple, human-readable file format for scenes and assets.
 
 ---
 
-## Phase 4 — Asset System
-
-Track and load project assets; provide stable references usable by components.
-
-- P4-01: Define asset types (Texture, Mesh, AudioClip, etc. as enums/tags) and the asset manifest format
-- P4-02: Implement AssetDatabase: scan project folder, index by GUID and path, detect duplicates
-- P4-03: Implement asset reference type (AssetRef<T>) that stores a GUID and resolves lazily
-- P4-04: Implement file watcher (ReadDirectoryChangesW) to detect asset additions/modifications/deletions
-- P4-05: Implement asset hot-reload notification (broadcast change events to interested systems)
-
----
-
-## Phase 5 — Game DLL Interface & Hot-Reload
+## Phase 4 — Game DLL Interface & Hot-Reload
 
 Allow user-authored C++ components to be compiled into a DLL and loaded at runtime.
 
-- P5-01: Define the game DLL ABI: exported C functions (RegisterComponents, UnregisterComponents, GetVersion)
-- P5-02: Implement DLL loader wrapper (LoadLibrary / FreeLibrary, symbol resolution, error handling)
-- P5-03: Implement ComponentTypeRegistry: maps type name strings to factory functions + field descriptors
-- P5-04: Implement DLL hot-reload: watch DLL file for changes, serialize live state, unload, reload, deserialize
-- P5-05: Handle serialization state across reload (snapshot scenes before unload, restore after reload)
-- P5-06: Create a game-template CMake project with a sample custom component as a reference/starting point
+- P4-01: Define the game DLL ABI: exported C functions (RegisterComponents, UnregisterComponents, GetVersion)
+- P4-02: Implement DLL loader wrapper (LoadLibrary / FreeLibrary, symbol resolution, error handling)
+- P4-03: Implement ComponentTypeRegistry: maps type name strings to factory functions + field descriptors
+- P4-04: Implement DLL hot-reload: watch DLL file for changes, serialize live state, unload, reload, deserialize
+- P4-05: Handle serialization state across reload (snapshot scenes before unload, restore after reload)
+- P4-06: Create a game-template CMake project with a sample custom component as a reference/starting point
+
+---
+
+## Phase 5 — Asset System
+
+Track and load project assets; provide stable references usable by components.
+
+- P5-01: Define asset types (Texture, Mesh, AudioClip, etc. as enums/tags) and the asset manifest format
+- P5-02: Implement AssetDatabase: scan project folder, index by GUID and path, detect duplicates
+- P5-03: Implement asset reference type (AssetRef<T>) that stores a GUID and resolves lazily
+- P5-04: Implement file watcher (ReadDirectoryChangesW) to detect asset additions/modifications/deletions
+- P5-05: Implement asset hot-reload notification (broadcast change events to interested systems)
 
 ---
 

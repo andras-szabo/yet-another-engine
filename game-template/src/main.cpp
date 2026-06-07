@@ -48,13 +48,16 @@ int main()
     std::cout << "[game-template] stub — game loop will go here\n";
 
     LOG_INFO("Initializing...");
+
+    //TODO - make this simpler.
     Engine::Instance.Initialize(std::make_unique<Engine::ComponentStorage>());
+
     auto& scene = Engine::Instance.GetActiveScene();
     auto g = scene.CreateGameObject(&Engine::Instance.GetComponentStorage(),
         "FooContainer",
         0);
 
-    auto* mc = g->AddComponent<MyComponent>(&Engine::Instance.GetComponentStorage());
+    MyComponent* mc = g->AddComponent<MyComponent>(&Engine::Instance.GetComponentStorage());
     mc->SetFoo(123);
 
     Engine::DataFile fOut;
