@@ -10,10 +10,17 @@ module;
 
 export module GameObject;
 
+#if defined ( __INTELLISENSE__ )
+#include "Component.ixx"
+#include "IComponentStorage.ixx"
+#include "GUID.ixx"
+#include "Transform.ixx"
+#else
 import Component;
 import IComponentStorage;
 import GUID;
 import Transform;
+#endif
 
 namespace Engine
 {

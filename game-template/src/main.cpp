@@ -11,6 +11,7 @@
 #include "../../engine-core/src/IComponentStorage.ixx"
 #include "../../engine-core/src/EngineError.ixx"
 #include "../../engine-core/src/EngineInstance.ixx"
+#include "../../engine-core/src/GameObject.ixx"
 #include "../../engine-core/src/Logger.ixx"
 #include "../../engine-core/src/Math.ixx"
 #include "../../engine-core/src/Reflection.ixx"
@@ -20,8 +21,6 @@
 import EngineCore;
 import EngineInstance;
 #endif
-
-//using namespace Engine;
 
 class MyComponent : public Engine::Component
 {

@@ -16,7 +16,11 @@ module;
 
 export module DataFile;
 
+#if defined ( __INTELLISENSE__ )
+#include "EngineError.ixx"
+#else
 import Error;
+#endif
 
 namespace Engine
 {
