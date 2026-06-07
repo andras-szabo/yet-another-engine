@@ -50,6 +50,7 @@ namespace Engine
 			std::vector<std::unique_ptr<GameObject>> gameObjects;
 			TransformStorage storage;
 			std::deque<int> walkHelperQueue;
+			std::string sceneName;
 
 			GameObject* CreateGameObject(IComponentStorage* componentStorage,
 				std::string_view name,
@@ -143,10 +144,10 @@ namespace Engine
 		}
 
 		SceneImpl::SceneImpl(IComponentStorage* componentStorage,
-			std::string_view sceneName, 
+			std::string_view sceneName_, 
 			std::size_t expectedNodeCount,
 			unsigned long long rootGuid)
-			: storage{ expectedNodeCount }
+			: storage{ expectedNodeCount }, sceneName{ sceneName_ }
 		{
 			nodes.reserve(expectedNodeCount);
 			gameObjects.reserve(expectedNodeCount);
@@ -208,7 +209,7 @@ namespace Engine
 
 		std::string_view Scene::GetSceneName() const
 		{
-			return GetNodeName(0);
+			return _impl->sceneName;
 		}
 
 		std::string_view Scene::GetNodeName(std::size_t nodeIndex) const
