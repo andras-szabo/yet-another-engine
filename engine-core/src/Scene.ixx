@@ -11,6 +11,15 @@ module;
 
 export module Scene;
 
+#if defined ( __INTELLISENSE__ )
+#include "Component.ixx"
+#include "IComponentStorage.ixx"
+#include "GameObject.ixx"
+#include "GUID.ixx"
+#include "Interfaces.ixx"
+#include "Math.ixx"
+#include "Transform.ixx"
+#else
 import Component;
 import IComponentStorage;
 import GameObject;
@@ -18,6 +27,7 @@ import GUID;
 import Interfaces;
 import Math;
 import Transform;
+#endif
 
 namespace Engine
 {
@@ -64,10 +74,7 @@ namespace Engine
 
 			std::string_view GetSceneName() const;
 			std::string_view GetNodeName(std::size_t nodeIndex) const;
-
-			//int AddNode(const Mat4x4& localTransform, int parent,
-			//		const std::string& name, Transform* transformComponent = nullptr);
-
+			
 			void SetLocalTransform(int nodeIndex, const Mat4x4& localTransform);
 			const Mat4x4& GetLocalTransform(int nodeIndex) const;
 			void UpdateNodeIndex(int oldIndex, int newIndex);
@@ -86,6 +93,7 @@ namespace Engine
 				unsigned long long guid = 0);
 
 			GameObject* GetGameObject(std::size_t nodeIndex);
+			std::vector<std::unique_ptr<GameObject>>& GetAllGameObjects();
 
 			TransformStorage* GetTransformStorage();
 
@@ -127,6 +135,11 @@ namespace Engine
 		{
 			assert(nodeIndex < _impl->gameObjects.size() && "Node index out of bounds.");
 			return _impl->gameObjects[nodeIndex].get();
+		}
+
+		std::vector<std::unique_ptr<GameObject>>& Scene::GetAllGameObjects()
+		{
+			return _impl->gameObjects;
 		}
 
 		SceneImpl::SceneImpl(IComponentStorage* componentStorage,

@@ -53,6 +53,7 @@ namespace Engine
 		void SetTransform(Transform* trsf);
 		Transform* GetTransform();
 		std::vector<Component*> GetComponents();
+		const std::vector<Component*> GetComponents() const;
 
 	private:
 		void SetGUID(GUID guid);
@@ -136,6 +137,11 @@ namespace Engine
 	GUID GameObject::GetGUID() const
 	{
 		return _guid;
+	}
+
+	const std::vector<Component*> GameObject::GetComponents() const
+	{
+		return _gimpl->_components;
 	}
 
 	std::vector<Component*> GameObject::GetComponents()

@@ -1,8 +1,10 @@
 module;
 
+#include <algorithm>
 #include <cassert>
 #include <format>
 #include <span>
+#include <ranges>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -324,25 +326,6 @@ namespace Engine
 	export ENGINE_CORE_API
 		void SerializeScene(Engine::Scene::Scene& scene, Engine::DataFile& out)
 	{
-		auto srlz = [&](Engine::Scene::Scene& scene_, std::size_t nodeIndex)
-			{
-				auto& nodes = out[KEY_NODES];
-				Engine::GameObject* go = scene_.GetGameObject(nodeIndex);
-				const unsigned long long guid = go->GetGUID().id;
-				const std::string guidAsString = std::to_string(guid);
-				const std::string goName = std::string{ go->GetName() };
-
-				nodes[guidAsString].SetString(goName);
-				Engine::DataFile& components = nodes[guidAsString][KEY_COMPONENTS];
-
-				for (const auto& component : go->GetComponents())
-				{
-					const std::string typeID = std::to_string(component->GetTypeID());
-					auto& componentParts = components[typeID];
-					SerializeFields(component, component->GetReflectedFields(), componentParts);
-				}
-			};
-
 		// 0th thing: name
 		out.SetString(scene.GetSceneName());
 
@@ -362,7 +345,26 @@ namespace Engine
 			hierarchy.SetInt(hierarchy_stored.firstSibling, index++);
 		}
 
-		scene.WalkDepthFirst(0, srlz);
+		auto& nodes = out[KEY_NODES];
+
+		const std::vector<std::unique_ptr<GameObject>>& nodePtrs = scene.GetAllGameObjects();
+		for (const auto& goPtr : nodePtrs)
+		{
+			const GameObject* go = goPtr.get();
+			const unsigned long long guid = go->GetGUID().id;
+			const std::string guidAsString = std::to_string(guid);
+			const std::string goName = std::string{ go->GetName() };
+
+			nodes[guidAsString].SetString(goName);
+			Engine::DataFile& components = nodes[guidAsString][KEY_COMPONENTS];
+
+			for (const auto& component : go->GetComponents())
+			{
+				const std::string typeID = std::to_string(component->GetTypeID());
+				auto& componentParts = components[typeID];
+				SerializeFields(component, component->GetReflectedFields(), componentParts);
+			}
+		}
 	}
 
 } // namespace Engine
