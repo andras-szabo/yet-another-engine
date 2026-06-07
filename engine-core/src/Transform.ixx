@@ -61,7 +61,7 @@ namespace Engine
 		public ISceneNodeIndexObserver
 	{
 		COMPONENT_BODY(Transform)
-			REGISTER_COMPONENT(Transform)
+		REGISTER_COMPONENT(Transform)
 
 	public:
 		// NOTE: Components must have default ctors :/

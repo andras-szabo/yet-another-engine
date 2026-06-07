@@ -60,12 +60,12 @@
 public:                                                                             \
     static constexpr std::string_view TypeName { #ClassName };                      \
     static std::string_view GetTypeName() { return TypeName; }                      \
-    static std::span<const FieldDescriptor> GetFieldDescriptors();                  \
-    std::span<const FieldDescriptor> GetReflectedFields() const override            \
+    static std::span<const Engine::FieldDescriptor> GetFieldDescriptors();                  \
+    std::span<const Engine::FieldDescriptor> GetReflectedFields() const override            \
     { return ClassName::GetFieldDescriptors(); }                                    \
     static constexpr unsigned int StaticTypeID()                                    \
     {                                                                               \
-        static const unsigned int id = DJBHash(#ClassName);                         \
+        static const unsigned int id = Engine::DJBHash(#ClassName);                         \
         return id;                                                                  \
     }                                                                               \
                                                                                     \
@@ -76,16 +76,16 @@ public:                                                                         
 // Each entry is a FieldDescriptor braced-initialiser:
 //   { "fieldName", FieldType::Vec3, offsetof(ClassName, fieldName) }
 #define REFLECTED_FIELDS(ClassName, ...)                                               \
-    std::span<const FieldDescriptor> ClassName::GetFieldDescriptors()                  \
+    std::span<const Engine::FieldDescriptor> ClassName::GetFieldDescriptors()                  \
     {                                                                                  \
-        static const FieldDescriptor fields[] { __VA_ARGS__ };                         \
+        static const Engine::FieldDescriptor fields[] { __VA_ARGS__ };                         \
         return fields;                                                                 \
     }
 
 // REFLECTED_FIELDS_EMPTY(ClassName) — use when a component has no reflected
 // fields but still participates in the reflection system via COMPONENT_BODY.
 #define REFLECTED_FIELDS_EMPTY(ClassName)                                              \
-    std::span<const FieldDescriptor> ClassName::GetFieldDescriptors()                  \
+    std::span<const Engine::FieldDescriptor> ClassName::GetFieldDescriptors()                  \
     {                                                                                  \
         return {};                                                                     \
     }
