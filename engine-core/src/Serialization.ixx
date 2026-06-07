@@ -36,6 +36,7 @@ import Logger;
 import Math;
 import Reflection;
 import Scene;
+import Transform;
 #endif
 
 namespace Engine
@@ -281,7 +282,7 @@ namespace Engine
 						}
 						else
 						{
-							auto componentMaybe = GlobalComponentRegistry.Create(typeID, componentStorage);
+							auto componentMaybe = GlobalComponentRegistry().Create(typeID, componentStorage);
 							if (!componentMaybe.has_value())
 							{
 								LOG_WARN("Component read fail: {}", componentMaybe.error().message);
@@ -306,7 +307,7 @@ namespace Engine
 
 			return scene;
 		}
-		catch (std::runtime_error e)
+		catch (const std::runtime_error& e)
 		{
 			LOG_ERROR("this.");
 			return Engine::Unexpected({ Engine::ErrorType::Deserialization, e.what() });

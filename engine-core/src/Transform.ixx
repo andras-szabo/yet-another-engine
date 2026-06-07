@@ -162,7 +162,7 @@ namespace Engine
 			hierarchies[nextNodeToCheck].firstSibling = newNodeIndex;
 		}
 
-		hierarchies.emplace_back(parentIndex, parent.depth);
+		hierarchies.emplace_back(parentIndex, parent.depth + 1);
 		globalTransforms.emplace_back(globalTransforms[parentIndex] * localTransform);
 		localTransforms.emplace_back(localTransform);
 		names.emplace_back(name);

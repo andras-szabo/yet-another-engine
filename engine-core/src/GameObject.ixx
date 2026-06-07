@@ -153,5 +153,10 @@ namespace Engine
 	{
 		component->_owner = this;
 		_gimpl->_components.push_back(component);
+
+		// Do not call component->OnCreate here. The idea is that you can use AddComponentRaw
+		// to create a placeholder of a component, into which we can then deserialize actual
+		// component data, and call OnCreate when that is done. (Serialization.ixx, 
+		// DeserializeScene.)
 	}
 }

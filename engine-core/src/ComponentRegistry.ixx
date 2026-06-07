@@ -34,17 +34,21 @@ namespace Engine
 		std::unordered_map<unsigned int, ComponentFactoryFn> _factories;
 	};
 
-	export ENGINE_CORE_API ComponentRegistry GlobalComponentRegistry;
+	export ENGINE_CORE_API ComponentRegistry GlobalComponentRegistry()
+	{
+		static ComponentRegistry globalComponentRegistry;
+		return globalComponentRegistry;
+	}
 
 	export ENGINE_CORE_API 
 	void RegisterComponent(unsigned int typeID, ComponentFactoryFn factory)
 	{
-		GlobalComponentRegistry.Register(typeID, factory);
+		GlobalComponentRegistry().Register(typeID, factory);
 	}
 
 	export ENGINE_CORE_API void UnregisterComponent(unsigned int typeID)
 	{
-		GlobalComponentRegistry.Unregister(typeID);
+		GlobalComponentRegistry().Unregister(typeID);
 	}
 } // namespace Engine
 
