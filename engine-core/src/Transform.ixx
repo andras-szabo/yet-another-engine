@@ -97,11 +97,10 @@ namespace Engine
 		Vec3 _localScale{ Vec3(1.0f, 1.0f, 1.0f) };
 	};
 
-	REFLECTED_FIELDS(Transform, { "_sceneNodeIndex", Engine::FieldType::Int, offsetof(Transform, _sceneNodeIndex) },
+	REFLECTED_FIELDS(Transform, 
 		{ "_localPosition", Engine::FieldType::Vec3, offsetof(Transform, _localPosition) }, 
 		{ "_localRotation", Engine::FieldType::Quaternion, offsetof(Transform, _localRotation) },
 		{ "_localScale", Engine::FieldType::Vec3, offsetof(Transform, _localScale) })
-
 
 	TransformStorage::TransformStorage(std::size_t expectedNodeCount)
 	{
