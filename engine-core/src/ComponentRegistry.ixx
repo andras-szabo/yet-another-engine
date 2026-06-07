@@ -21,14 +21,14 @@ namespace Engine
 {
 	export using ComponentFactoryFn = std::function<std::unique_ptr<Component>()>;
 
-	export class ComponentRegistry
+	export class ENGINE_CORE_API ComponentRegistry
 	{
 	public:
 		void Register(unsigned int typeID, ComponentFactoryFn fn);
 		void Unregister(unsigned int typeID);
 
 		Expected<Component*> Create(unsigned int typeID, IComponentStorage& storage);
-	//	bool Has(unsigned int typeID) const;
+		bool Has(unsigned int typeID) const;
 
 	private:
 		std::unordered_map<unsigned int, ComponentFactoryFn> _factories;
@@ -71,7 +71,9 @@ namespace Engine
 
 	void ComponentRegistry::Register(unsigned int typeID, ComponentFactoryFn fn)
 	{
+		// TODO - optimize away std::format allocation
 		assert(_factories.find(typeID) == _factories.end() && std::format("Double component registration! Type ID: {}", typeID).c_str());
+
 		_factories.insert({ typeID, fn });
 
 		LOG_TRACE("Registering type ID {}", typeID);
@@ -85,5 +87,10 @@ namespace Engine
 			_factories.erase(item);
 			LOG_TRACE("Unregistering type ID {}", typeID);
 		}
+	}
+
+	bool ComponentRegistry::Has(unsigned int typeID) const
+	{
+		return _factories.find(typeID) != _factories.end();
 	}
 }// namespace Engine

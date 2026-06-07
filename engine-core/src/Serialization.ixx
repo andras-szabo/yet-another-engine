@@ -247,16 +247,6 @@ namespace Engine
 			}
 
 			const auto& nodes = in[KEY_NODES];
-
-			// Testing
-			for (const auto& childName : nodes.GetChildrenNames())
-			{
-				LOG_INFO("Child: {}", childName);
-			}
-
-			//return Engine::Unexpected({ Engine::ErrorType::Deserialization, "Just testing" });
-
-			//-------------------------
 			const auto rootGuidAsString = nodes.GetChildrenNames()[0];
 			const auto rootGuid = std::stoull(rootGuidAsString);
 
