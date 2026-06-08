@@ -66,7 +66,7 @@ namespace EditorTests
 
 			const auto aGUID = go_sceneA[i]->GetGUID();
 			const auto bGUID = go_sceneB[i]->GetGUID();
-			assert(aGuid == bGuid && "GUID mismatch");
+			assert(aGUID == bGUID && "GUID mismatch");
 		}
 
 	}
