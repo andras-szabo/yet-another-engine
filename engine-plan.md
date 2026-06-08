@@ -7,14 +7,14 @@
 | Language | C++23, Windows-only |
 | Build system | CMake 3.28+ (use VS-bundled cmake at `C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe` — system cmake in PATH is outdated at 3.11) |
 | IDE | Visual Studio 2022 Community 17.14 |
-| Process model | Editor process + Game process (TCP IPC) |
+| Process model | Single editor process; game runs in-process via a loaded game DLL |
 | Object model | GameObject / Component (no ECS) |
-| Custom components | C++ DLL, hot-reloaded by the engine |
+| Custom components | C++ DLL, loaded and hot-reloaded by the editor |
 | Source organisation | C++20 modules (`.ixx` interface units) for all engine-owned code; `#include` for third-party headers via the module global fragment |
-| engine-core linkage | **Shared DLL** (`engine-core.dll`) — both editor and game-template link against the same DLL so engine state (registries, allocators, type system) is never duplicated across the DLL boundary |
+| engine-core linkage | **Shared DLL** (`engine-core.dll`) — editor and game DLL both link against it so engine state (registries, allocators, type system) is never duplicated |
 | Binary output | All `.exe` and `.dll` outputs land in `build/bin/<Config>/` via `CMAKE_RUNTIME_OUTPUT_DIRECTORY` |
 | Serialization | Custom text format |
-| IPC | TCP sockets (WinSock2) |
+| game-template | **DLL** (not exe) — exposes game lifecycle hooks (`GameInitialize`, `GameUpdate`, `GameShutdown`) and component registration; editor loads it at runtime |
 | Reflection | Manual field registration (macros) |
 | Namespace | All engine-owned code lives in `namespace Engine` |
 | Renderer | Abstraction layer only for MVP (backend TBD) |
@@ -23,7 +23,7 @@
 
 | Task | Status | Notes |
 |---|---|---|
-| P1-01 — CMake root project layout | ✅ Done | Project at `D:\CppProjects\Engine\`. Solution generated at `build\Engine.sln`. Three targets: `engine-core` (shared DLL), `editor` (exe), `game-template` (exe). |
+| P1-01 — CMake root project layout | ✅ Done | Project at `D:\CppProjects\Engine\`. Solution generated at `build\Engine.sln`. Three targets: `engine-core` (shared DLL), `editor` (exe), `game-template` (DLL — game lifecycle hooks + component registration; loaded by the editor at runtime). |
 | P1-02 — CMake build configuration | ✅ Done | `cmake/CompilerOptions.cmake` with `apply_compiler_options()` function; `/W4`, `/permissive-`, per-config `/Od`+`/RTC1` (Debug) and `/O2` (Release/RelWithDebInfo), `/O1` (MinSizeRel). Applied to all three targets. |
 | P1-03 — Logger | ✅ Done | `LogManager`, `ConsoleLogSink` (ANSI colours per level), `FileLogSink` (appends to `EngineLog.txt`), `Log<>` template with `std::source_location` + `std::format`, configurable `minLogLevel`, DLL-exported via `ENGINE_CORE_API`. Convenience macros (`LOG_TRACE/DEBUG/INFO/WARN/ERROR`) in `engine-core/include/LoggerMacros.h` — include alongside `import Logger;`. |
 | P1-04 — Core utility types | ⚠️ Partial | **Done:** `EngineError` (type + message, DLL-exported constructor) and `Expected<T>` alias over `std::expected<T, EngineError>` in `EngineError.ixx`; `export import`-ed from `EngineCore.ixx` so `import EngineCore;` exposes them transitively. **Remaining:** (1) string helpers needed by the serialiser (trim, split, case); (2) file I/O helpers (`ReadAllText`, `WriteAllText`) returning `Expected<T>` — defer until just before P3. |
@@ -52,7 +52,7 @@ A **console-based editor** that can:
 - Deserialize scenes into a live scene graph
 - Display and modify scenes via console commands
 - Save changes back to disk
-- Launch the game as a separate process and communicate over TCP
+- Load the game DLL, run game logic in-process with Play / Pause / Stop controls
 - Detect and react to game DLL recompilation (hot-reload)
 
 ---
@@ -125,29 +125,26 @@ Track and load project assets; provide stable references usable by components.
 
 ---
 
-## Phase 6 — IPC Protocol & TCP Messaging
+## Phase 6 — In-Process Game Loop & Play Mode
 
-Define how the editor and game processes talk to each other.
+The editor loads the game DLL and drives a game loop in the same process.
 
-- P6-01: Design the message protocol: message header (type, length), message type enum, versioning
-- P6-02: Implement TcpServer (WinSock2, async accept, per-connection receive loop)
-- P6-03: Implement TcpClient (connect, send, async receive loop)
-- P6-04: Implement message framing: length-prefixed binary frames, serialize/deserialize message payloads
-- P6-05: Implement MessageDispatcher: route received messages to registered handler callbacks
-- P6-06: Define and implement editor-side messages (SceneUpdate, FieldChange, PlayCmd, StopCmd, etc.)
-- P6-07: Define and implement game-side messages (StateSnapshot, LogOutput, EntityCreated, etc.)
+- P6-01: Extend the game DLL ABI with game lifecycle hooks: `GameInitialize(Scene*)`, `GameUpdate(float dt)`, `GameShutdown()` exported as `extern "C"` alongside component registration
+- P6-02: Implement a fixed-timestep game loop driven by the editor (target Hz configurable, spiral-of-death guard)
+- P6-03: Implement Play / Pause / Stop state machine in the editor
+- P6-04: Implement scene state snapshot on Play start; restore original state on Stop (so edits made during play are discarded)
+- P6-05: Integrate hot-reload with the play state: if a DLL rebuild is detected while stopped, reload immediately; if playing, stop → reload → optionally re-enter play
 
 ---
 
-## Phase 7 — Game Process
+## Phase 7 — Standalone Game Runner
 
-The runtime process that loads scenes and runs game logic.
+A thin launcher executable that runs a shipped game without the editor.
 
-- P7-01: Implement game process entry point: parse args (project path, editor address), connect IPC
-- P7-02: Implement the game loop: fixed-timestep Update, variable-rate frame tick
-- P7-03: Implement scene playback: call OnCreate on load, tick OnUpdate each frame
-- P7-04: Implement Play / Pause / Stop commands received over IPC
-- P7-05: Implement live scene sync: apply FieldChange messages from editor without restarting
+- P7-01: Convert (or add) a `game-runner` CMake exe target that links `engine-core.dll` and loads the game DLL by path
+- P7-02: Implement command-line argument parsing (project path, scene to load, window config)
+- P7-03: Implement the standalone game loop (same fixed-timestep logic as the editor play mode, no editor overhead)
+- P7-04: Implement clean shutdown: call `GameShutdown`, unload DLL, destroy scene
 
 ---
 
@@ -160,7 +157,7 @@ The first usable editor: a console application with typed commands.
 - P8-03: Implement commands: list-scenes, load-scene \<name\>, list-objects, inspect \<object\>
 - P8-04: Implement commands: set-field \<obj\> \<component\> \<field\> \<value\>, add-component, remove-component
 - P8-05: Implement save-scene command (serialize current scene back to disk)
-- P8-06: Implement launch-game command (spawn game process, wait for IPC connection)
+- P8-06: Implement play / pause / stop commands (drive the in-process game loop; snapshot and restore scene state)
 - P8-07: Implement hot-reload response: detect DLL rebuild, trigger Phase 5 reload flow, report to console
 
 ---
