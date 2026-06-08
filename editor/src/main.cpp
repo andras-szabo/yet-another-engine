@@ -15,9 +15,11 @@
 #include "../../engine-core/src/Reflection.ixx"
 #include "../../engine-core/src/Scene.ixx"
 #include "../../engine-core/src/Serialization.ixx"
+#include "EditorTests.ixx"
 #else
 import EngineCore;
 import EngineInstance;
+import EditorTests;
 #endif
 
 using namespace Engine;
@@ -179,8 +181,15 @@ void TestSrsly()
     */
 }
 
+void RunTests()
+{
+    EditorTests::RunSceneTest();
+}
+
 int main()
 {
+
+
     LOG_INFO("This is an info");
     auto bar = ShouldBeEven(42);
     auto baz = ShouldBeEven(3);
@@ -209,6 +218,10 @@ int main()
 
     
     Engine::Instance.Initialize(std::make_unique<Engine::ComponentStorage>());
+
+    LOG_INFO("-----");
+    RunTests();
+    LOG_INFO("-----");
 
     auto g = Engine::Instance
         .GetActiveScene()
