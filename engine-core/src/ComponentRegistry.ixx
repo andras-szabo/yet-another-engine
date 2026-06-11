@@ -34,7 +34,7 @@ namespace Engine
 		std::unordered_map<unsigned int, ComponentFactoryFn> _factories;
 	};
 
-	export ENGINE_CORE_API ComponentRegistry GlobalComponentRegistry()
+	export ENGINE_CORE_API ComponentRegistry& GlobalComponentRegistry()
 	{
 		static ComponentRegistry globalComponentRegistry;
 		return globalComponentRegistry;
