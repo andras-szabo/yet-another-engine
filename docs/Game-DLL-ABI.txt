@@ -1,0 +1,13 @@
+Just a few notes about the game DLL ABI.
+
+GameDLLInterface.h establishes the "extern "C" interface that lets the editor dynamically
+load a game DLL (via LoadLibrary / GetProcAddress), and call into it without C++ name-
+mangling getting in the way.
+
+GameDLLInterface is shared between editor and game template, by virtue of both
+relying on engine-core.
+
+At the moment this ABI is very light- it only contains "GameDLL_GetVersion()";
+the idea being: if this differs from the editor's own, it has to reject the DLL
+to be loaded.
+

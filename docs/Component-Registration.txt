@@ -1,0 +1,30 @@
+About (user-defined) component registration
+
+In order for the engine to serialize / deserialize, and otherwise handle components
+dynamically at runtime, components shall register with some kind of component registry,
+which associates each component with a type ID and a factory method.
+
+This works by creating an "inline static RAII struct" for components: a struct which
+registers the compnent in its ctor, and unregisters it in its dtor, like so:
+
+class MyComponent : public Engine::Component
+{
+  private:
+    struct MyComponent_Registrar
+    {
+    	MyComponent_Registrar()
+	{
+	  Engine::RegisterComponent(MyComponent::StaticTypeID(), factoryMethod);
+	}
+	~MyComponent_Registrar()
+	{
+	  Engine::UnregisterComponent(MyComponent::StaticTypeID());
+	}
+    };
+
+    inline static MyComponent_Registrar _MyComponent_registrar {};
+
+};
+
+So this is kind of like the immediately invoked lambda; but it's better because it
+also takes care of _un_registering.
