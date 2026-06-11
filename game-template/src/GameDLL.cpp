@@ -9,7 +9,9 @@
 import EngineCore;
 import EngineInstance;
 
-import std;
+// Note: unless consoming the STL as a named module, we can run into weird
+// linker errors as soon as trying to use logger macros.
+//import std;
 #endif
 
 unsigned int GameDLL_GetVersion()
@@ -30,9 +32,9 @@ public:
 
 REFLECTED_FIELDS_EMPTY(MyComponent)
 
-int ThisIsWhatMainUsedToBe()
-{
-	LOG_INFO("[game-template] stub");
-
-	return 0;
-}
+//int ThisIsWhatMainUsedToBe()
+//{
+//	LOG_INFO("[game-template] stub");
+//
+//	return 0;
+//}
