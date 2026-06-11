@@ -69,5 +69,6 @@ namespace EditorTests
 			assert(aGUID == bGUID && "GUID mismatch");
 		}
 
+		LOG_INFO("RunSceneTest signing off.");
 	}
 }
