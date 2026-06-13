@@ -19,6 +19,7 @@ namespace Engine
 		OutOfBounds = 3,
 		File = 4,
 		Deserialization = 5,
+		Dll = 6,
 		// ... TODO add more as needed
 	};
 

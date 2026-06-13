@@ -21,6 +21,7 @@ target_sources(engine-core
       src/IComponentStorage.ixx
       src/ComponentStorage.ixx
       src/DataFile.ixx
+      src/DllLoader.ixx
       src/EngineCore.ixx
       src/EngineError.ixx
       src/EngineInstance.ixx

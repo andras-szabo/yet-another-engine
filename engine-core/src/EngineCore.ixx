@@ -8,6 +8,7 @@ export import Component;
 export import ComponentRegistry;
 export import ComponentStorage;
 export import DataFile;
+export import DllLoader;
 export import Error;
 export import GameObject;
 export import GUID;
