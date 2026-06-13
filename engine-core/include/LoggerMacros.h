@@ -12,5 +12,5 @@
 #define LOG_TRACE(...) Engine::Log(Engine::LogLevel::Trace,   __VA_ARGS__)
 #define LOG_DEBUG(...) Engine::Log(Engine::LogLevel::Debug,   __VA_ARGS__)
 #define LOG_INFO(...)  Engine::Log(Engine::LogLevel::Info,    __VA_ARGS__)
-#define LOG_WARN(...)  Engine::Log(Engine::LogLevel::Warning, __VA_ARGS__)
+#define LOG_WARNING(...)  Engine::Log(Engine::LogLevel::Warning, __VA_ARGS__)
 #define LOG_ERROR(...) Engine::Log(Engine::LogLevel::Error,   __VA_ARGS__)

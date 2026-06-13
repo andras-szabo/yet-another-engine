@@ -1,8 +1,10 @@
 #include <array>
+#include <chrono>
 #include <iostream>
 #include <span>
 #include <string>
 #include <cassert>
+#include <thread>
 #include "LoggerMacros.h"
 
 // Import the engine-core module.
@@ -10,6 +12,7 @@
 #if defined ( __INTELLISENSE__ )
 #include "../../engine-core/src/EngineError.ixx"
 #include "../../engine-core/src/EngineInstance.ixx"
+#include "../../engine-core/src/FileWatcher.ixx"
 #include "../../engine-core/src/Logger.ixx"
 #include "../../engine-core/src/Math.ixx"
 #include "../../engine-core/src/Reflection.ixx"
@@ -186,6 +189,33 @@ void RunTests()
     EditorTests::RunSceneTest();
 }
 
+void RunFileWatcherTest()
+{
+    Engine::FileWatcher watcher(L"C:\\Users\\andra", L"todo.txt");
+
+    if (watcher.IsValid())
+    {
+        LOG_INFO("FileWatcher is valid.");
+
+        int waitForSeconds = 30;
+
+        while (waitForSeconds --> 0)
+        {
+            if (watcher.Poll())
+            {
+                LOG_INFO("Yup, the file was just modified.");
+            }
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        }
+        
+    }
+    else
+    {
+        LOG_WARNING("FileWatcher is not valid.");
+    }
+}
+
 int main()
 {
 
@@ -297,6 +327,8 @@ int main()
         LOG_INFO("Break here...");
         newScene.WalkDepthFirst(0, logNodes);
     }
+
+    //RunFileWatcherTest();
 
     // Try to add another transform; this should fail.
     //g.AddComponent<Engine::Transform>();

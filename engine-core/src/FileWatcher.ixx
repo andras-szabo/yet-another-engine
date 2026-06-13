@@ -3,17 +3,31 @@ module;
 #include <cassert>
 #include <Windows.h>
 
+#include "LoggerMacros.h"
 #include "engine_core_api.h"
 
 export module FileWatcher;
 
 import std;
 
+#if defined ( __INTELLISENSE__ )
+#include "Logger.ixx"
+#else
+import Logger;
+#endif
+
 namespace Engine
 {
-	export ENGINE_CORE_API class FileWatcher
+	export class ENGINE_CORE_API FileWatcher
 	{
 	public:
+		/// <summary>
+		/// Open a FileWatcher which you can poll to check if the given file in the given
+		/// directory has been modified. Example:
+		/// Engine::FileWatcher watch(L"C:\\Foo\\Bar", L"baz.txt");
+		/// </summary>
+		/// <param name="directoryPath">The directory path; don't forget to escape backslashes.</param>
+		/// <param name="targetFileName">The target file name.</param>
 		FileWatcher(const std::wstring& directoryPath,
 					std::wstring_view targetFileName);
 
@@ -85,6 +99,10 @@ namespace Engine
 			);
 
 			StartWatching();
+		}
+		else
+		{
+			LOG_WARNING("Invalid _handle. Error: {}", GetLastError());
 		}
 	}
 

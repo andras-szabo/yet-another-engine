@@ -285,7 +285,7 @@ namespace Engine
 							auto componentMaybe = GlobalComponentRegistry().Create(typeID, componentStorage);
 							if (!componentMaybe.has_value())
 							{
-								LOG_WARN("Component read fail: {}", componentMaybe.error().message);
+								LOG_WARNING("Component read fail: {}", componentMaybe.error().message);
 								continue;
 							}
 
