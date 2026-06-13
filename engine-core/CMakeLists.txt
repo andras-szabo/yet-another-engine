@@ -25,6 +25,7 @@ target_sources(engine-core
       src/EngineCore.ixx
       src/EngineError.ixx
       src/EngineInstance.ixx
+      src/FileWatcher.ixx
       src/GameObject.ixx
       src/GUID.ixx
       src/Interfaces.ixx

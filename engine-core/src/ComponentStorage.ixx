@@ -11,8 +11,13 @@ module;
 
 export module ComponentStorage;
 
+#if defined ( __INTELLISENSE__ )
+#include "Component.ixx"
+#include "IComponentStorage.ixx"
+#else
 import Component;
 import IComponentStorage;
+#endif
 
 namespace Engine
 {

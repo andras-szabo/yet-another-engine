@@ -10,6 +10,7 @@ export import ComponentStorage;
 export import DataFile;
 export import DllLoader;
 export import Error;
+export import FileWatcher;
 export import GameObject;
 export import GUID;
 export import Interfaces;
