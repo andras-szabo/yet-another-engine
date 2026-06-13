@@ -19,10 +19,12 @@
 #include "../../engine-core/src/Scene.ixx"
 #include "../../engine-core/src/Serialization.ixx"
 #include "EditorTests.ixx"
+#include "HotReloadManager.ixx"
 #else
 import EngineCore;
 import EngineInstance;
 import EditorTests;
+import HotReloadManager;
 #endif
 
 using namespace Engine;
