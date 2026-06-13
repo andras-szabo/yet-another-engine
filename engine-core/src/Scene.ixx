@@ -47,10 +47,12 @@ namespace Engine
 				unsigned long long rootGuid = 0);
 
 			std::vector<Node> nodes;
-			std::vector<std::unique_ptr<GameObject>> gameObjects;
 			TransformStorage storage;
 			std::deque<int> walkHelperQueue;
 			std::string sceneName;
+			// Declared last so it is destroyed first, ensuring components are torn down
+			// (via ~GameObject -> DestroyComponent) before TransformStorage is gone.
+			std::vector<std::unique_ptr<GameObject>> gameObjects;
 
 			GameObject* CreateGameObject(IComponentStorage* componentStorage,
 				std::string_view name,

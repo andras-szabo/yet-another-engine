@@ -1,5 +1,6 @@
 module;
 
+#include <algorithm>
 #include <concepts>
 #include <functional>
 #include <memory>
@@ -22,6 +23,8 @@ namespace Engine
 		ComponentStorage(const ComponentStorage& other) = delete;
 		ComponentStorage& operator=(const ComponentStorage& other) = delete;
 
+		void DestroyComponent(Component* component) override;
+
 	protected:
 		Component* CreateComponentImpl(std::function<std::unique_ptr<Component>()> factory) override;
 #pragma warning(push)
@@ -35,5 +38,11 @@ namespace Engine
 		auto& newComponent = _components.emplace_back(factory());
 		Component* rawPtr = newComponent.get();
 		return rawPtr;
+	}
+
+	void ComponentStorage::DestroyComponent(Component* component)
+	{
+		component->OnDestroy();
+		std::erase_if(_components, [component](const auto& ptr) { return ptr.get() == component; });
 	}
 } // namespace Engine

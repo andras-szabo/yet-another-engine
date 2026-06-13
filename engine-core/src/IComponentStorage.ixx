@@ -25,6 +25,10 @@ namespace Engine
 		Component* CreateComponent(Args&&... args);
 		Component* CreateComponentDynamic(ComponentFactoryFn factory);
 
+		// Calls OnDestroy() on the component, then removes it from storage.
+		// Must be called before the owning GameObject is destroyed.
+		virtual void DestroyComponent(Component* component) = 0;
+
 	protected:
 		virtual Component* CreateComponentImpl(std::function<std::unique_ptr<Component>()> factory) = 0;
 	};

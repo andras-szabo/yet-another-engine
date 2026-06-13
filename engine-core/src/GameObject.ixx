@@ -68,6 +68,7 @@ namespace Engine
 		GUID _guid;
 		Transform* _transform{ nullptr };
 		GOImpl* _gimpl{ nullptr };
+		IComponentStorage* _storage{ nullptr };
 	};
 
 	template<typename T, typename... Args>
@@ -76,6 +77,8 @@ namespace Engine
 	{
 		assert(GetComponent<T>() == nullptr && "Adding multiple components of the same type to GameObjects is not supported.");
 		assert(componentStorage != nullptr && "IComponentStorage is null pointer");
+
+		if (_storage == nullptr) _storage = componentStorage;
 
 		Component* ptr = componentStorage->template CreateComponent<T>(std::forward<Args>(args)...);
 		ptr->_owner = this;
@@ -108,6 +111,13 @@ namespace Engine
 {
 	GameObject::~GameObject()
 	{
+		if (_gimpl != nullptr && _storage != nullptr)
+		{
+			for (Component* c : _gimpl->_components)
+			{
+				_storage->DestroyComponent(c);
+			}
+		}
 		delete _gimpl;
 	}
 
