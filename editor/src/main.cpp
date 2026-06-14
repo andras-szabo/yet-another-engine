@@ -330,6 +330,9 @@ int main()
         newScene.WalkDepthFirst(0, logNodes);
     }
 
+    Editor::HotReloadManager hrm;
+    LOG_WARNING("This is just a mock warning.");
+
     //RunFileWatcherTest();
 
     // Try to add another transform; this should fail.

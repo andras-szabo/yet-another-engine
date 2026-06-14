@@ -4,15 +4,18 @@ module;
 #include <Windows.h>	// TODO - platform layer so we can swap it easily
 
 #include "GameDLLInterface.h"
+#include "LoggerMacros.h"
 #include "engine_core_api.h"
 
 export module DllLoader;
 
 #if defined ( __INTELLISENSE__ )
 #include "EngineError.ixx"
+#include "Logger.ixx"
 #else
 import std;
 import Error;
+import Logger;
 #endif
 
 namespace Engine
@@ -20,6 +23,7 @@ namespace Engine
 	export class ENGINE_CORE_API DllLoader
 	{
 	public:
+		DllLoader() = default;
 		~DllLoader();
 
 		Expected<void> Load(const std::wstring& path);
