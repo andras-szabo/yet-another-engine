@@ -58,7 +58,17 @@ namespace Engine
 				std::string_view name,
 				int parentNodeIndex = 0,
 				unsigned long long guid = 0);
+
+			void Clear();
 		};
+
+		void SceneImpl::Clear()
+		{
+			gameObjects.clear();
+			nodes.clear();
+			storage.Clear();
+			walkHelperQueue.clear();
+		}
 
 		export class ENGINE_CORE_API Scene
 		{
@@ -99,6 +109,7 @@ namespace Engine
 			std::vector<std::unique_ptr<GameObject>>& GetAllGameObjects();
 
 			TransformStorage* GetTransformStorage();
+			void Clear();
 
 		private:
 			// ScenePimpl; were I to use a direct member, or a unique_ptr, it would expose
@@ -132,6 +143,14 @@ namespace Engine
 		Scene::~Scene()
 		{
 			delete _impl;
+		}
+
+		void Scene::Clear()
+		{
+			if (_impl != nullptr)
+			{
+				_impl->Clear();
+			}
 		}
 
 		Engine::GameObject* Scene::GetGameObject(std::size_t nodeIndex)

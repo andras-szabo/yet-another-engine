@@ -9,11 +9,19 @@ module;
 
 export module Transform;
 
+#if defined ( __INTELLISENSE__ )
+#include "Component.ixx"
+#include "ComponentRegistry.ixx"
+#include "Interfaces.ixx"
+#include "Math.ixx"
+#include "Utility.ixx"
+#else
 import Component;
 import ComponentRegistry;
 import Interfaces;
 import Math;
 import Utility;
+#endif
 
 namespace Engine
 {
@@ -49,6 +57,7 @@ namespace Engine
 
 		void UpdateWorldTransforms();
 		void WalkDepthFirst(std::size_t startingNode, std::function<void(std::size_t currentNodeIndex)> op);
+		void Clear();
 
 		std::vector<Hierarchy> hierarchies;
 		std::vector<Mat4x4> globalTransforms;
@@ -115,6 +124,15 @@ namespace Engine
 		localTransforms.reserve(expectedNodeCount);
 		names.reserve(expectedNodeCount);
 		transformComponents.reserve(expectedNodeCount);
+	}
+
+	void TransformStorage::Clear()
+	{
+		hierarchies.clear();
+		globalTransforms.clear();
+		localTransforms.clear();
+		names.clear();
+		transformComponents.clear();
 	}
 
 	int TransformStorage::AddTransform(const Mat4x4& localTransform, 

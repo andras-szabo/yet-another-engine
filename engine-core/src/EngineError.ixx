@@ -18,8 +18,9 @@ namespace Engine
 		NotFound = 2,
 		OutOfBounds = 3,
 		File = 4,
-		Deserialization = 5,
-		Dll = 6,
+		Serialization = 5,
+		Deserialization = 6,
+		Dll = 7,
 		// ... TODO add more as needed
 	};
 

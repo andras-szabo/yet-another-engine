@@ -11,14 +11,17 @@ export module HotReloadManager;
 import std;
 
 #if defined ( __INTELLISENSE__ )
+#include "../../engine-core/src/DataFile.ixx"
 #include "../../engine-core/src/DllLoader.ixx"
 #include "../../engine-core/src/EngineError.ixx"
+#include "../../engine-core/src/EngineInstance.ixx"
 #include "../../engine-core/src/FileWatcher.ixx"
 #include "../../engine-core/src/Logger.ixx"
 #include "../../engine-core/src/Serialization.ixx"
 #else
 import DataFile;
 import DllLoader;
+import EngineInstance;
 import Error;
 import FileWatcher;
 import Logger;
@@ -37,17 +40,14 @@ namespace Editor
 	export class HotReloadManager
 	{
 	public:
-		HotReloadManager();
-		~HotReloadManager();
-
 		Engine::Expected<void> LoadGameDll(const std::wstring& dllFolderPath, 
 			const std::wstring& fileName);
 
 		bool IsDllLoaded() const;
 
 	private:
-		Engine::Expected<std::filesystem::path> CopyDllToShadow(const std::wstring& dllFolderPath, 
-			const std::wstring& fileName) const;
+		Engine::Expected<std::filesystem::path> CopyDllToShadow(const std::wstring& dllFolderPath, const std::wstring& fileName) const;
+		Engine::Expected<Engine::DataFile> SerializeCurrentScene() const;
 
 		Engine::DllLoader _loader{};
 	};
@@ -59,34 +59,48 @@ namespace Editor
 {
 	namespace fs = std::filesystem;
 
-	// TODO cleanup
-	HotReloadManager::HotReloadManager()
-	{
-		//const std::string temp = (std::string) fs::temp_directory_path().string();
-		//LOG_INFO("[Foo] HotReloadManager ctor. Temp path: {}", temp);
-	}
-
-	// TODO cleanup
-	HotReloadManager::~HotReloadManager()
-	{
-		//LOG_INFO("[Foo] HotReloadManager dtor.");
-	}
-
 	bool HotReloadManager::IsDllLoaded() const
 	{
 		return _loader.IsLoaded();
 	}
 
+	Engine::Expected<Engine::DataFile> HotReloadManager::SerializeCurrentScene() const
+	{
+		Engine::DataFile fOut;
+		try
+		{
+			Engine::SerializeScene(Engine::Instance.GetActiveScene(), fOut);
+		}
+		catch (std::runtime_error& e)
+		{
+			return Engine::Unexpected{ Engine::Error { Engine::ErrorType::Serialization, e.what() } };
+		}
+
+		return fOut;
+	}
+
 	Engine::Expected<void> HotReloadManager::LoadGameDll(const std::wstring& dllFolderPath,
 		const std::wstring& fileName)
 	{
+		Engine::DataFile previousScene;
+
 		if (IsDllLoaded())
 		{
-			// Serialize scene
-			// Tear it down
-			// Clear component storage
-			// Dll unload
-			throw std::runtime_error{ "Scene teardown not yet implemented." };
+			const auto serializedScene = SerializeCurrentScene();
+			if (!serializedScene.has_value())
+			{
+				return Engine::Unexpected{ Engine::Error{ serializedScene.error() } };
+			}
+
+			previousScene = serializedScene.value();
+
+			Engine::Instance.GetActiveScene().Clear();
+			const bool didUnload = _loader.Unload();
+
+			if (!didUnload)
+			{
+				return Engine::Unexpected{ Engine::Error { Engine::ErrorType::Dll, "Couldn't unload game dll." } };
+			}
 		}
 
 		const auto shadowDllPath = CopyDllToShadow(dllFolderPath, fileName);
@@ -100,6 +114,17 @@ namespace Editor
 		if (!_loader.IsLoaded())
 		{
 			return Engine::Unexpected{ Engine::Error { Engine::ErrorType::Dll, "Failed to load DLL shadow copy." } };
+		}
+
+		if (!previousScene.IsEmpty())
+		{
+			auto newScene = Engine::DeserializeScene(previousScene, Engine::Instance.GetComponentStorage());
+			if (!newScene.has_value())
+			{
+				return Engine::Unexpected{ Engine::Error {Engine::ErrorType::Deserialization, "Couldn't load previous scene." } };
+			}
+
+			Engine::Instance.GetActiveScene() = std::move(newScene.value());
 		}
 
 		return {};
