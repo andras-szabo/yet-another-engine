@@ -41,13 +41,15 @@ namespace Engine
 
 		bool Poll();
 		bool IsValid() const;
+		bool IsAvailableToCopy() const;
 
 	private:
 		HANDLE _handle { NULL };
 		OVERLAPPED _overlappedIO {};
 		DWORD* _changeBuffer { nullptr };
 		bool _isValid{ false };
-		std::wstring _fileName;
+		std::wstring _watchedDirectoryPath;
+		std::wstring _watchedFileName;
 
 		void StartWatching();
 		constexpr int GetChangeBufferSize() const;
@@ -60,7 +62,7 @@ namespace Engine
 {
 	FileWatcher::FileWatcher(const std::wstring& directoryPath,
 							 std::wstring_view targetFileName)
-		: _fileName{ targetFileName }
+		: _watchedDirectoryPath{ directoryPath }, _watchedFileName { targetFileName }
 	{
 		LPCWSTR lpFileName { directoryPath.c_str() };
 		DWORD dwDesiredAccess { FILE_LIST_DIRECTORY };
@@ -119,6 +121,25 @@ namespace Engine
 		}
 
 		delete[] _changeBuffer;
+	}
+
+	/// <summary>
+	/// When ReadDirectoryChanges returns true (the dll was recompiled), it might be still
+	/// adjusted by the linker, so we might have to wait a bit until it actually becomes
+	/// available for copying.
+	/// </summary>
+	/// <returns></returns>
+	bool FileWatcher::IsAvailableToCopy() const
+	{
+		if (!_isValid)
+		{
+			return false;
+		}
+
+		std::filesystem::path observedFile{ _watchedDirectoryPath };
+		observedFile /= _watchedFileName;
+		const auto permissions{ std::filesystem::status(observedFile).permissions()};
+		return (permissions & std::filesystem::perms::others_read) != std::filesystem::perms::none;
 	}
 
 	bool FileWatcher::IsValid() const
@@ -189,7 +210,7 @@ namespace Engine
 					case FILE_ACTION_REMOVED:
 					case FILE_ACTION_RENAMED_OLD_NAME:
 					case FILE_ACTION_MODIFIED:
-						if (std::wstring_view(evt->FileName, name_len) == _fileName)
+						if (std::wstring_view(evt->FileName, name_len) == _watchedFileName)
 						{
 							fileDidChange = true;
 						}

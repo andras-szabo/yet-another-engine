@@ -103,6 +103,7 @@ namespace Editor
 			}
 		}
 
+
 		const auto shadowDllPath = CopyDllToShadow(dllFolderPath, fileName);
 		if (!shadowDllPath.has_value())
 		{
