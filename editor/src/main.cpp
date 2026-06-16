@@ -328,6 +328,13 @@ int main()
         auto& newScene = sceneMaybe.value();
         LOG_INFO("Break here...");
         newScene.WalkDepthFirst(0, logNodes);
+
+        LOG_INFO("Tearing down active scene");
+        Engine::Instance.GetActiveScene().Clear();
+
+        LOG_INFO("... and replacing it");
+        Engine::Instance.GetActiveScene() = std::move(newScene);
+        Engine::Instance.GetActiveScene().WalkDepthFirst(0, logNodes);
     }
 
     Editor::HotReloadManager hrm;
