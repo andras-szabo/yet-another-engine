@@ -1,0 +1,19 @@
+About a game template that consumes the product of engine-core:
+
+**The tricky part is (b) — C++20 modules and the SDK.** MSVC needs to compile the `.ixx` 
+files in the consuming project's build to produce its own `.ifc` files before it can link. 
+So the game project will recompile all engine module interfaces (they're fast — no 
+function bodies, just declarations and re-exports), then link against the pre-built `.lib`. 
+This is the standard pattern for module-based libraries right now and works 
+reliably with CMake 3.28+.
+
+**The `.ifc`-only distribution** (true pre-built modules) would be cleaner — no 
+recompilation — but CMake has no standard mechanism for consuming pre-built `.ifc` 
+files yet. That's a future improvement.
+
+**The two-build workflow** ends up being: 
+`cmake --install build --prefix game-template/engine-sdk` once (or after engine changes), then 
+the game solution just builds. For daily game iteration the engine install step 
+rarely needs to re-run.
+
+Ready to implement when you are.
