@@ -21,6 +21,8 @@ namespace Engine
 	export class ENGINE_CORE_API FileWatcher
 	{
 	public:
+		FileWatcher();
+
 		/// <summary>
 		/// Open a FileWatcher which you can poll to check if the given file in the given
 		/// directory has been modified. Example:
@@ -38,6 +40,9 @@ namespace Engine
 		FileWatcher& operator=(FileWatcher&& other) = delete;
 
 		~FileWatcher();
+
+		void Setup(const std::wstring& directoryPath, std::wstring_view targetFileName);
+		void Teardown();
 
 		bool Poll();
 		bool IsValid() const;
@@ -60,20 +65,33 @@ module :private;
 
 namespace Engine
 {
+	FileWatcher::FileWatcher()
+	{
+	}
+
 	FileWatcher::FileWatcher(const std::wstring& directoryPath,
 							 std::wstring_view targetFileName)
 		: _watchedDirectoryPath{ directoryPath }, _watchedFileName { targetFileName }
 	{
-		LPCWSTR lpFileName { directoryPath.c_str() };
-		DWORD dwDesiredAccess { FILE_LIST_DIRECTORY };
-		DWORD dwShareMode { FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE };
-		LPSECURITY_ATTRIBUTES lpSecurityAttributes { NULL };
-		DWORD dwCreationDisposition { OPEN_EXISTING };
-		DWORD dwFlagsAndAttributes { 
-			FILE_ATTRIBUTE_NORMAL | 
+		Setup(directoryPath, targetFileName);
+	}
+
+	void FileWatcher::Setup(const std::wstring& directoryPath,
+						    std::wstring_view targetFileName)
+	{
+		_watchedDirectoryPath = directoryPath;
+		_watchedFileName = targetFileName;
+
+		LPCWSTR lpFileName{ directoryPath.c_str() };
+		DWORD dwDesiredAccess{ FILE_LIST_DIRECTORY };
+		DWORD dwShareMode{ FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE };
+		LPSECURITY_ATTRIBUTES lpSecurityAttributes{ NULL };
+		DWORD dwCreationDisposition{ OPEN_EXISTING };
+		DWORD dwFlagsAndAttributes{
+			FILE_ATTRIBUTE_NORMAL |
 			FILE_FLAG_BACKUP_SEMANTICS |	// required when opening directories
 			FILE_FLAG_OVERLAPPED };
-		HANDLE hTemplateFile { NULL };
+		HANDLE hTemplateFile{ NULL };
 
 		_handle = CreateFileW(
 			lpFileName,
@@ -89,9 +107,9 @@ namespace Engine
 			_changeBuffer = new DWORD[GetChangeBufferSize()];
 
 			LPSECURITY_ATTRIBUTES lpEventAttributes{ NULL };
-			BOOL bManualReset { false };
-			BOOL bInitialState { false };
-			LPCSTR lpName { NULL };
+			BOOL bManualReset{ false };
+			BOOL bInitialState{ false };
+			LPCSTR lpName{ NULL };
 
 			_overlappedIO.hEvent = CreateEvent(
 				lpEventAttributes,
@@ -108,7 +126,7 @@ namespace Engine
 		}
 	}
 
-	FileWatcher::~FileWatcher()
+	void FileWatcher::Teardown()
 	{
 		if (_handle != INVALID_HANDLE_VALUE)
 		{
@@ -121,6 +139,11 @@ namespace Engine
 		}
 
 		delete[] _changeBuffer;
+	}
+
+	FileWatcher::~FileWatcher()
+	{
+		Teardown();
 	}
 
 	/// <summary>

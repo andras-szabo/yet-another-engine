@@ -40,16 +40,21 @@ namespace Editor
 	export class HotReloadManager
 	{
 	public:
-		Engine::Expected<void> LoadGameDll(const std::wstring& dllFolderPath, 
-			const std::wstring& fileName);
+		Engine::Expected<void> LoadGameDll(const std::wstring& dllFolderPath,
+										   const std::wstring& fileName);
 
 		bool IsDllLoaded() const;
+		void Update();
 
 	private:
 		Engine::Expected<std::filesystem::path> CopyDllToShadow(const std::wstring& dllFolderPath, const std::wstring& fileName) const;
 		Engine::Expected<Engine::DataFile> SerializeCurrentScene() const;
 
 		Engine::DllLoader _loader{};
+		Engine::FileWatcher _watcher{};
+
+		std::wstring _dllFolderPath;
+		std::wstring _fileName;
 	};
 } // namespace Editor
 
@@ -62,6 +67,14 @@ namespace Editor
 	bool HotReloadManager::IsDllLoaded() const
 	{
 		return _loader.IsLoaded();
+	}
+
+	void HotReloadManager::Update()
+	{
+		if (_watcher.IsValid() && _watcher.Poll())
+		{
+			LoadGameDll(_dllFolderPath, _fileName);
+		}
 	}
 
 	Engine::Expected<Engine::DataFile> HotReloadManager::SerializeCurrentScene() const
@@ -103,6 +116,30 @@ namespace Editor
 			}
 		}
 
+		if (_watcher.IsValid())
+		{
+			int waitForSeconds = 10;
+			do
+			{
+				if (_watcher.IsAvailableToCopy())
+				{
+					break;
+				}
+
+				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+			} while (waitForSeconds-- > 0);
+		}
+
+		if (_watcher.IsValid() && !_watcher.IsAvailableToCopy())
+		{
+			return Engine::Unexpected{ Engine::Error { Engine::ErrorType::Dll, "Waiting for DLL timeout" } };
+		}
+
+		_watcher.Teardown();
+
+		_dllFolderPath = dllFolderPath;
+		_fileName = fileName;
+		_watcher.Setup(dllFolderPath, fileName);
 
 		const auto shadowDllPath = CopyDllToShadow(dllFolderPath, fileName);
 		if (!shadowDllPath.has_value())
@@ -114,6 +151,7 @@ namespace Editor
 
 		if (!_loader.IsLoaded())
 		{
+			_watcher.Teardown();
 			return Engine::Unexpected{ Engine::Error { Engine::ErrorType::Dll, "Failed to load DLL shadow copy." } };
 		}
 
@@ -122,6 +160,7 @@ namespace Editor
 			auto newScene = Engine::DeserializeScene(previousScene, Engine::Instance.GetComponentStorage());
 			if (!newScene.has_value())
 			{
+				_watcher.Teardown();
 				return Engine::Unexpected{ Engine::Error {Engine::ErrorType::Deserialization, "Couldn't load previous scene." } };
 			}
 
@@ -142,7 +181,7 @@ namespace Editor
 			return Engine::Unexpected{ Engine::Error { Engine::ErrorType::File, "Game DLL not found."} };
 		}
 
-		fs::path tempPath { fs::temp_directory_path() };
+		fs::path tempPath{ fs::temp_directory_path() };
 		const auto shadowDllName = std::format(L"shadow_{}", fileName);
 		tempPath /= shadowDllName;
 
