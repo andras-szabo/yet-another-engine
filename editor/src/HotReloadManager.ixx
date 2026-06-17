@@ -73,7 +73,11 @@ namespace Editor
 	{
 		if (_watcher.IsValid() && _watcher.Poll())
 		{
-			LoadGameDll(_dllFolderPath, _fileName);
+			const auto result = LoadGameDll(_dllFolderPath, _fileName);
+			if (!result.has_value())
+			{
+				LOG_ERROR("Couldn't hot reload DLL: {}", result.error().message);
+			}
 		}
 	}
 
@@ -102,7 +106,7 @@ namespace Editor
 			const auto serializedScene = SerializeCurrentScene();
 			if (!serializedScene.has_value())
 			{
-				return Engine::Unexpected{ Engine::Error{ serializedScene.error() } };
+				return Engine::Unexpected{ serializedScene.error() };
 			}
 
 			previousScene = serializedScene.value();

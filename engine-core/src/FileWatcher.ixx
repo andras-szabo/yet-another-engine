@@ -139,6 +139,11 @@ namespace Engine
 		}
 
 		delete[] _changeBuffer;
+
+		_handle = INVALID_HANDLE_VALUE;
+		_overlappedIO.hEvent = NULL;
+		_changeBuffer = nullptr;
+		_isValid = false;
 	}
 
 	FileWatcher::~FileWatcher()
@@ -161,8 +166,33 @@ namespace Engine
 
 		std::filesystem::path observedFile{ _watchedDirectoryPath };
 		observedFile /= _watchedFileName;
-		const auto permissions{ std::filesystem::status(observedFile).permissions()};
-		return (permissions & std::filesystem::perms::others_read) != std::filesystem::perms::none;
+		const std::wstring pathAsWString = observedFile.wstring();
+
+		LPCWSTR lpFileName{ pathAsWString.c_str() };
+		DWORD dwDesiredAccess{ GENERIC_READ };
+		DWORD dwShareMode{ 0 };
+		LPSECURITY_ATTRIBUTES lpSecurityAttributes{ NULL };
+		DWORD dwCreationDisposition{ OPEN_EXISTING };
+		DWORD dwFlagsAndAttributes{ FILE_ATTRIBUTE_NORMAL };
+		HANDLE hTemplateFile{ NULL };
+
+		const auto handle = CreateFileW(
+			lpFileName,
+			dwDesiredAccess,
+			dwShareMode,
+			lpSecurityAttributes,
+			dwCreationDisposition,
+			dwFlagsAndAttributes,
+			hTemplateFile);
+
+		if (handle == INVALID_HANDLE_VALUE)
+		{
+			return false;
+		}
+
+		CloseHandle(handle);
+		return true;
+
 	}
 
 	bool FileWatcher::IsValid() const

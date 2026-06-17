@@ -10,8 +10,7 @@ export module Error;
 namespace Engine
 {
 
-	export
-		enum class ErrorType
+	export enum class ErrorType
 	{
 		Undefined = 0,
 		Logic = 1,
@@ -24,8 +23,7 @@ namespace Engine
 		// ... TODO add more as needed
 	};
 
-	export
-		struct Error
+	export struct Error
 	{
 		ErrorType type;
 		std::string message;
