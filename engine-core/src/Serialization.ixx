@@ -309,7 +309,6 @@ namespace Engine
 		}
 		catch (const std::runtime_error& e)
 		{
-			LOG_ERROR("this.");
 			return Engine::Unexpected({ Engine::ErrorType::Deserialization, e.what() });
 		}
 	}
