@@ -1,3 +1,5 @@
+module;
+
 #include <cassert>
 #include "engine_core_api.h"
 
@@ -21,6 +23,7 @@ namespace Engine
 	// the SOIF.
 	EngineInstance* EngineInstance::_instance = nullptr;
 
+	// static
 	void EngineInstance::Initialize(std::unique_ptr<IComponentStorage> componentStorage)
 	{
 		if (_instance == nullptr)
@@ -29,53 +32,56 @@ namespace Engine
 		}
 	}
 
+	// static
 	void EngineInstance::Shutdown()
 	{
 		delete _instance;
 		_instance = nullptr;
 	}
 
+	// static
 	EngineInstance& EngineInstance::Get()
 	{
 		return *_instance;
 	}
 
-	EngineInstance::~EngineInstance()
-	{
-		delete _activeScene;
-		_activeScene = nullptr;
-	}
-
+	// static
 	IComponentStorage& EngineInstance::GetComponentStorage()
 	{
-		assert(_instance->_componentStorage != nullptr && "Component storage null; engine instance not initialized?");
-		return *(_instance->_componentStorage);
+		assert(_instance != nullptr && "Engine instance not initialized?");
+		return *(_instance->_impl->_componentStorage.get());
 	}
 
+	// static
 	const Scene::Scene& EngineInstance::GetActiveScene()
 	{
-		assert(_instance->_activeScene != nullptr && "Active scene is null; engine instance not initialized?");
-		return *(_instance->_activeScene);
+		assert(_instance != nullptr && "Engine instance not initialized?");
+		return *(_instance->_impl->_activeScene);
 	}
 
+	// static
 	Scene::Scene& EngineInstance::GetActiveSceneRW()
 	{
-		assert(_instance->_activeScene != nullptr && "Active scene is null; engine instance not initialized?");
-		return *(_instance->_activeScene);
+		assert(_instance != nullptr && "Engine instance not initialized?");
+		return *(_instance->_impl->_activeScene);
 	}
 
+	// static
 	void EngineInstance::SetActiveScene(Scene::Scene&& scene)
 	{
 		assert(_instance != nullptr && "Engine instance is not initialized!");
-		delete _instance->_activeScene;
-		_instance->_activeScene = new Engine::Scene::Scene(std::forward<Scene::Scene>(scene));
+		_instance->_impl->SetActiveScene(std::forward<Scene::Scene&&>(scene));
+	}
 
+	EngineInstance::~EngineInstance()
+	{
+		delete _impl;
+		_impl = nullptr;
 	}
 
 	EngineInstance::EngineInstance(std::unique_ptr<IComponentStorage> componentStorage)
 	{
-		_componentStorage = std::move(componentStorage);
-		_activeScene = new Engine::Scene::Scene(_componentStorage.get(), "UntitledScene");
+		_impl = new EngineInstance_Impl(std::forward<std::unique_ptr<IComponentStorage>>(componentStorage));
 	}
 
 } // namespace Engine

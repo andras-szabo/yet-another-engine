@@ -391,7 +391,7 @@ namespace Engine
 		va_start(args, count);
 		for (int i = 0; i < count; ++i)
 		{
-			SetFloat(va_arg(args, double), i);
+			SetFloat(va_arg(args, float), i);
 		}
 		va_end(args);
 	}

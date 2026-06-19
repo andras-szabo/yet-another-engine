@@ -1,3 +1,5 @@
+module;
+
 #include <cassert>
 #include "engine_core_api.h"
 #include "LoggerMacros.h"
@@ -315,7 +317,7 @@ namespace Engine
 		// store only parent, firstchild, firstsibling triplets
 		int index = 0;
 
-		hierarchy.SetInt(storage->hierarchies.size(), index++);
+		hierarchy.SetInt(static_cast<int>(storage->hierarchies.size()), index++);
 
 		for (const Engine::Hierarchy& hierarchy_stored : storage->hierarchies)
 		{

@@ -16,6 +16,30 @@ import std;
 
 namespace Engine
 {
+	struct EngineInstance_Impl
+	{
+		EngineInstance_Impl(std::unique_ptr<IComponentStorage> componentStorage)
+			: _componentStorage(std::move(componentStorage))
+		{
+			_activeScene = new Engine::Scene::Scene(_componentStorage.get(), "UntitledScene");
+		}
+
+		~EngineInstance_Impl()
+		{
+			delete _activeScene;
+			_activeScene = nullptr;
+		}
+
+		void SetActiveScene(Scene::Scene&& scene)
+		{
+			delete _activeScene;
+			_activeScene = new Engine::Scene::Scene(std::forward<Scene::Scene&&>(scene));
+		}
+
+		std::unique_ptr<IComponentStorage> _componentStorage;
+		Scene::Scene* _activeScene{ nullptr };
+	};
+
 	export class ENGINE_CORE_API EngineInstance
 	{
 	public:
@@ -37,12 +61,7 @@ namespace Engine
 
 		static EngineInstance* _instance;
 
-#pragma warning(push)
-#pragma warning(disable: 4251)
-		std::unique_ptr<IComponentStorage> _componentStorage;
-#pragma warning(pop)
-
-		Scene::Scene* _activeScene{ nullptr };
+		EngineInstance_Impl* _impl{ nullptr };
 	};
 
 } // namespace Engine
