@@ -94,8 +94,6 @@ namespace Engine
 		LogLevel minLogLevel = LogLevel::Debug;
 
 	private:
-		// C4251: safe to suppress — _sinks is private and inaccessible to consumers.
-		#pragma warning(suppress: 4251)
 		std::vector<std::unique_ptr<LogSink>> _sinks;
 	};
 }
