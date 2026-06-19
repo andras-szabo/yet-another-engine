@@ -35,6 +35,6 @@ namespace Engine
 			IComponentStorage& componentStorage);
 
 	export ENGINE_CORE_API
-	void SerializeScene(Engine::Scene::Scene& scene, Engine::DataFile& out);
+	void SerializeScene(const Engine::Scene::Scene& scene, Engine::DataFile& out);
 } // namespace Engine
 

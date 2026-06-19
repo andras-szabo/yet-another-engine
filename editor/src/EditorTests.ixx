@@ -34,7 +34,8 @@ namespace EditorTests
 {
 	void RunSceneTest()
 	{
-		auto* componentStorage = &Engine::Instance.GetComponentStorage();
+		auto* componentStorage = &Engine::EngineInstance::GetComponentStorage();
+		//auto* componentStorage = &Engine::Instance.GetComponentStorage();
 		
 		Engine::Scene::Scene sceneA(componentStorage, "SceneA");
 		auto first = sceneA.CreateGameObject(componentStorage, "First_Child", 0);

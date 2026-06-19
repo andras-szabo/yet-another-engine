@@ -106,9 +106,9 @@ namespace Engine
 				unsigned long long guid = 0);
 
 			GameObject* GetGameObject(std::size_t nodeIndex);
-			std::vector<std::unique_ptr<GameObject>>& GetAllGameObjects();
+			const std::vector<std::unique_ptr<GameObject>>& GetAllGameObjects() const;
 
-			TransformStorage* GetTransformStorage();
+			const TransformStorage* GetTransformStorage() const;
 			void Clear();
 
 		private:
@@ -159,7 +159,7 @@ namespace Engine
 			return _impl->gameObjects[nodeIndex].get();
 		}
 
-		std::vector<std::unique_ptr<GameObject>>& Scene::GetAllGameObjects()
+		const std::vector<std::unique_ptr<GameObject>>& Scene::GetAllGameObjects() const
 		{
 			return _impl->gameObjects;
 		}
@@ -218,7 +218,7 @@ namespace Engine
 		{
 		}
 
-		TransformStorage* Scene::GetTransformStorage()
+		const TransformStorage* Scene::GetTransformStorage() const
 		{
 			return &(*_impl).storage;
 		}

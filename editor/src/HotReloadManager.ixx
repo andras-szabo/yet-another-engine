@@ -86,7 +86,7 @@ namespace Editor
 		Engine::DataFile fOut;
 		try
 		{
-			Engine::SerializeScene(Engine::Instance.GetActiveScene(), fOut);
+			Engine::SerializeScene(Engine::EngineInstance::GetActiveScene(), fOut);
 		}
 		catch (std::runtime_error& e)
 		{
@@ -111,7 +111,7 @@ namespace Editor
 
 			previousScene = serializedScene.value();
 
-			Engine::Instance.GetActiveScene().Clear();
+			Engine::EngineInstance::GetActiveSceneRW().Clear();
 			const bool didUnload = _loader.Unload();
 
 			if (!didUnload)
@@ -161,14 +161,14 @@ namespace Editor
 
 		if (!previousScene.IsEmpty())
 		{
-			auto newScene = Engine::DeserializeScene(previousScene, Engine::Instance.GetComponentStorage());
+			auto newScene = Engine::DeserializeScene(previousScene, Engine::EngineInstance::GetComponentStorage());
 			if (!newScene.has_value())
 			{
 				_watcher.Teardown();
 				return Engine::Unexpected{ Engine::Error {Engine::ErrorType::Deserialization, "Couldn't load previous scene." } };
 			}
 
-			Engine::Instance.GetActiveScene() = std::move(newScene.value());
+			Engine::EngineInstance::SetActiveScene(std::move(newScene.value()));
 		}
 
 		return {};

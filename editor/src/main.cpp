@@ -48,23 +48,21 @@ void TestM3x3()
 
 void TestVec4()
 {
-    using namespace Engine;
-    Vec4 a;
-    Vec4 b { 1, 2, 3, 0 };
-    Vec4 c { 5, 6, 7, 8 };
+    Engine::Vec4 a;
+    Engine::Vec4 b { 1, 2, 3, 0 };
+    Engine::Vec4 c { 5, 6, 7, 8 };
     LOG_INFO("[Foo] Vec4: a: {}, b: {}, b + c = {}", a, b, b + c);
 
-    Vec4 d;
-    Vec4 e{ 10, 9, 8, 7 };
+    Engine::Vec4 d;
+    Engine::Vec4 e{ 10, 9, 8, 7 };
     LOG_INFO("[Foo] Lerp 0.25: {} // 0.75: {}", Lerp(d, e, 0.25f), Lerp(d, e, 0.75f));
 }
 
 void TestVec3()
 {
-    using namespace Engine;
-    Vec3 a;
-    Vec3 b{ 1, 2.23f, 3 };
-    Vec3 c = a + b;
+    Engine::Vec3 a;
+    Engine::Vec3 b{ 1, 2.23f, 3 };
+    Engine::Vec3 c = a + b;
     LOG_INFO("[Foo] Vec3: a: {}, b: {}, a + b = {:.2f}", a, b, c);
 }
 
@@ -220,8 +218,6 @@ void RunFileWatcherTest()
 
 int main()
 {
-
-
     LOG_INFO("This is an info");
     auto bar = ShouldBeEven(42);
     auto baz = ShouldBeEven(3);
@@ -248,33 +244,31 @@ int main()
         LOG_INFO("Creating a guid: {}", Engine::GUID{});
     }
 
-    
-    Engine::Instance.Initialize(std::make_unique<Engine::ComponentStorage>());
+    Engine::EngineInstance::Initialize(std::make_unique<Engine::ComponentStorage>());
 
     LOG_INFO("-----");
     RunTests();
     LOG_INFO("-----");
 
-    auto g = Engine::Instance
-        .GetActiveScene()
-        .CreateGameObject(&Engine::Instance.GetComponentStorage(), "Foo", 0);
+    auto g = Engine::EngineInstance::GetActiveSceneRW()
+        .CreateGameObject(&Engine::EngineInstance::GetComponentStorage(), "Foo", 0);
 
     g->GetName();
 
     assert(g->GetTransform() != nullptr && "GameObject created but has no transform.");
     LOG_INFO("G has a transform, yay!");
-    LOG_INFO("Active scene: {}", Engine::Instance.GetActiveScene().GetSceneName());
+    LOG_INFO("Active scene: {}", Engine::EngineInstance::GetActiveScene().GetSceneName());
 
     // Let's walk through it...
     auto logNodes = [](Engine::Scene::Scene& scene, std::size_t currentIndex) {
         LOG_INFO("Index: {}, name: {}", currentIndex, scene.GetNodeName(currentIndex));
         };
 
-    auto& scene = Engine::Instance.GetActiveScene();
+    auto& scene = Engine::EngineInstance::GetActiveSceneRW();
 
     scene.WalkBreadthFirst(0, logNodes);
 
-    auto firstChild = scene.CreateGameObject(&Engine::Instance.GetComponentStorage(),
+    auto firstChild = scene.CreateGameObject(&Engine::EngineInstance::GetComponentStorage(),
         "FirstChild", g->GetTransform()->GetSceneNodeIndex());
 
     LOG_INFO(scene.GetNodeName(firstChild->GetTransform()->GetSceneNodeIndex()));
@@ -282,7 +276,7 @@ int main()
     // Add some nodes to the root
     for (int i = 0; i < 3; ++i)
     {
-        scene.CreateGameObject(&Engine::Instance.GetComponentStorage(),
+        scene.CreateGameObject(&Engine::EngineInstance::GetComponentStorage(),
             std::format("child_{}", i),
             g->GetTransform()->GetSceneNodeIndex());
     }
@@ -291,7 +285,7 @@ int main()
 
     // Add a nested hierarchy to the first child
     int parentIndex = firstChild->GetTransform()->GetSceneNodeIndex();
-    auto cs = &Engine::Instance.GetComponentStorage();
+    auto cs = &Engine::EngineInstance::GetComponentStorage();
     for (int i = 0; i < 3; ++i)
     {
         const std::string name = std::format("nested_child_{}", i);
@@ -317,7 +311,7 @@ int main()
     LOG_INFO("Serialized scene: {}", fOut.ToString());
 
     // And now,, the deserialization... o.O
-    auto sceneMaybe = Engine::DeserializeScene(fOut, Engine::Instance.GetComponentStorage());
+    auto sceneMaybe = Engine::DeserializeScene(fOut, Engine::EngineInstance::GetComponentStorage());
     if (!sceneMaybe.has_value())
     {
         LOG_ERROR("Uh-oh. {}", sceneMaybe.error().message);
@@ -330,11 +324,11 @@ int main()
         newScene.WalkDepthFirst(0, logNodes);
 
         LOG_INFO("Tearing down active scene");
-        Engine::Instance.GetActiveScene().Clear();
+        Engine::EngineInstance::GetActiveSceneRW().Clear();
 
         LOG_INFO("... and replacing it");
-        Engine::Instance.GetActiveScene() = std::move(newScene);
-        Engine::Instance.GetActiveScene().WalkDepthFirst(0, logNodes);
+        Engine::EngineInstance::SetActiveScene(std::move(newScene));
+        Engine::EngineInstance::GetActiveSceneRW().WalkDepthFirst(0, logNodes);
     }
 
     Editor::HotReloadManager hrm;

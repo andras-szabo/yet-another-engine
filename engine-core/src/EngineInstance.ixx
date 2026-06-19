@@ -19,20 +19,24 @@ namespace Engine
 	export class ENGINE_CORE_API EngineInstance
 	{
 	public:
-		EngineInstance() = default;
-		~EngineInstance();
+		static void Initialize(std::unique_ptr<IComponentStorage> componentStorage);
+		static void Shutdown();
+		static EngineInstance& Get();
+		static IComponentStorage& GetComponentStorage();
+		static void SetActiveScene(Scene::Scene&& scene);
+		static const Scene::Scene& GetActiveScene();
+		static Scene::Scene& GetActiveSceneRW();
+
 		EngineInstance(const EngineInstance& other) = delete;
 		EngineInstance& operator=(const EngineInstance& other) = delete;
 
-		// TODO scene ownership?
-		void Initialize(std::unique_ptr<IComponentStorage> componentStorage);
-
-		void Shutdown();
-
-		IComponentStorage& GetComponentStorage();
-		Scene::Scene& GetActiveScene();
-
 	private:
+		EngineInstance() = default;
+		EngineInstance(std::unique_ptr<IComponentStorage> componentStorage);
+		~EngineInstance();
+
+		static EngineInstance* _instance;
+
 #pragma warning(push)
 #pragma warning(disable: 4251)
 		std::unique_ptr<IComponentStorage> _componentStorage;
@@ -40,9 +44,5 @@ namespace Engine
 
 		Scene::Scene* _activeScene{ nullptr };
 	};
-
-
-	export ENGINE_CORE_API EngineInstance Instance;
-
 
 } // namespace Engine

@@ -303,7 +303,7 @@ namespace Engine
 		}
 	}
 
-	void SerializeScene(Engine::Scene::Scene& scene, Engine::DataFile& out)
+	void SerializeScene(const Engine::Scene::Scene& scene, Engine::DataFile& out)
 	{
 		// 0th thing: name
 		out.SetString(scene.GetSceneName());
