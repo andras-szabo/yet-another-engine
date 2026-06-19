@@ -20,6 +20,7 @@ target_sources(engine-core
       src/ComponentRegistry.ixx
       src/IComponentStorage.ixx
       src/ComponentStorage.ixx
+      src/ComponentStorage.cpp
       src/DataFile.ixx
       src/DllLoader.ixx
       src/EngineCore.ixx

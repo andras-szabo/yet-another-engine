@@ -21,10 +21,17 @@ import IComponentStorage;
 
 namespace Engine
 {
+	struct ComponentStorage_Impl
+	{
+		std::vector<std::unique_ptr<Component>> components;
+	};
+
 	export class ENGINE_CORE_API ComponentStorage: public IComponentStorage
 	{
 	public:
-		ComponentStorage() = default;
+		ComponentStorage();
+		~ComponentStorage();
+
 		ComponentStorage(const ComponentStorage& other) = delete;
 		ComponentStorage& operator=(const ComponentStorage& other) = delete;
 
@@ -32,19 +39,7 @@ namespace Engine
 
 	protected:
 		Component* CreateComponentImpl(std::function<std::unique_ptr<Component>()> factory) override;
-		std::vector<std::unique_ptr<Component>> _components;
+		ComponentStorage_Impl* _components{ nullptr };
 	};
 
-	Component* ComponentStorage::CreateComponentImpl(std::function<std::unique_ptr<Component>()> factory)
-	{	
-		auto& newComponent = _components.emplace_back(factory());
-		Component* rawPtr = newComponent.get();
-		return rawPtr;
-	}
-
-	void ComponentStorage::DestroyComponent(Component* component)
-	{
-		component->OnDestroy();
-		std::erase_if(_components, [component](const auto& ptr) { return ptr.get() == component; });
-	}
 } // namespace Engine
