@@ -18,6 +18,7 @@ target_sources(engine-core
     FILE_SET CXX_MODULES FILES
       src/Component.ixx
       src/ComponentRegistry.ixx
+      src/ComponentRegistry.cpp
       src/IComponentStorage.ixx
       src/ComponentStorage.ixx
       src/ComponentStorage.cpp
