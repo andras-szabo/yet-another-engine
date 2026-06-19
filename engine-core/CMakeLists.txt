@@ -34,6 +34,7 @@ target_sources(engine-core
       src/Reflection.ixx
       src/Scene.ixx
       src/Serialization.ixx
+      src/Serialization.cpp
       src/Transform.ixx
       src/Utility.ixx
      )
