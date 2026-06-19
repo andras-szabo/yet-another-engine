@@ -2,7 +2,7 @@
 #include "engine_core_api.h"
 #include "LoggerMacros.h"
 
-import std;
+module Serialization;
 
 #if defined( __INTELLISENSE__ )
 #include "ComponentRegistry.ixx"
@@ -13,7 +13,6 @@ import std;
 #include "Math.ixx"
 #include "Reflection.ixx"
 #include "Scene.ixx"
-#include "Serialization.ixx"
 #include "Transform.ixx"
 #else
 import ComponentRegistry;
@@ -24,9 +23,10 @@ import Logger;
 import Math;
 import Reflection;
 import Scene;
-import Serialization;
 import Transform;
 #endif
+
+import std;
 
 #define KEY_NODES "Nodes"
 #define KEY_COMPONENTS "Components"

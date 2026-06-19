@@ -1,14 +1,18 @@
 module;
 
-#include <cassert>
-#include <memory>
-
 #include "engine_core_api.h"
 
 export module EngineInstance;
 
+#if defined ( __INTELLISENSE__ )
+#include "IComponentStorage.ixx"
+#include "Scene.ixx"
+#else
 import IComponentStorage;
 import Scene;
+#endif
+
+import std;
 
 namespace Engine
 {
@@ -37,37 +41,8 @@ namespace Engine
 		Scene::Scene* _activeScene{ nullptr };
 	};
 
-	EngineInstance::~EngineInstance()
-	{
-		delete _activeScene;
-	}
 
 	export ENGINE_CORE_API EngineInstance Instance;
 
-	IComponentStorage& EngineInstance::GetComponentStorage()
-	{
-		assert(_componentStorage != nullptr && "Component storage null; engine instance not initialized?");
-		return *_componentStorage;
-	}
 
-	Scene::Scene& EngineInstance::GetActiveScene()
-	{
-		assert(_activeScene != nullptr && "Active scene is null; engine instance not initialized?");
-		return *_activeScene;
-	}
-
-	void EngineInstance::Initialize(std::unique_ptr<IComponentStorage> componentStorage)
-	{
-		_componentStorage = std::move(componentStorage);
-
-		delete _activeScene;
-		_activeScene = nullptr;
-
-		_activeScene = new Engine::Scene::Scene(_componentStorage.get(), "UntitledScene");
-	}
-
-	void EngineInstance::Shutdown()
-	{
-		//TODO
-	}
 } // namespace Engine
