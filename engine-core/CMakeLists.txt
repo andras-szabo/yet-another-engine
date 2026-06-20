@@ -26,6 +26,7 @@ target_sources(engine-core
       src/DataFile.ixx
       src/DataFile.cpp
       src/DllLoader.ixx
+      src/DllLoader.cpp
       src/EngineCore.ixx
       src/EngineError.ixx
       src/EngineError.cpp
