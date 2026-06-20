@@ -96,4 +96,21 @@ namespace Engine
 	{
 		return _registry->_factories.find(typeID) != _registry->_factories.end();
 	}
+
+	ComponentRegistry& GlobalComponentRegistry()
+	{
+		static ComponentRegistry globalComponentRegistry;
+		return globalComponentRegistry;
+	}
+
+	void RegisterComponent(unsigned int typeID, ComponentFactoryFn factory)
+	{
+		GlobalComponentRegistry().Register(typeID, factory);
+	}
+
+	void UnregisterComponent(unsigned int typeID)
+	{
+		GlobalComponentRegistry().Unregister(typeID);
+	}
+
 } // namespace Engine

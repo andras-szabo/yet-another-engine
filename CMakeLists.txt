@@ -15,4 +15,3 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 add_subdirectory(engine-core)
 add_subdirectory(editor)
-add_subdirectory(game-template)

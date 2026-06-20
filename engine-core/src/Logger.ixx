@@ -70,16 +70,6 @@ namespace Engine
 		std::ofstream _logFile;
 	};
 
-	FileLogSink::FileLogSink()
-	{
-		_logFile = std::ofstream("EngineLog.txt", std::ios::out);
-	}
-
-	void FileLogSink::Write(LogLevel /*level*/, std::string_view header, std::string_view msg)
-	{
-		_logFile << header << msg << "\n";
-	}
-
 	export class ENGINE_CORE_API LogManager
 	{
 	public:
@@ -124,27 +114,12 @@ struct std::formatter<Engine::LogLevel> : std::formatter<std::string_view>
 
 namespace Engine
 {
-	extern ENGINE_CORE_API LogManager GlobalLoggerInstance;
+	export extern ENGINE_CORE_API LogManager GlobalLoggerInstance;
 
-	// Non-template helper: builds the header and dispatches to GlobalLoggerInstance.
-	// Defined here (in the Logger module) so std::format with LogLevel is always
-	// evaluated in a context where <format> is included and std::formatter<LogLevel>
-	// is fully visible — avoiding consteval failures when Log<> is instantiated
-	// from other named modules.
 	export ENGINE_CORE_API void DoLog(LogLevel level,
 		std::string_view file,
 		unsigned int line,
 		std::string_view formattedMsg);
-
-	// Class template argument deduction (CTAD) guide; a hint to the compiler
-	// that says: when someone constructs a Log with these arg types, deduce
-	// the template parameters in the following way.
-	//
-	// Basically: the compiler cannot deduce template arguments for CLASSES
-	// without help. (It can for function templates.)
-	//
-	// The deduction guide says: from these function parameters, deduce the 
-	// following _type_ parameters:
 
 	export
 	template<typename... Args>
@@ -165,47 +140,6 @@ namespace Engine
 
 	template<typename... Args>
 	Log(LogLevel, std::string_view, Args&&...) -> Log<Args...>;
-
-	void DoLog(LogLevel level, std::string_view file, unsigned int line, std::string_view formattedMsg)
-	{
-		auto header = std::format("{}:{} [{}] ", file, line, level);
-		GlobalLoggerInstance.LogMethod(level, header, formattedMsg);
-	}
-
-	void LogManager::LogMethod(LogLevel logLevel, std::string_view header, std::string_view msg)
-	{
-		if (logLevel >= minLogLevel)
-		{
-			for (auto& sink : _sinks)
-			{
-				sink->Write(logLevel, header, msg);
-			}
-		}
-	}
-
-	LogManager::LogManager()
-	{
-		_sinks.reserve(2);
-		_sinks.emplace_back(std::make_unique<ConsoleLogSink>());
-		_sinks.emplace_back(std::make_unique<FileLogSink>());
-	}
-
-	void ConsoleLogSink::Write(LogLevel level,
-		std::string_view header,
-		std::string_view formattedMessage)
-	{
-		switch (level)
-		{
-			case LogLevel::Trace:	std::clog << ConsoleColor::Green; break;
-			case LogLevel::Debug:	std::clog << ConsoleColor::Cyan; break;
-			case LogLevel::Warning: std::clog << ConsoleColor::Yellow; break;
-			case LogLevel::Error:	std::clog << ConsoleColor::Red; break;
-		}
-
-		std::clog << header << formattedMessage << ConsoleColor::Reset << "\n";
-	}
-
-	export ENGINE_CORE_API LogManager GlobalLoggerInstance;
 }
 
 

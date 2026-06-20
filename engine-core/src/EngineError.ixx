@@ -31,11 +31,6 @@ namespace Engine
 		ENGINE_CORE_API Error(ErrorType type_, const std::string& message_);
 	};
 
-	ENGINE_CORE_API Error::Error(ErrorType type_, const std::string& message_)
-		: type{ type_ }, message{ message_ }
-	{
-	}
-
 	export template<typename T>
 	using Expected = std::expected<T, Error>;
 

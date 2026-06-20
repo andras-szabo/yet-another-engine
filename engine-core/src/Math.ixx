@@ -12,9 +12,9 @@ import DataFile;
 
 namespace Engine
 {
-export const float ENGINE_CORE_API PI = 3.14159265f;
-export const float ENGINE_CORE_API TO_RAD = PI / 180.0f;
-export const float ENGINE_CORE_API TO_DEG = 180.0f / PI;
+export constexpr float PI = 3.14159265f;
+export constexpr float TO_RAD = PI / 180.0f;
+export constexpr float TO_DEG = 180.0f / PI;
 
 export struct ENGINE_CORE_API Vec2 : public ISerializable
 {

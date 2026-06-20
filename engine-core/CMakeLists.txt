@@ -26,13 +26,16 @@ target_sources(engine-core
       src/DllLoader.ixx
       src/EngineCore.ixx
       src/EngineError.ixx
+      src/EngineError.cpp
       src/EngineInstance.ixx
       src/EngineInstance.cpp
       src/FileWatcher.ixx
       src/GameObject.ixx
       src/GUID.ixx
+      src/GUID.cpp
       src/Interfaces.ixx
       src/Logger.ixx
+      src/Logger.cpp
       src/Math.ixx
       src/Reflection.ixx
       src/Scene.ixx
@@ -51,3 +54,65 @@ target_include_directories(engine-core
 )
 
 apply_compiler_options(engine-core)
+
+# ─── SDK install rules ────────────────────────────────────────────────────────
+# Run: cmake --install build --config Debug   (or Release)
+# Output lands in <build>/sdk/ by default, or at CMAKE_INSTALL_PREFIX.
+#
+# SDK layout:
+#   sdk/bin/<Config>/   – engine-core.dll
+#   sdk/lib/<Config>/   – engine-core.lib  (MSVC import library)
+#   sdk/modules/        – module interface units (.ixx only; .cpp impl units excluded)
+#   sdk/include/        – public headers + generated engine_core_api.h
+#   sdk/cmake/          – CompilerOptions.cmake helper
+
+install(TARGETS engine-core
+    RUNTIME DESTINATION sdk/bin/$<CONFIG>   # DLL
+    ARCHIVE DESTINATION sdk/lib/$<CONFIG>   # import .lib
+)
+
+# Module interface units (.ixx only — NOT the .cpp module implementation units).
+# game-template recompiles these locally to generate .ifc files; it links
+# against the pre-built .lib above for the actual implementations.
+install(
+    FILES
+        src/Component.ixx
+        src/ComponentRegistry.ixx
+        src/IComponentStorage.ixx
+        src/ComponentStorage.ixx
+        src/DataFile.ixx
+        src/DllLoader.ixx
+        src/EngineCore.ixx
+        src/EngineError.ixx
+        src/EngineInstance.ixx
+        src/FileWatcher.ixx
+        src/GameObject.ixx
+        src/GUID.ixx
+        src/Interfaces.ixx
+        src/Logger.ixx
+        src/Math.ixx
+        src/Reflection.ixx
+        src/Scene.ixx
+        src/Serialization.ixx
+        src/Transform.ixx
+        src/Utility.ixx
+    DESTINATION sdk/modules
+)
+
+# Public headers (ReflectionMacros.h, LoggerMacros.h, GameDLLInterface.h)
+install(
+    DIRECTORY include/
+    DESTINATION sdk/include
+)
+
+# Generated export header (lives in the binary dir after generate_export_header)
+install(
+    FILES ${CMAKE_CURRENT_BINARY_DIR}/engine_core_api.h
+    DESTINATION sdk/include
+)
+
+# cmake helper so game-template can call apply_compiler_options()
+install(
+    FILES ${CMAKE_SOURCE_DIR}/cmake/CompilerOptions.cmake
+    DESTINATION sdk/cmake
+)

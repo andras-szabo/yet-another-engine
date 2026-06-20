@@ -1,19 +1,250 @@
-About a game template that consumes the product of engine-core:
+P4-06 — Standalone game-template: step-by-step documentation
+==============================================================
 
-**The tricky part is (b) — C++20 modules and the SDK.** MSVC needs to compile the `.ixx` 
-files in the consuming project's build to produce its own `.ifc` files before it can link. 
-So the game project will recompile all engine module interfaces (they're fast — no 
-function bodies, just declarations and re-exports), then link against the pre-built `.lib`. 
-This is the standard pattern for module-based libraries right now and works 
-reliably with CMake 3.28+.
+Overview
+--------
+Before P4-06 the engine solution contained three projects: engine-core,
+editor, and game-template. game-template was built as part of the engine
+solution and linked directly to the engine-core CMake target.
 
-**The `.ifc`-only distribution** (true pre-built modules) would be cleaner — no 
-recompilation — but CMake has no standard mechanism for consuming pre-built `.ifc` 
-files yet. That's a future improvement.
+After P4-06 game-template is a fully independent CMake project. It consumes
+a pre-built "engine-core SDK" produced by an install step instead of building
+the engine from source. The editor continues to live in the engine solution;
+it loads game-template.dll at runtime via the DLL loader.
 
-**The two-build workflow** ends up being: 
-`cmake --install build --prefix game-template/engine-sdk` once (or after engine changes), then 
-the game solution just builds. For daily game iteration the engine install step 
-rarely needs to re-run.
 
-Ready to implement when you are.
+Why restructure?
+----------------
+A real game developer should never need the engine source. They need:
+  - engine-core.dll / engine-core.lib (runtime + link-time)
+  - The module interface files (.ixx) so their compiler can resolve imports
+  - The public headers (ReflectionMacros.h, LoggerMacros.h, GameDLLInterface.h,
+    engine_core_api.h)
+  - cmake/CompilerOptions.cmake (compiler flag helper)
+
+Separating the projects also prevents accidental coupling and makes the
+two-team workflow (engine team vs game team) explicit at the build level.
+
+
+Step 1 — Changes to engine-core module interfaces
+--------------------------------------------------
+A key constraint: when game-template recompiles the engine .ixx files locally
+(to generate .ifc Binary Module Interface files), ENGINE_CORE_API expands to
+__declspec(dllimport) — not dllexport. For this to work safely, the
+.ixx files must not contain _definitions_ of symbols that live in the DLL;
+they must only contain _declarations_.
+
+Several .ixx files previously mixed declarations and definitions. The following
+changes were made to separate them:
+
+a) Logger.ixx / Logger.cpp (NEW)
+   - Removed from Logger.ixx: FileLogSink::FileLogSink(), FileLogSink::Write(),
+     ConsoleLogSink::Write(), LogManager::LogManager(), LogManager::LogMethod(),
+     DoLog(), and the definition of GlobalLoggerInstance.
+   - Logger.ixx now has: export extern ENGINE_CORE_API LogManager GlobalLoggerInstance;
+     (declaration only — the definition is in Logger.cpp).
+   - Logger.cpp: module implementation unit `module Logger;` — contains all the
+     moved function bodies and the variable definition. This ensures the single
+     global logger instance lives in engine-core.dll and is shared by all DLLs
+     that import Logger.
+
+b) EngineError.ixx / EngineError.cpp (NEW)
+   - Moved Error::Error() constructor body from EngineError.ixx to EngineError.cpp.
+
+c) ComponentRegistry.ixx / ComponentRegistry.cpp
+   - Moved GlobalComponentRegistry(), RegisterComponent(), and
+     UnregisterComponent() bodies from ComponentRegistry.ixx to ComponentRegistry.cpp.
+   - GlobalComponentRegistry() returns a static-local ComponentRegistry — had this
+     definition remained in .ixx, game-template would have compiled its own copy
+     with a separate registry instance, breaking component registration entirely.
+
+d) GUID.ixx / GUID.cpp (NEW)
+   - Moved the non-constexpr GUID::GUID() constructor and the thread_local RNG
+     variables (randomDevice, randomEngine, randomDistribution) from GUID.ixx to
+     GUID.cpp. This ensures all GUID generation (engine and game DLL) uses the
+     engine's single RNG state.
+
+e) Math.ixx
+   - Changed `export const float ENGINE_CORE_API PI = ...` to
+     `export constexpr float PI = ...` (and similarly for TO_RAD and TO_DEG).
+   - constexpr values do not need DLL linkage — they are compile-time constants
+     replicated wherever they are used, which is correct.
+
+Why these five specifically?
+  - GlobalLoggerInstance: a DLL-exported global object. Two copies = two log
+    sinks, missing log output across DLL boundary.
+  - GlobalComponentRegistry() static local: two copies = two registries, game
+    components never visible to the editor.
+  - GUID thread_local RNG: two copies = two independent RNG streams (GUIDs would
+    still be unique but from separate sequences; fixed for cleanliness).
+  - Error::Error() and Math constants: moved for correctness / cleanliness, not
+    strictly required for correctness at runtime.
+
+All other .ixx files (Scene.ixx, DataFile.ixx, GameObject.ixx, Transform.ixx,
+etc.) contain method definitions for ENGINE_CORE_API classes. When game-template
+recompiles them with dllimport, MSVC issues C4273 ("inconsistent dll linkage")
+and uses the local definitions. These duplicates are dead code in game-template
+because game code does not directly create Scene, DataFile, or GameObject objects.
+The /FORCE:MULTIPLE linker flag (see Step 4) accepts these duplicates.
+
+
+Step 2 — CMake install step for engine-core
+-------------------------------------------
+Added to engine-core/CMakeLists.txt at the bottom:
+
+  install(TARGETS engine-core
+      RUNTIME DESTINATION sdk/bin/$<CONFIG>   # engine-core.dll
+      ARCHIVE DESTINATION sdk/lib/$<CONFIG>   # engine-core.lib
+  )
+  install(FILES src/Component.ixx src/ComponentRegistry.ixx ... DESTINATION sdk/modules)
+  install(DIRECTORY include/ DESTINATION sdk/include)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/engine_core_api.h DESTINATION sdk/include)
+  install(FILES ${CMAKE_SOURCE_DIR}/cmake/CompilerOptions.cmake DESTINATION sdk/cmake)
+
+Only .ixx interface files are installed — NOT the .cpp module implementation units.
+The implementation units contain the actual function bodies that live in the DLL.
+
+To produce the SDK, run from the engine repo root:
+
+  cmake --build build --config Debug
+  cmake --install build --config Debug --prefix build/sdk
+
+This creates:
+  build/sdk/sdk/
+    bin/Debug/engine-core.dll
+    lib/Debug/engine-core.lib
+    modules/*.ixx          (20 interface files)
+    include/               (ReflectionMacros.h, LoggerMacros.h,
+                            GameDLLInterface.h, engine_core_api.h)
+    cmake/CompilerOptions.cmake
+
+The double sdk/sdk/ nesting comes from using --prefix build/sdk combined with
+the install DESTINATION prefix sdk/. To install to a flat path use
+--prefix <absolute-path> directly, e.g.:
+  cmake --install build --config Debug --prefix C:/EngineSdk
+
+
+Step 3 — Remove game-template from engine root CMakeLists.txt
+--------------------------------------------------------------
+In CMakeLists.txt (repo root), the line:
+  add_subdirectory(game-template)
+was removed. The engine solution now contains only engine-core and editor.
+
+
+Step 4 — Standalone game-template/CMakeLists.txt
+-------------------------------------------------
+game-template/CMakeLists.txt was rewritten as a standalone root CMakeLists
+with its own cmake_minimum_required and project() declaration.
+
+Key design decisions:
+
+a) ENGINE_CORE_SDK_DIR variable
+   The path to the SDK is passed in at configure time:
+     cmake -B build -G "Visual Studio 17 2022" -DENGINE_CORE_SDK_DIR=C:/path/to/sdk
+
+b) Imported engine-core target
+   An IMPORTED SHARED target is created for engine-core. This points at the
+   pre-built DLL and .lib for each configuration (Debug, Release, etc.):
+     set_target_properties(engine-core PROPERTIES
+         IMPORTED_LOCATION_DEBUG "${ENGINE_CORE_SDK_DIR}/bin/Debug/engine-core.dll"
+         IMPORTED_IMPLIB_DEBUG   "${ENGINE_CORE_SDK_DIR}/lib/Debug/engine-core.lib"
+         ...
+     )
+   MinSizeRel is mapped to Release (MAP_IMPORTED_CONFIG_MINSIZEREL Release) since
+   the SDK typically ships Debug and Release only.
+
+c) Module interface recompilation
+   The SDK .ixx files are added directly to game-template's FILE_SET CXX_MODULES
+   with BASE_DIRS pointing at the SDK modules directory. MSVC recompiles them
+   locally to generate .ifc files for import resolution. The resulting objects
+   contain dllimport references (not definitions) for ENGINE_CORE_API symbols.
+
+d) /FORCE:MULTIPLE linker flag
+   Some .ixx files still contain function bodies for ENGINE_CORE_API types
+   (Scene, DataFile, GameObject, Transform). When compiled with dllimport,
+   MSVC issues C4273 and produces local copies. These conflict with
+   engine-core.lib's import stubs. /FORCE:MULTIPLE tells the linker to
+   silently accept the duplicates; the local copies win (they are dead code
+   in the game DLL since game code never directly instantiates these engine types).
+
+   The critical singletons (GlobalLoggerInstance, GlobalComponentRegistry)
+   and GUID's RNG are moved to .cpp implementation units (Step 1) so they
+   always resolve to the DLL's canonical instance — /FORCE:MULTIPLE cannot
+   affect them.
+
+   NOTE: Long-term, the fix is to move ALL function bodies from .ixx to .cpp
+   module implementation units across the engine, or to distribute pre-compiled
+   .ifc files (not yet well-supported by CMake). See Future Work below.
+
+
+Step 5 — SpinnerComponent reference implementation
+---------------------------------------------------
+Added game-template/src/SpinnerComponent.ixx and SpinnerComponent.reflected.h
+as a documented reference for game developers.
+
+SpinnerComponent demonstrates:
+  - Module authoring pattern (export module SpinnerComponent)
+  - COMPONENT_BODY macro (declares GetTypeName, GetFieldDescriptors, GetTypeID)
+  - REGISTER_COMPONENT macro (auto-registers on DLL load, unregisters on unload)
+  - FIELD() annotations on three fields: speed (float), axis (Vec3), active (bool)
+  - OnCreate / OnUpdate / OnDestroy lifecycle hooks with logging
+  - SpinnerComponent.reflected.h seam file with REFLECTED_FIELDS macro
+
+GameDLL.cpp was updated to use SDK-relative #include paths and to import
+SpinnerComponent (so its static registrar runs on DLL load).
+
+
+Two-step build workflow
+-----------------------
+Step A — Build and install the engine SDK (done once, or when engine changes):
+
+  # From the engine repo root:
+  cmake -B build -G "Visual Studio 17 2022"
+  cmake --build build --config Debug
+  cmake --install build --config Debug --prefix C:\Dev\EngineSdk
+
+  # Or using the VS-bundled cmake:
+  "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\
+   CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" --install build ...
+
+Step B — Configure and build game-template (repeated for every game iteration):
+
+  # From the game-template directory:
+  cmake -B build -G "Visual Studio 17 2022" -DENGINE_CORE_SDK_DIR=C:\Dev\EngineSdk\sdk
+  cmake --build build --config Debug
+
+  # Output: game-template/build/bin/Debug/game-template.dll
+
+Both solutions can coexist in the same VS IDE instance:
+  - Engine solution:  build/Engine.sln       (editor + engine-core)
+  - Game solution:    game-template/build/GameTemplate.sln
+
+The editor loads game-template.dll at runtime via the DLL loader. Copy
+game-template.dll to the same directory as editor.exe (build/bin/Debug/)
+before running the editor. The HotReloadManager watches game-template.dll
+for changes and reloads it automatically.
+
+
+Known limitations and future work
+----------------------------------
+1. Duplicate symbol warnings (/FORCE:MULTIPLE)
+   Several .ixx files contain function bodies for ENGINE_CORE_API classes.
+   The long-term fix is to move all non-trivial function bodies to .cpp module
+   implementation units. This was not done for all files in P4-06 because
+   Scene.ixx, DataFile.ixx, GameObject.ixx, and Transform.ixx are large files
+   and the impact on the game DLL is harmless (dead code; never called).
+   Tracked as a follow-up refactoring task.
+
+2. Pre-compiled .ifc distribution
+   The cleaner long-term solution is to distribute pre-compiled .ifc files
+   (Binary Module Interfaces) instead of .ixx source files. This would
+   eliminate the recompilation step and the /FORCE:MULTIPLE workaround.
+   CMake does not yet have stable/portable support for consuming pre-built
+   .ifc files. This will improve as C++20 module tooling matures.
+
+3. Single configuration SDK
+   The current install step produces one configuration at a time (Debug or
+   Release). A production SDK would typically include both and allow the game
+   project to select them via build type. Use two separate --prefix paths or
+   use a multi-config install script to produce both.
+

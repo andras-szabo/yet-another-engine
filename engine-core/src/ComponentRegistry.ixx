@@ -53,21 +53,11 @@ namespace Engine
 		ComponentRegistry_Impl* _registry{ nullptr };
 	};
 
-	export ENGINE_CORE_API ComponentRegistry& GlobalComponentRegistry()
-	{
-		static ComponentRegistry globalComponentRegistry;
-		return globalComponentRegistry;
-	}
+	export ENGINE_CORE_API ComponentRegistry& GlobalComponentRegistry();
 
 	export ENGINE_CORE_API 
-	void RegisterComponent(unsigned int typeID, ComponentFactoryFn factory)
-	{
-		GlobalComponentRegistry().Register(typeID, factory);
-	}
+	void RegisterComponent(unsigned int typeID, ComponentFactoryFn factory);
 
-	export ENGINE_CORE_API void UnregisterComponent(unsigned int typeID)
-	{
-		GlobalComponentRegistry().Unregister(typeID);
-	}
+	export ENGINE_CORE_API void UnregisterComponent(unsigned int typeID);
 
 }// namespace Engine

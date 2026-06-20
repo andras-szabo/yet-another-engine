@@ -30,14 +30,6 @@ namespace Engine
 		constexpr bool IsValid() const;
 	};
 
-	static thread_local std::random_device randomDevice;
-	static thread_local std::mt19937_64 randomEngine(randomDevice());
-	static thread_local std::uniform_int_distribution<unsigned long long> randomDistribution;
-
-	GUID::GUID() : id{ randomDistribution(randomEngine) }
-	{
-	}
-
 	constexpr GUID::GUID(unsigned long long id_) : id{ id_ }
 	{
 	}
