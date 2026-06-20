@@ -11,13 +11,13 @@ export module SpinnerComponent;
 #else
 import EngineCore;
 import EngineInstance;
+import std;
 #endif
 
 // SpinnerComponent — reference implementation for game developers.
 //
 // Demonstrates the full component authoring pattern:
 //   - COMPONENT_BODY  : declares reflection and type-ID hooks
-//   - REGISTER_COMPONENT : auto-registers / unregisters with the engine registry
 //   - FIELD()         : passive annotations for the future code-gen tool
 //   - OnCreate / OnUpdate / OnDestroy lifecycle hooks
 //   - SpinnerComponent.reflected.h : seam file with field descriptors
@@ -25,7 +25,6 @@ import EngineInstance;
 export class SpinnerComponent : public Engine::Component
 {
     COMPONENT_BODY(SpinnerComponent)
-    REGISTER_COMPONENT(SpinnerComponent)
 
 public:
     // Rotation speed in degrees per second.
@@ -40,27 +39,10 @@ public:
     SpinnerComponent() = default;
     ~SpinnerComponent() override = default;
 
-    void OnCreate() override
-    {
-        LOG_INFO("[SpinnerComponent] Created – speed={:.1f} deg/s", speed);
-    }
-
-    void OnUpdate(float dt) override
-    {
-        if (!active)
-            return;
-
-        // Placeholder: a real implementation would retrieve the owning
-        // GameObject's Transform and apply a quaternion rotation each frame.
-        const float angleDeg = speed * dt;
-        LOG_TRACE("[SpinnerComponent] Rotating {:.4f} deg around ({:.2f},{:.2f},{:.2f})",
-            angleDeg, axis.x, axis.y, axis.z);
-    }
-
-    void OnDestroy() override
-    {
-        LOG_INFO("[SpinnerComponent] Destroyed");
-    }
+    void OnCreate() override;
+    void OnUpdate(float dt) override;
+    void OnDestroy() override;
 };
 
-#include "SpinnerComponent.reflected.h"
+
+//#include "SpinnerComponent.reflected.h"

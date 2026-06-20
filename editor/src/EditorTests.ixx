@@ -41,7 +41,7 @@ namespace EditorTests
 		auto first = sceneA.CreateGameObject(componentStorage, "First_Child", 0);
 		auto second = sceneA.CreateGameObject(componentStorage, "Second_Child",
 			first->GetTransform()->GetSceneNodeIndex());
-		auto third = sceneA.CreateGameObject(componentStorage, "Third_Child",
+		sceneA.CreateGameObject(componentStorage, "Third_Child",
 			second->GetTransform()->GetSceneNodeIndex());
 
 		Engine::DataFile aSerialized;

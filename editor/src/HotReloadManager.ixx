@@ -148,15 +148,15 @@ namespace Editor
 		const auto shadowDllPath = CopyDllToShadow(dllFolderPath, fileName);
 		if (!shadowDllPath.has_value())
 		{
-			return Engine::Unexpected{ Engine::Error { shadowDllPath.error() } };
+			return Engine::Unexpected{ shadowDllPath.error() };
 		}
 
-		_loader.Load(shadowDllPath.value());
+		const auto loadShadowCopyResult = _loader.Load(shadowDllPath.value());
 
-		if (!_loader.IsLoaded())
+		if (!loadShadowCopyResult.has_value())
 		{
 			_watcher.Teardown();
-			return Engine::Unexpected{ Engine::Error { Engine::ErrorType::Dll, "Failed to load DLL shadow copy." } };
+			return Engine::Unexpected{ loadShadowCopyResult.error() };
 		}
 
 		if (!previousScene.IsEmpty())

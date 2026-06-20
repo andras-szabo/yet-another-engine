@@ -70,7 +70,7 @@ namespace Engine
 		std::ofstream _logFile;
 	};
 
-	export class ENGINE_CORE_API LogManager
+	export class LogManager
 	{
 	public:
 		LogManager();
@@ -114,7 +114,7 @@ struct std::formatter<Engine::LogLevel> : std::formatter<std::string_view>
 
 namespace Engine
 {
-	export extern ENGINE_CORE_API LogManager GlobalLoggerInstance;
+	export extern ENGINE_CORE_API LogManager& GlobalLoggerInstance();
 
 	export ENGINE_CORE_API void DoLog(LogLevel level,
 		std::string_view file,
@@ -130,7 +130,7 @@ namespace Engine
 			Args&&... args,
 			std::source_location loc = std::source_location::current())
 		{
-			if (GlobalLoggerInstance.minLogLevel <= level)
+			if (GlobalLoggerInstance().minLogLevel <= level)
 			{
 				auto formattedMsg = std::vformat(msg, std::make_format_args(args...));
 				DoLog(level, loc.file_name(), loc.line(), formattedMsg);

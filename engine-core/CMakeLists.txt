@@ -33,6 +33,7 @@ target_sources(engine-core
       src/EngineInstance.ixx
       src/EngineInstance.cpp
       src/FileWatcher.ixx
+      src/FileWatcher.cpp
       src/GameObject.ixx
       src/GUID.ixx
       src/GUID.cpp
@@ -46,6 +47,7 @@ target_sources(engine-core
       src/Serialization.ixx
       src/Serialization.cpp
       src/Transform.ixx
+      src/Transform.cpp
       src/Utility.ixx
      )
 

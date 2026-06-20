@@ -26,31 +26,26 @@ namespace Engine
 {
 	export using ComponentFactoryFn = std::function<std::unique_ptr<Component>()>;
 
-	struct ComponentRegistry_Impl
-	{
-		std::unordered_map<unsigned int, ComponentFactoryFn> _factories;
-	};
-
-	export class ENGINE_CORE_API ComponentRegistry
+	export class ComponentRegistry
 	{
 	public:
-		ComponentRegistry();
-		~ComponentRegistry();
+		ENGINE_CORE_API ComponentRegistry() = default;
+		ENGINE_CORE_API ~ComponentRegistry() = default;
 
 		ComponentRegistry(const ComponentRegistry& other) = delete;
 		ComponentRegistry& operator=(const ComponentRegistry& other) = delete;
 
-		ComponentRegistry(ComponentRegistry&& other);
-		ComponentRegistry& operator=(ComponentRegistry&& other);
+		ENGINE_CORE_API ComponentRegistry(ComponentRegistry&& other) = default;
+		ENGINE_CORE_API ComponentRegistry& operator=(ComponentRegistry&& other) = default;
 
-		void Register(unsigned int typeID, ComponentFactoryFn fn);
-		void Unregister(unsigned int typeID);
+		ENGINE_CORE_API void Register(unsigned int typeID, ComponentFactoryFn fn);
+		ENGINE_CORE_API void Unregister(unsigned int typeID);
 
-		Expected<Component*> Create(unsigned int typeID, IComponentStorage& storage);
-		bool Has(unsigned int typeID) const;
+		ENGINE_CORE_API Expected<Component*> Create(unsigned int typeID, IComponentStorage& storage);
+		ENGINE_CORE_API bool Has(unsigned int typeID) const;
 
 	private:
-		ComponentRegistry_Impl* _registry{ nullptr };
+		std::unordered_map<unsigned int, ComponentFactoryFn> _factories;
 	};
 
 	export ENGINE_CORE_API ComponentRegistry& GlobalComponentRegistry();

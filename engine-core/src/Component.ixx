@@ -5,7 +5,6 @@ module;
 export module Component;
 
 #if defined ( __INTELLISENSE__ )
-#include <span>
 #include "Reflection.ixx"
 #include "Utility.ixx"
 #else
@@ -28,9 +27,7 @@ namespace Engine
 		virtual void OnUpdate([[maybe_unused]] float dt) {}
 		virtual void OnDestroy() {}
 
-		// Returns the reflected field descriptors for this component instance.
-		// Overridden by COMPONENT_BODY — returns an empty span for the base class.
-		virtual std::span<const FieldDescriptor> GetReflectedFields() const { return {}; }
+		virtual FieldSpan GetReflectedFields() const { return {}; }
 
 		GameObject* GetOwner() const { return _owner; }
 

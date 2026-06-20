@@ -1,17 +1,22 @@
 module;
 
-#include <format>
-#include <fstream>
 #include <iostream>
-#include <memory>
-#include <string_view>
-#include <vector>
 
 #include "engine_core_api.h"
 
 module Logger;
 
+#if defined ( __INTELLISENSE__ )
+#include <format>
+#include <fstream>
+#include <memory>
+#include <string_view>
+#include <vector>
+
+#include "Logger.ixx"
+#else
 import std;
+#endif
 
 namespace Engine
 {
@@ -61,11 +66,15 @@ namespace Engine
 	void DoLog(LogLevel level, std::string_view file, unsigned int line, std::string_view formattedMsg)
 	{
 		auto header = std::format("{}:{} [{}] ", file, line, level);
-		GlobalLoggerInstance.LogMethod(level, header, formattedMsg);
+		GlobalLoggerInstance().LogMethod(level, header, formattedMsg);
 	}
 
 	// Definition of the global logger instance. All engine modules and game DLLs
 	// resolve to this single object in engine-core.dll via __declspec(dllimport).
-	ENGINE_CORE_API LogManager GlobalLoggerInstance;
+	LogManager& GlobalLoggerInstance()
+	{
+		static LogManager manager;
+		return manager;
+	}
 
 } // namespace Engine

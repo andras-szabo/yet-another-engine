@@ -24,11 +24,11 @@ namespace Engine
 {
 	export ENGINE_CORE_API 
 	void SerializeFields(const void* base,
-			std::span<const Engine::FieldDescriptor> fields,
+			FieldSpan fieldSpan,
 			Engine::DataFile& out);
 
 	export ENGINE_CORE_API
-	void DeserializeFields(void* base, std::span<const FieldDescriptor> fields, const DataFile& in);
+	void DeserializeFields(void* base, FieldSpan fieldSpan, const DataFile& in);
 
 	export ENGINE_CORE_API
 	Engine::Expected<Engine::Scene::Scene> DeserializeScene(const Engine::DataFile& in,

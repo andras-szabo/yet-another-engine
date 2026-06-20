@@ -56,16 +56,19 @@
 //   - GetFieldDescriptors() : static function defined in ClassName.reflected.h
 //   - GetReflectedFields()  : virtual override that delegates to the static
 //                             function, enabling runtime access via Component*
+
+
+//static constexpr std::string_view TypeName { #ClassName };                        \
+// static std::string_view GetTypeName() { return TypeName; }                       \
+
 #define COMPONENT_BODY(ClassName)                                                   \
 public:                                                                             \
-    static constexpr std::string_view TypeName { #ClassName };                      \
-    static std::string_view GetTypeName() { return TypeName; }                      \
-    static std::span<const Engine::FieldDescriptor> GetFieldDescriptors();                  \
-    std::span<const Engine::FieldDescriptor> GetReflectedFields() const override            \
-    { return ClassName::GetFieldDescriptors(); }                                    \
+    static std::string_view GetTypeName();                                          \
+    static Engine::FieldSpan GetFieldDescriptors();                                 \
+    Engine::FieldSpan GetReflectedFields() const override;                          \
     static constexpr unsigned int StaticTypeID()                                    \
     {                                                                               \
-        static const unsigned int id = Engine::DJBHash(#ClassName);                         \
+        static const unsigned int id = Engine::DJBHash(#ClassName);                 \
         return id;                                                                  \
     }                                                                               \
                                                                                     \
@@ -75,25 +78,38 @@ public:                                                                         
 // Defines GetFieldDescriptors() for ClassName with the supplied field list.
 // Each entry is a FieldDescriptor braced-initialiser:
 //   { "fieldName", FieldType::Vec3, offsetof(ClassName, fieldName) }
-#define REFLECTED_FIELDS(ClassName, ...)                                               \
-    std::span<const Engine::FieldDescriptor> ClassName::GetFieldDescriptors()                  \
-    {                                                                                  \
-        static const Engine::FieldDescriptor fields[] { __VA_ARGS__ };                         \
-        return fields;                                                                 \
-    }
+// TODO - this could be cleaned up and simplified
+#define REFLECTED_FIELDS(ClassName, ...)                                            \
+    Engine::FieldSpan ClassName::GetFieldDescriptors()                               \
+    {                                                                               \
+        static const Engine::FieldDescriptor fields[] { __VA_ARGS__ };              \
+        return Engine::FieldSpan { &fields[0], sizeof(fields) / sizeof(fields[0])};    \
+    }                                                                               \
+                                                                                    \
+    Engine::FieldSpan ClassName::GetReflectedFields() const                         \
+    {                                                                               \
+        return ClassName::GetFieldDescriptors();                                    \
+    }                                                                               \
+
+
+//    std::span<const Engine::FieldDescriptor> ClassName::GetFieldDescriptors()          \
+//    {                                                                                  \
+ //       static const Engine::FieldDescriptor fields[] { __VA_ARGS__ };                 \
+  //      return fields;                                                                 \
+   // }
 
 // REFLECTED_FIELDS_EMPTY(ClassName) — use when a component has no reflected
 // fields but still participates in the reflection system via COMPONENT_BODY.
+// TODO - needs an update
 #define REFLECTED_FIELDS_EMPTY(ClassName)                                              \
     std::span<const Engine::FieldDescriptor> ClassName::GetFieldDescriptors()                  \
     {                                                                                  \
         return {};                                                                     \
-    }
+    }                                                                                   \
 
 // Register/unregister component via creation of a specific RAII type
 
 #define REGISTER_COMPONENT(ClassName)                                   \
-private:                                                                \
     struct ClassName##_Registrar                                        \
     {                                                                   \
         ClassName##_Registrar()                                         \
@@ -109,8 +125,8 @@ private:                                                                \
         }                                                               \
     };                                                                  \
                                                                         \
-    inline static ClassName##_Registrar _##ClassName##_registrar{};     \
-public:                                                                 \
+    static ClassName##_Registrar _##ClassName##_registrar{};            \
+                                                                        \
 
 
 // REGISTER_COMPONENT(ClassName)

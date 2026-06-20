@@ -37,9 +37,10 @@ import std;
 namespace Engine
 {
 	void SerializeFields(const void* base,
-		std::span<const Engine::FieldDescriptor> fields,
+		const FieldSpan fieldSpan,
 		Engine::DataFile& out)
 	{
+		const std::span<const FieldDescriptor> fields(fieldSpan.data, fieldSpan.size);
 		const char* baseAsCharPtr = reinterpret_cast<const char*>(base);
 		for (const auto& field : fields)
 		{
@@ -47,7 +48,8 @@ namespace Engine
 			{
 			case FieldType::Composite:
 			{
-				SerializeFields(baseAsCharPtr + field.offset, field.getChildren(), out[field.name]);
+				// Cannot convert Engine::FieldDescriptor* to Engine::FieldDescriptor*. OK. Right. Thank you.
+				//SerializeFields(baseAsCharPtr + field.offset, field.getChildren(), out[field.name]);
 				break;
 			}
 
@@ -103,8 +105,9 @@ namespace Engine
 		}
 	}
 
-	void DeserializeFields(void* base, std::span<const FieldDescriptor> fields, const DataFile& in)
+	void DeserializeFields(void* base, const FieldSpan fieldSpan, const DataFile& in)
 	{
+		std::span<const FieldDescriptor> fields(fieldSpan.data, fieldSpan.size);
 		char* baseAsCharPtr = reinterpret_cast<char*>(base);
 		for (const auto& field : fields)
 		{
@@ -117,8 +120,9 @@ namespace Engine
 			{
 			case FieldType::Composite:
 			{
-				auto newBase = baseAsCharPtr + field.offset;
-				DeserializeFields(newBase, field.getChildren(), in[field.name]);
+				//TODO FIX 
+				//auto newBase = baseAsCharPtr + field.offset;
+				//DeserializeFields(newBase, field.getChildren(), in[field.name]);
 				break;
 			}
 

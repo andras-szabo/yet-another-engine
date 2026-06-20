@@ -42,4 +42,10 @@ namespace Engine
         std::size_t      offset;
         GetDescriptorsFn getChildren{ nullptr };
     };
+
+    export struct FieldSpan
+    {
+        const FieldDescriptor* data;
+        size_t size;
+    };
 }

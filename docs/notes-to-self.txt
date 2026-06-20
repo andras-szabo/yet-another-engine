@@ -1,0 +1,121 @@
+
+
+
+When writing custom components in your game project that derive from a DLL-exported 
+engine class: 
+** Never define virtual overrides inline within a module interface file (.ixx). 
+Always declare them in the .ixx file and implement them out-of-line 
+in a standard .cpp file. This forces the compiler to generate the traditional, 
+robust object-file symbols that the linker needs to successfully stitch your 
+game's V-Tables to the engine's DLL boundary. **
+
+TL;DR: If we have in the engine, in Component.ixx:
+
+class Component
+{
+public:
+  virtual void Foo();
+};
+
+and in a consuming project we have in Something.ixx:
+
+class Something : public Component
+{
+};
+
+then this will generate linker errors:
+
+class Something : public Component
+{
+  void Foo() override
+  { 
+  	DoStuff(); 
+  }
+}
+
+because INLINE FUNCTIONS IN MODULES HAVE WEAK LINKAGE.
+
+"In the world of linkers, inline functions generate weak symbols. The compiler
+tells the linker: "I am going to emit the compiled binary for this function in
+multiple places, just pick one at random and throw the rest away.
+
+"However, when a function is virtual, its physical memory address must be baked
+into the class' V-Table.
+
+"When you combine a DLL-imported base class (Component) with an inline virtual
+override inside a module interface (.ixx), MSVC's compilation pipeline gets
+confused:
+
+1.) it compiles the module interface into a binary module interface (.ifc), and
+    a companion object file.
+
+2.) because the override is inline, the compiler optimizes its visibility, keeping
+    the symbol weak.
+
+3.) when the linker goes to build the final executable, and constructs the
+    v-table for your derived component, it looks for a definitive, globally
+    visible memory address for GetReflectedFields().
+
+4.) Because the symbol is weak, the linker fails to bridge the gap between
+    the imported dll class structure and the local module layout, resulting
+    in unresolved external symbol.
+
+Moving the definition out of line (into the .cpp file) fixes it, because it
+gains a "strong" symbol and the linker will be happy. It will know where to find
+what it needs to put in the vtable."
+
+========================================
+
+Why don't POD types need __declspec(dllexport)?
+
+__declspec(dllexport) does not export types or layouts; it exports compiled
+symbols (binary code). It tells the linker: hey, write down the memory address
+of this function, v-table, or static variable in the DLL's export table,
+so an external executable can jump to it.
+
+If a struct is POD (no custom ctors, dtors, functions), then there's no binary
+code asssociated with it.
+
+eg:
+struct Foo { const Bar* data; size_t size; }
+
+-> the compiler doesn't generate any functions, this is just a memory layout
+recipe.
+
+========================================
+
+YOU CANNOT USE C++17 inline static VARIABLES INSIDE A DLL-exported class header
+(or module interface).
+
+Why?
+
+When a compiler sees an inline variable, it places it into a special bucket called
+a "COMDAT" (weak or duplicate symbol). During the final link phase, the linker
+looks at all the COMDATs, realizes they are duplicates, discards all but one, and
+points everyone to a single, unique memory address.
+
+Once the original dll (engine-core) is compiled and linked, its binary is locked. 
+Its data segment is set in stone. When the game projects imports the module interface,
+it sees the inline static definition. But the linker cannot reach inside the already
+compiled DLL to merge COMDAT symbols, the game executable is forced to allocate its
+own separate copy of that inline static variable in the game's memory space.
+
+So the ctor for that inline static variable will run twice: once when the DLL loads,
+and once when the client executable starts up.
+
+And even if that doesn't happen, because __declspec(dllexport) on one side, and
+__declspec(dllimport) on the other, there might still be a C4251 warning, because
+the compiler will see that you're leaking an un-exported type layout to a consuming
+binary.
+
+========================================
+
+What does __declspec(dllimport) actually mean?
+
+It means: Hey, Linker, the implementation for this function lives inside some DLL, 
+go find it there. So if you try to define it again - you'll have a bad time. And
+also, if you try to apply __declspec(dllimport) on something that's not exported,
+again, you'll have a bad time.
+
+TL;DR: don't import a method you're implementing locally; and don't implement locally
+a method that you're importing. Jeez.
