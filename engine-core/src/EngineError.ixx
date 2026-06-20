@@ -9,7 +9,6 @@ export module Error;
 
 namespace Engine
 {
-
 	export enum class ErrorType
 	{
 		Undefined = 0,
@@ -32,7 +31,7 @@ namespace Engine
 	};
 
 	export template<typename T>
-	using Expected = std::expected<T, Error>;
+	using Expected = std::expected<T, Engine::Error>;
 
-	export using Unexpected = std::unexpected<Error>;
+	export using Unexpected = std::unexpected<Engine::Error>;
 }

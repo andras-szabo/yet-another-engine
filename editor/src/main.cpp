@@ -68,29 +68,28 @@ void TestVec3()
 
 void TestVec2()
 {
-    using namespace Engine;
-    constexpr Vec2 a{};
+    constexpr Engine::Vec2 a{};
     static_assert(a.x == 0.0f && a.y == 0.0f);
 
-    constexpr Vec2 b{ 1, 2 };
+    constexpr Engine::Vec2 b{ 1, 2 };
     static_assert(b.x == 1.0f && b.y == 2.0f);
 
-    Vec2 d = Vec2::Right();
-    d += Vec2::Left();
-    d -= Vec2::Right();
+    Engine::Vec2 d = Engine::Vec2::Right();
+    d += Engine::Vec2::Left();
+    d -= Engine::Vec2::Right();
 
     LOG_INFO("[Foo] right + left - right = {}", d);
 
-    Vec2 e = Vec2::Up() * 12.3456f;
+    Engine::Vec2 e = Engine::Vec2::Up() * 12.3456f;
     LOG_INFO("[Foo] Up * 12.3456f = {:.2f}", e);
 
     LOG_INFO("[Foo] 'e' normalized = {}", e.Normalized());
 
-    Vec2 f{ 10, 10 };
-    Vec2 g{ 1, 0 };
+    Engine::Vec2 f{ 10, 10 };
+    Engine::Vec2 g{ 1, 0 };
     LOG_INFO("[Foo] 'f.g' = {}", f.Dot(g));
 
-    Vec2 h{ 123, 456 };
+    Engine::Vec2 h{ 123, 456 };
     LOG_INFO("[Foo] Before: {}, {}", h[0], h[1]);
    
     h[0] = 999.0f;
@@ -104,17 +103,16 @@ void TestDF()
 {
     LOG_INFO("Starting datafile test ---");
 
-    using namespace Engine;
-    DataFile df;
+    Engine::DataFile df;
 
     df["Foo"] = 1234.f;
     df["Bar"] = 42;
     df["Baz"] = "Baz";
 
-    Vec2 v{ -123.4f, 3.14f };
-    df["Position"] = v;
+    Engine::Vec2 v{ -123.4f, 3.14f };
+    df["Position"].SetFloats(2, v.x, v.y);
 
-    Vec2 vCopy{ df["Position"] };
+    Engine::Vec2 vCopy{ df["Position"].GetFloat(0), df["Position"].GetFloat(1) };
 
     LOG_INFO("Df with assignment ops: {}", df.ToString());
     LOG_INFO("Df deserialized: {}", vCopy);

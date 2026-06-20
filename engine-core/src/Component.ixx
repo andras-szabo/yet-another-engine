@@ -1,13 +1,19 @@
 module;
 
-#include <span>
-
 #include "engine_core_api.h"
 
 export module Component;
 
+#if defined ( __INTELLISENSE__ )
+#include <span>
+#include "Reflection.ixx"
+#include "Utility.ixx"
+#else
 import Reflection;
 import Utility;
+
+import std;
+#endif
 
 namespace Engine
 {

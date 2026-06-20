@@ -17,12 +17,14 @@ target_sources(engine-core
   PUBLIC
     FILE_SET CXX_MODULES FILES
       src/Component.ixx
+      src/Component.cpp
       src/ComponentRegistry.ixx
       src/ComponentRegistry.cpp
       src/IComponentStorage.ixx
       src/ComponentStorage.ixx
       src/ComponentStorage.cpp
       src/DataFile.ixx
+      src/DataFile.cpp
       src/DllLoader.ixx
       src/EngineCore.ixx
       src/EngineError.ixx
