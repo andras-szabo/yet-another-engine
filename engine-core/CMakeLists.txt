@@ -39,6 +39,7 @@ target_sources(engine-core
       src/Logger.ixx
       src/Logger.cpp
       src/Math.ixx
+      src/Math.cpp
       src/Reflection.ixx
       src/Scene.ixx
       src/Serialization.ixx
