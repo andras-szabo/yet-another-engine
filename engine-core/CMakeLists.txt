@@ -14,41 +14,43 @@ generate_export_header(engine-core
 # CMake's dependency scanner knows to process import/export declarations and
 # determine the correct build order automatically.
 target_sources(engine-core
+  PRIVATE
+    src/Component.cpp 
+    src/ComponentRegistry.cpp
+    src/ComponentStorage.cpp
+    src/DataFile.cpp
+    src/DllLoader.cpp
+    src/EngineError.cpp
+    src/EngineInstance.cpp
+    src/FileWatcher.cpp
+    src/GameObject.cpp
+    src/GUID.cpp
+    src/Logger.cpp
+    src/Math.cpp
+    src/Serialization.cpp
+    src/Transform.cpp
+
   PUBLIC
     FILE_SET CXX_MODULES FILES
       src/Component.ixx
-      src/Component.cpp
       src/ComponentRegistry.ixx
-      src/ComponentRegistry.cpp
       src/IComponentStorage.ixx
       src/ComponentStorage.ixx
-      src/ComponentStorage.cpp
       src/DataFile.ixx
-      src/DataFile.cpp
       src/DllLoader.ixx
-      src/DllLoader.cpp
       src/EngineCore.ixx
       src/EngineError.ixx
-      src/EngineError.cpp
       src/EngineInstance.ixx
-      src/EngineInstance.cpp
       src/FileWatcher.ixx
-      src/FileWatcher.cpp
       src/GameObject.ixx
-      src/GameObject.cpp
       src/GUID.ixx
-      src/GUID.cpp
       src/Interfaces.ixx
       src/Logger.ixx
-      src/Logger.cpp
       src/Math.ixx
-      src/Math.cpp
       src/Reflection.ixx
       src/Scene.ixx
       src/Serialization.ixx
-      src/Serialization.cpp
       src/Transform.ixx
-      src/Transform.cpp
       src/Utility.ixx
      )
 

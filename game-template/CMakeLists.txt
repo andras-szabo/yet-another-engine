@@ -66,6 +66,7 @@ add_library(game-template SHARED)
 target_sources(game-template
   PRIVATE
     src/GameDLL.cpp
+    src/SpinnerComponent.cpp
   PUBLIC
     FILE_SET CXX_MODULES
     BASE_DIRS
