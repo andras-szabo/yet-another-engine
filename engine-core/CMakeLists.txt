@@ -18,6 +18,7 @@ target_sources(engine-core
     src/Component.cpp 
     src/ComponentRegistry.cpp
     src/ComponentStorage.cpp
+    src/IComponentStorage.cpp
     src/DataFile.cpp
     src/DllLoader.cpp
     src/EngineError.cpp

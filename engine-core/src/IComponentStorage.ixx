@@ -1,6 +1,5 @@
 module;
 
-
 #include "engine_core_api.h"
 
 export module IComponentStorage;
@@ -37,11 +36,6 @@ namespace Engine
 	protected:
 		virtual Component* CreateComponentImpl(std::function<std::unique_ptr<Component>()> factory) = 0;
 	};
-
-	Component* IComponentStorage::CreateComponentDynamic(ComponentFactoryFn factory)
-	{
-		return CreateComponentImpl(factory);
-	}
 
 	template<typename T, typename... Args>
 	requires std::is_base_of_v<Component, T>
