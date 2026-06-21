@@ -35,6 +35,7 @@ target_sources(engine-core
       src/FileWatcher.ixx
       src/FileWatcher.cpp
       src/GameObject.ixx
+      src/GameObject.cpp
       src/GUID.ixx
       src/GUID.cpp
       src/Interfaces.ixx
