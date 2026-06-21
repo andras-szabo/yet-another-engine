@@ -1,15 +1,20 @@
 module;
 
-#include <concepts>
-#include <functional>
-#include <memory>
-#include <type_traits>
 
 #include "engine_core_api.h"
 
 export module IComponentStorage;
 
+#if defined ( __INTELLISENSE__ )
+#include "Component.ixx"
+#include <concepts>
+#include <functional>
+#include <memory>
+#include <type_traits>
+#else
 import Component;
+import std;
+#endif
 
 namespace Engine
 {

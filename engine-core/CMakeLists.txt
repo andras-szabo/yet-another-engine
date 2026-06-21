@@ -27,6 +27,7 @@ target_sources(engine-core
     src/GUID.cpp
     src/Logger.cpp
     src/Math.cpp
+    src/Scene.cpp
     src/Serialization.cpp
     src/Transform.cpp
 
