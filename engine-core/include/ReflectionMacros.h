@@ -26,10 +26,8 @@
 //       FIELD() Vec3    direction;
 //   };
 //
-//   #include "MyComponent.reflected.h"   // <-- after the class definition
-//
-// ---- MyComponent.reflected.h (hand-written; tool-generated in the future) ----
-//
+//   Reflected fields (hand written now, code gen later):
+//  
 //   REFLECTED_FIELDS(MyComponent,
 //       { "speed",     FieldType::Float, offsetof(MyComponent, speed)     },
 //       { "direction", FieldType::Vec3,  offsetof(MyComponent, direction) }
@@ -47,7 +45,6 @@
 // Optional arguments (e.g. FIELD(EditAnywhere)) are accepted and ignored.
 #define FIELD(...)
 
-// TODO - unify COMPONENT_BODY and REGISTER_COMPONENT
 
 // COMPONENT_BODY(ClassName) — place as the first line inside a
 // Component-derived class body.  Declares:
@@ -56,10 +53,8 @@
 //   - GetFieldDescriptors() : static function defined in ClassName.reflected.h
 //   - GetReflectedFields()  : virtual override that delegates to the static
 //                             function, enabling runtime access via Component*
-
-
-//static constexpr std::string_view TypeName { #ClassName };                        \
-// static std::string_view GetTypeName() { return TypeName; }                       \
+// ! GetReflectedFields() shall not be defined inline! REFLECTED_FIELDS shall be
+// placed in a corresponding .cpp file, after REGISTER_COMPONENT.
 
 #define COMPONENT_BODY(ClassName)                                                   \
 public:                                                                             \
@@ -74,16 +69,15 @@ public:                                                                         
                                                                                     \
     constexpr unsigned int GetTypeID() const override { return StaticTypeID(); }    \
 
-// REFLECTED_FIELDS(ClassName, ...) — use inside a ClassName.reflected.h file.
+// REFLECTED_FIELDS(ClassName, ...) — use inside the .cpp file.
 // Defines GetFieldDescriptors() for ClassName with the supplied field list.
 // Each entry is a FieldDescriptor braced-initialiser:
 //   { "fieldName", FieldType::Vec3, offsetof(ClassName, fieldName) }
-// TODO - this could be cleaned up and simplified
 #define REFLECTED_FIELDS(ClassName, ...)                                            \
-    Engine::FieldSpan ClassName::GetFieldDescriptors()                               \
+    Engine::FieldSpan ClassName::GetFieldDescriptors()                              \
     {                                                                               \
         static const Engine::FieldDescriptor fields[] { __VA_ARGS__ };              \
-        return Engine::FieldSpan { &fields[0], sizeof(fields) / sizeof(fields[0])};    \
+        return Engine::FieldSpan { &fields[0], sizeof(fields) / sizeof(fields[0])}; \
     }                                                                               \
                                                                                     \
     Engine::FieldSpan ClassName::GetReflectedFields() const                         \
@@ -91,23 +85,18 @@ public:                                                                         
         return ClassName::GetFieldDescriptors();                                    \
     }                                                                               \
 
-
-//    std::span<const Engine::FieldDescriptor> ClassName::GetFieldDescriptors()          \
-//    {                                                                                  \
- //       static const Engine::FieldDescriptor fields[] { __VA_ARGS__ };                 \
-  //      return fields;                                                                 \
-   // }
-
 // REFLECTED_FIELDS_EMPTY(ClassName) — use when a component has no reflected
 // fields but still participates in the reflection system via COMPONENT_BODY.
 // TODO - needs an update
-#define REFLECTED_FIELDS_EMPTY(ClassName)                                              \
-    std::span<const Engine::FieldDescriptor> ClassName::GetFieldDescriptors()                  \
-    {                                                                                  \
-        return {};                                                                     \
-    }                                                                                   \
+#define REFLECTED_FIELDS_EMPTY(ClassName)                               \
+    Engine::FieldSpan ClassName::GetFieldDescriptors()                  \
+    {                                                                   \
+        return {};                                                      \
+    }                                                                   \
 
-// Register/unregister component via creation of a specific RAII type
+// Register/unregister component via creation of a specific RAII type.
+// !Cannot be part of the module interface (.ixx) file; place it in the
+// corresponding .cpp file instead.
 
 #define REGISTER_COMPONENT(ClassName)                                   \
     struct ClassName##_Registrar                                        \
@@ -127,7 +116,6 @@ public:                                                                         
                                                                         \
     static ClassName##_Registrar _##ClassName##_registrar{};            \
                                                                         \
-
 
 // REGISTER_COMPONENT(ClassName)
 // Registers the component type with an immediately invoked lambda

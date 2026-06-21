@@ -48,8 +48,7 @@ namespace Engine
 			{
 			case FieldType::Composite:
 			{
-				// Cannot convert Engine::FieldDescriptor* to Engine::FieldDescriptor*. OK. Right. Thank you.
-				//SerializeFields(baseAsCharPtr + field.offset, field.getChildren(), out[field.name]);
+				SerializeFields(baseAsCharPtr + field.offset, field.getChildren(), out[field.name]);
 				break;
 			}
 
@@ -120,9 +119,8 @@ namespace Engine
 			{
 			case FieldType::Composite:
 			{
-				//TODO FIX 
-				//auto newBase = baseAsCharPtr + field.offset;
-				//DeserializeFields(newBase, field.getChildren(), in[field.name]);
+				auto newBase = baseAsCharPtr + field.offset;
+				DeserializeFields(newBase, field.getChildren(), in[field.name]);
 				break;
 			}
 

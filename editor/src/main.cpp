@@ -126,7 +126,7 @@ struct NestedType
     Engine::Quaternion ringo;
 };
 
-std::span<const Engine::FieldDescriptor> GetNestedTypeFieldDescriptors()
+Engine::FieldSpan GetNestedTypeFieldDescriptors()
 {
     static Engine::FieldDescriptor nt_john{ "john", Engine::FieldType::Int, offsetof(NestedType, john) };
     static Engine::FieldDescriptor nt_paul{ "paul", Engine::FieldType::Float, offsetof(NestedType, paul) };
@@ -138,7 +138,7 @@ std::span<const Engine::FieldDescriptor> GetNestedTypeFieldDescriptors()
         nt_john, nt_paul, nt_george, nt_ringo
     };
 
-    return fields;
+    return Engine::FieldSpan{ fields.data(), 4 };
 }
 
 void TestSrsly()

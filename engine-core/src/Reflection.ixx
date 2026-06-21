@@ -26,9 +26,15 @@ namespace Engine
 
     struct FieldDescriptor;
 
+    export struct FieldSpan
+    {
+        FieldDescriptor const* data{ nullptr };
+        size_t size{ 0 };
+    };
+
     // A function pointer that is invoked with no arguments, and returns
-    // a span of FieldDescriptors; used for Composite field types.
-    using GetDescriptorsFn = std::span<const FieldDescriptor>(*)();
+    // FieldSpan; used for Composite field types.
+    using GetDescriptorsFn = FieldSpan(*)();
 
     // FieldDescriptor — describes one reflected field on a Component subclass.
     //
@@ -43,9 +49,4 @@ namespace Engine
         GetDescriptorsFn getChildren{ nullptr };
     };
 
-    export struct FieldSpan
-    {
-        const FieldDescriptor* data;
-        size_t size;
-    };
 }
