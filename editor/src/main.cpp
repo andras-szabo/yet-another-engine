@@ -1,10 +1,5 @@
-#include <array>
-#include <chrono>
 #include <iostream>
-#include <span>
-#include <string>
 #include <cassert>
-#include <thread>
 #include "LoggerMacros.h"
 
 // Import the engine-core module.
@@ -26,6 +21,8 @@ import EngineInstance;
 import EditorTests;
 import HotReloadManager;
 #endif
+
+import std;
 
 using namespace Engine;
 
@@ -214,7 +211,7 @@ void RunFileWatcherTest()
     }
 }
 
-int main()
+int tests()
 {
     LOG_INFO("This is an info");
     auto bar = ShouldBeEven(42);
@@ -347,5 +344,83 @@ int main()
 
     LOG_INFO("Yay we could get trsf, and its value is {}", (std::size_t) gotComponent);*/
 
+    return 0;
+}
+
+std::vector<std::string> Split(const std::string& str)
+{
+    std::vector<std::string> tokens;
+    std::istringstream iss{ str };
+    std::string token;
+    while (iss >> token)
+    {
+        tokens.push_back(token);
+    }
+    return tokens;
+}
+
+using Foo = std::expected<void, std::string>;
+
+Foo Echo(const std::string& prms)
+{
+    if (prms == "banana")
+    {
+        return std::unexpected{ "nope i won't echo that.\n" };
+    }
+
+    std::cout << prms << "\n";
+    return {};
+}
+
+void TryExecute(const std::vector<std::string>& tokens,
+    std::unordered_map<std::string, std::function<Foo(const std::string& prms)>>& executors)
+{
+    if (tokens.size() > 0)
+    {
+        const auto command = tokens[0];
+        auto executor = executors.find(command);
+        if (executor != executors.end())
+        {
+            std::string prms = "";
+            if (tokens.size() > 1)
+            {
+                prms = tokens[1];
+            }
+
+            const auto ret= executor->second(prms);
+            if (ret.has_value())
+            {
+                std::cout << "Command executed!\n";
+            }
+            else
+            {
+                std::cout << ret.error();
+            }
+        }
+    }
+}
+
+
+int main()
+{
+    bool shouldQuit = false;
+
+    std::unordered_map<std::string, std::function<Foo(const std::string& prms)>> executors;
+    executors["echo"] = Echo;
+
+    while (!shouldQuit)
+    {
+        std::string command;
+        std::cout << "Editor ready; command? ";
+        std::getline(std::cin, command);
+        const auto tokens = Split(command);
+
+        TryExecute(tokens, executors);
+
+        if (command == "quit")
+        {
+            shouldQuit = true;
+        }
+    }
     return 0;
 }
