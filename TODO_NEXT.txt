@@ -2,7 +2,7 @@ TODO next:
   o Editor starts running in an endless loop, waiting for a console command.
   o If the command is "quit", we stop.
   ... If the command is "createProject <path/to/project/folder>":
-  	- create path/to/project/folder
-	- copy into it CMakeLists.txt
-	- copy into it "src"
-	- generate the project in <path/to/project/folder>
+  	o create path/to/project/folder
+	o copy into it CMakeLists.txt
+	o copy into it "src"
+	... generate the project in <path/to/project/folder>

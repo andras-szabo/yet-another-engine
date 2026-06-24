@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cassert>
+#include <filesystem>
 #include "LoggerMacros.h"
 
 // Import the engine-core module.
@@ -359,21 +360,126 @@ std::vector<std::string> Split(const std::string& str)
     return tokens;
 }
 
-using Foo = std::expected<void, std::string>;
-
-Foo Echo(const std::string& prms)
+struct EditorContext
 {
-    if (prms == "banana")
+    std::string gameTemplatePath{ "" };
+    bool isQuitRequested{ false };
+};
+
+using CommandReturnType = std::expected<void, std::string>;
+using CommandFN = std::function<CommandReturnType(const std::vector<std::string>&, EditorContext&)>;
+
+CommandReturnType Cls(const std::vector<std::string>& commandAndArguments, EditorContext& context)
+{
+    system("cls");
+    return {};
+}
+
+CommandReturnType Quit(const std::vector<std::string>& commandAndArguments, EditorContext& context)
+{
+    context.isQuitRequested = true;
+    return {};
+}
+
+CommandReturnType Status(const std::vector<std::string>& commandAndArguments, EditorContext& context)
+{
+    std::cout << "Editor context:\n";
+    std::cout << "  Quit requested? " << context.isQuitRequested << "\n";
+    return {};
+}
+
+CommandReturnType CreateProject(const std::vector<std::string>& commandAndArguments, EditorContext& context)
+{
+    namespace fs = std::filesystem;
+
+    if (commandAndArguments.size() < 2)
+    {
+        return std::unexpected{ "Missing path." };
+    }
+    
+    fs::path projectFolderPath;
+
+    try
+    {
+        projectFolderPath = commandAndArguments[1];
+    }
+    catch (std::runtime_error& e)
+    {
+        return std::unexpected{ e.what() };
+    }
+
+    if (fs::exists(projectFolderPath))
+    {
+        return std::unexpected{ "Path already exists." };
+    }
+
+    std::cout << "OK, trying to create folder at " << projectFolderPath.string() << "...\n";
+
+    std::error_code ec;
+    if (!fs::create_directory(projectFolderPath, ec))
+    {
+        return std::unexpected{ std::format("Couldn't create folder: {}", ec.message()) };
+    }
+    
+    std::cout << "OK, folder created, now to copy files...\n";
+    
+    // Copy "src" folder
+    fs::path gameTemplateFolderPath{ context.gameTemplatePath };
+
+    fs::copy_options options{ fs::copy_options::recursive };
+
+    fs::path src{ gameTemplateFolderPath };
+    src /= "src";
+
+    fs::path target_src{ projectFolderPath };
+    target_src /= "src";
+    
+    fs::copy(src, target_src, options, ec);
+
+    if (ec.value() > 0)
+    {
+        return std::unexpected{ ec.message() };
+    }
+
+    // Copy "CMakeLists.txt"
+    fs::path src_cmakeLists{ gameTemplateFolderPath };
+    src_cmakeLists /= "CMakeLists.txt";
+
+    fs::copy(src_cmakeLists, projectFolderPath, fs::copy_options::none, ec);
+    if (ec.value() > 0)
+    {
+        return std::unexpected{ ec.message() };
+    }
+
+    std::cout << "...done!\n";
+    
+    return {};
+}
+
+CommandReturnType Echo(const std::vector<std::string>& commandAndArguments, EditorContext& context)
+{
+    if (commandAndArguments.size() > 1 && commandAndArguments[1] == "banana")
     {
         return std::unexpected{ "nope i won't echo that.\n" };
     }
 
-    std::cout << prms << "\n";
+    int index = 0;
+    for (const auto& arg : commandAndArguments)
+    {
+        if (index++ > 0)
+        {
+            std::cout << arg << " ";
+        }
+    }
+
+    std::cout << "\n";
+
     return {};
 }
 
-void TryExecute(const std::vector<std::string>& tokens,
-    std::unordered_map<std::string, std::function<Foo(const std::string& prms)>>& executors)
+void TryExecute(const std::vector<std::string>& tokens, 
+                std::unordered_map<std::string, CommandFN>& executors,
+                EditorContext& context)
 {
     if (tokens.size() > 0)
     {
@@ -387,14 +493,14 @@ void TryExecute(const std::vector<std::string>& tokens,
                 prms = tokens[1];
             }
 
-            const auto ret= executor->second(prms);
+            const auto ret= executor->second(tokens, context);
             if (ret.has_value())
             {
                 std::cout << "Command executed!\n";
             }
             else
             {
-                std::cout << ret.error();
+                std::cout << ret.error() << "\n";
             }
         }
     }
@@ -403,24 +509,33 @@ void TryExecute(const std::vector<std::string>& tokens,
 
 int main()
 {
-    bool shouldQuit = false;
+    bool isQuitRequested = false;
 
-    std::unordered_map<std::string, std::function<Foo(const std::string& prms)>> executors;
+    std::unordered_map<std::string, CommandFN> executors;
     executors["echo"] = Echo;
 
-    while (!shouldQuit)
+    executors["c"] = Cls;
+    executors["cls"] = Cls;
+    executors["clear"] = Cls;
+    executors["q"] = Quit;
+    executors["quit"] = Quit;
+
+    executors["status"] = Status;
+
+    executors["createProject"] = CreateProject;
+    executors["cproj"] = CreateProject;
+
+    EditorContext context;
+    context.gameTemplatePath = "c:\\Users\\andra\\source\\repos\\Engine\\game-template";
+
+    while (!context.isQuitRequested)
     {
         std::string command;
         std::cout << "Editor ready; command? ";
         std::getline(std::cin, command);
         const auto tokens = Split(command);
 
-        TryExecute(tokens, executors);
-
-        if (command == "quit")
-        {
-            shouldQuit = true;
-        }
+        TryExecute(tokens, executors, context);
     }
     return 0;
 }
