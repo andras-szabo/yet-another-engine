@@ -16,11 +16,13 @@
 #include "../../engine-core/src/Serialization.ixx"
 #include "EditorTests.ixx"
 #include "HotReloadManager.ixx"
+#include "EditorTasks.ixx"
 #else
 import EngineCore;
 import EngineInstance;
 import EditorTests;
 import HotReloadManager;
+import EditorTasks;
 #endif
 
 import std;
@@ -477,6 +479,7 @@ CommandReturnType Echo(const std::vector<std::string>& commandAndArguments, Edit
     return {};
 }
 
+
 void TryExecute(const std::vector<std::string>& tokens, 
                 std::unordered_map<std::string, CommandFN>& executors,
                 EditorContext& context)
@@ -493,7 +496,22 @@ void TryExecute(const std::vector<std::string>& tokens,
                 prms = tokens[1];
             }
 
-            const auto ret= executor->second(tokens, context);
+            const auto& fn = executor->second;
+            
+            // This works:
+            //std::future<CommandReturnType> bar = std::async(std::launch::async,
+            //    fn, std::cref(tokens), std::ref(context));
+
+            Editor::EditorTask et(std::async(std::launch::async, fn, std::cref(tokens), std::ref(context)));
+
+            //std::cout << et.GetProgress();
+            //while (!et.IsDone())
+            //{
+            //    std::cout << "Wait...\n";
+            //}
+
+            const auto ret = et.Result();
+
             if (ret.has_value())
             {
                 std::cout << "Command executed!\n";
