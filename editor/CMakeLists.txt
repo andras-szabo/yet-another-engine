@@ -5,6 +5,7 @@ target_sources(editor
 	  FILE_SET CXX_MODULES FILES
 	  src/EditorTests.ixx
 	  src/HotReloadManager.ixx
+	  src/EditorShared.ixx
 	  src/EditorTasks.ixx
 	PRIVATE src/main.cpp)
 

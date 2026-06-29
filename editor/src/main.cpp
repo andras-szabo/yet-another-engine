@@ -18,6 +18,7 @@
 #include "HotReloadManager.ixx"
 #include "EditorTasks.ixx"
 #else
+import EditorShared;
 import EngineCore;
 import EngineInstance;
 import EditorTests;
@@ -362,37 +363,43 @@ std::vector<std::string> Split(const std::string& str)
     return tokens;
 }
 
-struct EditorContext
-{
-    std::string gameTemplatePath{ "" };
-    bool isQuitRequested{ false };
-};
 
-using CommandReturnType = std::expected<void, std::string>;
-using CommandFN = std::function<CommandReturnType(const std::vector<std::string>&, EditorContext&)>;
-
-CommandReturnType Cls(const std::vector<std::string>& commandAndArguments, EditorContext& context)
+Editor::CommandReturnType Cls(const std::vector<std::string>& commandAndArguments, 
+    Editor::Context& context,
+    Editor::IEditorTask& task)
 {
     system("cls");
+    task.SetProgress(1.0f);
     return {};
 }
 
-CommandReturnType Quit(const std::vector<std::string>& commandAndArguments, EditorContext& context)
+Editor::CommandReturnType Quit(const std::vector<std::string>& commandAndArguments, 
+    Editor::Context& context,
+    Editor::IEditorTask& task)
 {
     context.isQuitRequested = true;
+    task.SetProgress(1.0f);
     return {};
 }
 
-CommandReturnType Status(const std::vector<std::string>& commandAndArguments, EditorContext& context)
+Editor::CommandReturnType Status(const std::vector<std::string>& commandAndArguments, 
+    Editor::Context& context,
+    Editor::IEditorTask& task)
 {
     std::cout << "Editor context:\n";
+    task.SetProgress(0.5f);
     std::cout << "  Quit requested? " << context.isQuitRequested << "\n";
+    task.SetProgress(1.0f);
     return {};
 }
 
-CommandReturnType CreateProject(const std::vector<std::string>& commandAndArguments, EditorContext& context)
+Editor::CommandReturnType CreateProject(const std::vector<std::string>& commandAndArguments, 
+    Editor::Context& context,
+    Editor::IEditorTask& task)
 {
     namespace fs = std::filesystem;
+
+    Editor::TaskProgressScope _(task);
 
     if (commandAndArguments.size() < 2)
     {
@@ -458,8 +465,11 @@ CommandReturnType CreateProject(const std::vector<std::string>& commandAndArgume
     return {};
 }
 
-CommandReturnType Echo(const std::vector<std::string>& commandAndArguments, EditorContext& context)
+Editor::CommandReturnType Echo(const std::vector<std::string>& commandAndArguments, 
+    Editor::Context& context,
+    Editor::IEditorTask& task)
 {
+    Editor::TaskProgressScope _(task);
     if (commandAndArguments.size() > 1 && commandAndArguments[1] == "banana")
     {
         return std::unexpected{ "nope i won't echo that.\n" };
@@ -481,8 +491,8 @@ CommandReturnType Echo(const std::vector<std::string>& commandAndArguments, Edit
 
 
 void TryExecute(const std::vector<std::string>& tokens, 
-                std::unordered_map<std::string, CommandFN>& executors,
-                EditorContext& context)
+                std::unordered_map<std::string, Editor::CommandTaskFN>& executors,
+                Editor::Context& context)
 {
     if (tokens.size() > 0)
     {
@@ -497,39 +507,30 @@ void TryExecute(const std::vector<std::string>& tokens,
             }
 
             const auto& fn = executor->second;
-            
-            // This works:
-            //std::future<CommandReturnType> bar = std::async(std::launch::async,
-            //    fn, std::cref(tokens), std::ref(context));
+            Editor::EditorTask et(fn, tokens, context);
 
-            Editor::EditorTask et(std::async(std::launch::async, fn, std::cref(tokens), std::ref(context)));
-
-            //std::cout << et.GetProgress();
-            //while (!et.IsDone())
-            //{
-            //    std::cout << "Wait...\n";
-            //}
+            // We could poll the task, but for now:
 
             const auto ret = et.Result();
 
             if (ret.has_value())
             {
-                std::cout << "Command executed!\n";
+                std::cout << "Command executed! Progress: " << et.GetProgress() << "\n";
             }
             else
             {
-                std::cout << ret.error() << "\n";
+                std::cout << ret.error() << " " << et.GetProgress() << "\n";
             }
-        }
+       }
     }
-}
+} 
 
 
 int main()
 {
     bool isQuitRequested = false;
 
-    std::unordered_map<std::string, CommandFN> executors;
+    std::unordered_map<std::string, Editor::CommandTaskFN> executors;
     executors["echo"] = Echo;
 
     executors["c"] = Cls;
@@ -543,7 +544,7 @@ int main()
     executors["createProject"] = CreateProject;
     executors["cproj"] = CreateProject;
 
-    EditorContext context;
+    Editor::Context context;
     context.gameTemplatePath = "c:\\Users\\andra\\source\\repos\\Engine\\game-template";
 
     while (!context.isQuitRequested)
@@ -555,5 +556,6 @@ int main()
 
         TryExecute(tokens, executors, context);
     }
+
     return 0;
 }

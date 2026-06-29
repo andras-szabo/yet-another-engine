@@ -9,26 +9,31 @@ export module EditorTasks;
 #include <mutex>
 #include <string>
 #include <thread>
+#include "EditorShared.ixx"
 #else
+import EditorShared;
 import std;
 #endif
 
 namespace Editor
 {
-	export class EditorTask
+	export class EditorTask : public IEditorTask
 	{
 	public:
 		EditorTask() = default;
 		EditorTask(const EditorTask& other) = delete;
 		EditorTask& operator=(const EditorTask& other) = delete;
 
-		EditorTask(std::future<std::expected<void, std::string>>&& future_);
+		EditorTask(CommandTaskFN commandFN,
+				   const std::vector<std::string>& commandAndArguments,
+			       Context& editorContext);
+
 		EditorTask(EditorTask&& other);
 		EditorTask& operator=(EditorTask&& other);
 
-		bool IsDone() const;
-		float GetProgress() const;
-		void SetProgress(float progress);
+		bool IsDone() const override;
+		float GetProgress() override;
+		void SetProgress(float progress) override;
 
 		std::expected<void, std::string> Result();
 
@@ -42,11 +47,6 @@ module :private;
 
 namespace Editor
 {
-	EditorTask::EditorTask(std::future<std::expected<void, std::string>>&& future_)
-		: _future{ std::move(future_) }
-	{
-	}
-
 	EditorTask::EditorTask(EditorTask&& other)
 		: _future{ std::move(other._future) }
 	{
@@ -63,6 +63,17 @@ namespace Editor
 		return *this;
 	}
 
+	EditorTask::EditorTask(CommandTaskFN commandFN,
+		const std::vector<std::string>& commandAndArguments,
+		Context& editorContext)
+	{
+		_future = std::async(std::launch::async,
+			commandFN,
+			std::cref(commandAndArguments),
+			std::ref(editorContext),
+			std::ref(*this));
+	}
+
 	std::expected<void, std::string> EditorTask::Result()
 	{
 		return _future.get();
@@ -75,7 +86,7 @@ namespace Editor
 		return status == std::future_status::ready;
 	}
 
-	float EditorTask::GetProgress() const
+	float EditorTask::GetProgress()
 	{
 		return _progress;
 	}
