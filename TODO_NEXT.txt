@@ -6,3 +6,13 @@ TODO next:
 	o copy into it CMakeLists.txt
 	o copy into it "src"
 	... generate the project in <path/to/project/folder>
+
+	=> this should be:
+	(from within the game-template folder)
+	cmake -B build -G "Visual Studio 17 2022" -DENGINE_CORE_SDK_DIR=C:\Dev\EngineSdk\sdk
+	cmake --build build --config debug
+
+		=> 1.) confirm that this works:
+			o call cproj and confirm it creates the folder
+			o run the cmdline above and see what happens.
+

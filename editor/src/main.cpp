@@ -1,6 +1,9 @@
 #include <iostream>
 #include <cassert>
 #include <filesystem>
+#include <Windows.h>
+#include <string>
+#include <vector>
 #include "LoggerMacros.h"
 
 // Import the engine-core module.
@@ -461,6 +464,46 @@ Editor::CommandReturnType CreateProject(const std::vector<std::string>& commandA
     }
 
     std::cout << "...done!\n";
+    std::cout << "Now generating project...\n";
+
+    std::wstring cmdLine{ L"cmake -B build -G \"Visual Studio 17 2022\" -DENGINE_CORE_SDK_DIR=C:\\Dev\\EngineSdk\\sdk" };
+    
+    STARTUPINFOW startupInfo{};
+    startupInfo.cb = sizeof(startupInfo);
+
+    PROCESS_INFORMATION processInfo{};
+    std::vector<wchar_t> cmdBuf(cmdLine.begin(), cmdLine.end());
+    cmdBuf.push_back(L'\0');
+
+    const auto workingPath = projectFolderPath.wstring();
+
+    if (!CreateProcessW(
+        nullptr,                // search for executable in PATH
+        cmdBuf.data(),
+        nullptr,
+        nullptr,
+        FALSE,
+        0,
+        nullptr,
+        projectFolderPath.wstring().c_str(),
+        &startupInfo,
+        &processInfo))
+    {
+        return std::unexpected{ std::format("Project generation failed: {}", GetLastError()) };
+    }
+
+    WaitForSingleObject(processInfo.hProcess, INFINITE);
+    DWORD exitCode = 0;
+    GetExitCodeProcess(processInfo.hProcess, &exitCode);
+    CloseHandle(processInfo.hThread);
+    CloseHandle(processInfo.hProcess);
+
+    if (exitCode != 0)
+    {
+        return std::unexpected{ std::format("Project generation failed; exited with {}", exitCode) };
+    }
+
+    std::cout << "...Done!\n";
     
     return {};
 }
