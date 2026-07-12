@@ -13,7 +13,9 @@ namespace Editor
 {
     export struct Context
     {
-        std::string gameTemplatePath{ "" };
+        std::wstring gameTemplatePath{ L"" };
+        std::wstring sdkPath{ L"" };
+        std::wstring cmakePath{ L"" };
         bool isQuitRequested{ false };
     };
 

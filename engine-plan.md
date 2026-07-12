@@ -123,7 +123,6 @@ Allow user-authored C++ components to be compiled into a DLL and loaded at runti
   - (c) Remove `game-template` from the engine's root `CMakeLists.txt` so the engine solution no longer contains game project source.
   - (d) Add a `SpinnerComponent` (or similar) with 2–3 `FIELD()`-annotated fields, a `.reflected.h` seam file, and `OnCreate`/`OnUpdate`/`OnDestroy` hooks — serving as a documented reference for game developers.
   - (e) Document the two-step workflow: (1) build + install engine-core to produce the SDK; (2) configure and build game-template pointing at the SDK output. Both can be done in the same VS IDE instance: the editor runs from the engine solution while game-template is rebuilt independently in the game solution.
-- P4-07: Design and evaluate component pooling in `ComponentStorage`: instead of freeing a destroyed component immediately, hold it in a per-type free-list; on next allocation of the same type, reclaim from the pool rather than heap-allocating. Key questions to answer: (1) what constitutes a "safe to reuse" component (no custom destructor side effects, no external references held); (2) whether to opt in per type (e.g. a flag on `COMPONENT_BODY`) or make it the default; (3) interaction with DLL unload — pooled components whose type is unregistered must be fully destroyed at that point, not recycled.
 
 ---
 
@@ -131,11 +130,26 @@ Allow user-authored C++ components to be compiled into a DLL and loaded at runti
 
 Track and load project assets; provide stable references usable by components.
 
-- P5-01: Define asset types (Texture, Mesh, AudioClip, etc. as enums/tags) and the asset manifest format
-- P5-02: Implement AssetDatabase: scan project folder, index by GUID and path, detect duplicates
-- P5-03: Implement asset reference type (AssetRef<T>) that stores a GUID and resolves lazily
-- P5-04: Implement file watcher (ReadDirectoryChangesW) to detect asset additions/modifications/deletions
-- P5-05: Implement asset hot-reload notification (broadcast change events to interested systems)
+- P5-01: Define asset types and the asset manifest format.
+  - **Context:** GameObjects/components already have a stable identity scheme (`GUID` as the DataFile node key, see P3-07/P3-08). Assets currently have none — they're just loose files in the project folder, referenced (if at all) by raw path.
+  - **Why:** Hard-coding a file path in a component field breaks the moment the asset is renamed or moved, and there's nowhere to attach asset-specific metadata (import settings, compression, source hash, etc.).
+  - **Approach:** (a) Add a minimal `AssetType` enum (`Texture`, `Mesh`, `AudioClip`, `Scene`, `Unknown`, ...) — expand as later phases (rendering, audio) land, don't try to enumerate every type up front. (b) Reuse the existing `DataFile` format for a per-asset `.meta` sidecar file (`myTexture.png.meta`) storing at least `guid` and `type`, instead of inventing a second manifest schema — mirrors Unity's `.meta` convention but built entirely on infrastructure that already exists (`DataFile.ixx`). (c) GUID lifecycle: `AssetDatabase` (P5-02) generates and writes a `.meta` the first time it sees a source file without one; the GUID then stays stable across renames because it lives in the sidecar, not derived from the path.
+- P5-02: Implement `AssetDatabase`: scan project folder, index by GUID and path, detect duplicates.
+  - **Context:** The closest existing analog is `ComponentRegistry.ixx` (`typeID → factory` map, populated by scanning DLL-registered types). No equivalent registry exists for on-disk assets yet.
+  - **Why:** Need O(1) GUID→path and path→GUID lookups to (a) resolve `AssetRef<T>` at runtime, (b) back future editor commands like `list-assets` / `inspect-asset` (Phase 8), (c) detect orphaned or duplicated `.meta` files (e.g. from a copy-pasted asset).
+  - **Approach:** Recursively walk the project asset folder with `std::filesystem::recursive_directory_iterator` (same facility `main.cpp`'s `CreateProject` already uses). For each source file: read its `.meta` if present, otherwise create one (P5-01c). Populate two maps, `guidToPath` and `pathToGuid`. If the same GUID is seen for two different paths, log a warning and mint a fresh GUID for the second occurrence rather than silently aliasing them. Expose `AssetDatabase` as an engine-core service (not editor-only) so a shipped game (Phase 7 runner) can resolve assets without the editor present — likely owned similarly to `EngineInstance`, or passed alongside it.
+- P5-03: Implement asset reference type (`AssetRef<T>`) that stores a GUID and resolves lazily.
+  - **Context:** Reflected component fields today (`Reflection.ixx`) cover primitives and math types (`FieldType::Float/Int/Bool/String/Vec2/Vec3/Vec4/Quaternion/Composite`); nothing represents "a handle to an external resource."
+  - **Why:** Components need to reference a Texture/Mesh/etc. by stable id — resolved lazily so load order and hot-reload timing don't matter — and the field must serialize the same way GameObject GUIDs already do, so no special-casing is needed in `Serialization.ixx`.
+  - **Approach:** `AssetRef<T>` wraps a `GUID` plus a lazily-populated cached pointer/handle; `Resolve()` asks `AssetDatabase` (and, later, the asset loader) for the resource on first use and caches it until invalidated (ties into P5-05). Add `FieldType::AssetRef` to `Reflection.ixx` and extend `SerializeFields`/`DeserializeFields` the same way each prior `FieldType` was added (store the raw GUID as the leaf value) — keeps the pattern consistent with how Vec3/Quaternion etc. were bolted on.
+- P5-04: Implement a directory-level file watcher (`ReadDirectoryChangesW`) to detect asset additions/modifications/deletions.
+  - **Context:** `FileWatcher.ixx` already wraps `ReadDirectoryChangesW`, but it's hard-coded to watch **one** directory for **one** known target filename (built for DLL hot-reload, P4-04) — it can't currently watch an entire asset tree or report *which* of many files changed.
+  - **Why:** Asset hot-reload needs to observe an entire (possibly nested) asset folder and distinguish add/modify/delete/rename per file, not poll a single known filename.
+  - **Approach:** Don't repurpose `FileWatcher` in place — add a new `DirectoryWatcher` (or a `FileWatcher` overload with no target filename) that parses the full `FILE_NOTIFY_INFORMATION` buffer into a list of `(relative path, change kind)` entries per `Poll()`, reusing the existing non-blocking `OVERLAPPED` pattern for consistency with P4-04. Feed results into `AssetDatabase`: a rename should look up the existing `.meta` and preserve the GUID, not mint a new one.
+- P5-05: Implement asset hot-reload notification (broadcast change events to interested systems).
+  - **Context:** `HotReloadManager.ixx` already implements one reload cycle (serialize → unload → reload → deserialize) for the game DLL (P4-04/P4-05); asset hot-reload is a conceptually similar but independent lifecycle.
+  - **Why:** Any live system holding a resolved `AssetRef<T>` handle needs to know to re-fetch when the underlying file changes on disk.
+  - **Approach:** Simple publish/subscribe on `AssetDatabase`: `Subscribe(std::function<void(GUID, AssetChangeType)>)`. When `DirectoryWatcher` (P5-04) reports a change for a path with a known GUID, `AssetDatabase` invalidates any cached `AssetRef<T>` resolution and broadcasts the event. Keep this decoupled from `HotReloadManager` — assets must survive independently of DLL reloads (and vice versa), even though both are "reload" flows conceptually.
 
 ---
 
@@ -185,6 +199,14 @@ Decouple the engine from any specific graphics API.
 - P9-03: Define RenderCommand types (DrawMesh, SetCamera, SetLight, ClearTarget) and RenderCommandQueue
 - P9-04: Implement scene-to-render-data pass: walk scene graph, collect MeshRenderer components → draw calls
 - P9-05: Implement NullRenderer (no-op implementation of IRenderer) for headless/test use
+
+---
+
+## Backlog (Nice-to-have)
+
+Ideas worth revisiting, but not required for any currently planned phase or the MVP. Pull items back into a numbered phase if/when they become relevant.
+
+- P4-07: Design and evaluate component pooling in `ComponentStorage`: instead of freeing a destroyed component immediately, hold it in a per-type free-list; on next allocation of the same type, reclaim from the pool rather than heap-allocating. Key questions to answer: (1) what constitutes a "safe to reuse" component (no custom destructor side effects, no external references held); (2) whether to opt in per type (e.g. a flag on `COMPONENT_BODY`) or make it the default; (3) interaction with DLL unload — pooled components whose type is unregistered must be fully destroyed at that point, not recycled.
 
 ---
 

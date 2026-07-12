@@ -354,6 +354,10 @@ int tests()
     return 0;
 }
 
+// TODO - handle spaces:
+//      track an inQuotes toggle on ", only split on whitespace
+//      when not inside quotes; strip the quote chars themselves.
+//      then, expected use: createProject "C:\My Project"
 std::vector<std::string> Split(const std::string& str)
 {
     std::vector<std::string> tokens;
@@ -367,8 +371,8 @@ std::vector<std::string> Split(const std::string& str)
 }
 
 
-Editor::CommandReturnType Cls(const std::vector<std::string>& commandAndArguments, 
-    Editor::Context& context,
+Editor::CommandReturnType Cls([[maybe_unused]] const std::vector<std::string>& commandAndArguments, 
+    [[maybe_unused]] Editor::Context& context,
     Editor::IEditorTask& task)
 {
     system("cls");
@@ -376,7 +380,7 @@ Editor::CommandReturnType Cls(const std::vector<std::string>& commandAndArgument
     return {};
 }
 
-Editor::CommandReturnType Quit(const std::vector<std::string>& commandAndArguments, 
+Editor::CommandReturnType Quit([[maybe_unused]] const std::vector<std::string>& commandAndArguments, 
     Editor::Context& context,
     Editor::IEditorTask& task)
 {
@@ -385,7 +389,7 @@ Editor::CommandReturnType Quit(const std::vector<std::string>& commandAndArgumen
     return {};
 }
 
-Editor::CommandReturnType Status(const std::vector<std::string>& commandAndArguments, 
+Editor::CommandReturnType Status([[maybe_unused]] const std::vector<std::string>& commandAndArguments, 
     Editor::Context& context,
     Editor::IEditorTask& task)
 {
@@ -409,16 +413,7 @@ Editor::CommandReturnType CreateProject(const std::vector<std::string>& commandA
         return std::unexpected{ "Missing path." };
     }
     
-    fs::path projectFolderPath;
-
-    try
-    {
-        projectFolderPath = commandAndArguments[1];
-    }
-    catch (std::runtime_error& e)
-    {
-        return std::unexpected{ e.what() };
-    }
+    fs::path projectFolderPath{ commandAndArguments[1] };
 
     if (fs::exists(projectFolderPath))
     {
@@ -427,10 +422,10 @@ Editor::CommandReturnType CreateProject(const std::vector<std::string>& commandA
 
     std::cout << "OK, trying to create folder at " << projectFolderPath.string() << "...\n";
 
-    std::error_code ec;
-    if (!fs::create_directory(projectFolderPath, ec))
+    std::error_code errorCode;
+    if (!fs::create_directory(projectFolderPath, errorCode))
     {
-        return std::unexpected{ std::format("Couldn't create folder: {}", ec.message()) };
+        return std::unexpected{ std::format("Couldn't create folder: {}", errorCode.message()) };
     }
     
     std::cout << "OK, folder created, now to copy files...\n";
@@ -446,40 +441,39 @@ Editor::CommandReturnType CreateProject(const std::vector<std::string>& commandA
     fs::path target_src{ projectFolderPath };
     target_src /= "src";
     
-    fs::copy(src, target_src, options, ec);
+    fs::copy(src, target_src, options, errorCode);
 
-    if (ec.value() > 0)
+    if (errorCode)
     {
-        return std::unexpected{ ec.message() };
+        return std::unexpected{ errorCode.message() };
     }
 
     // Copy "CMakeLists.txt"
     fs::path src_cmakeLists{ gameTemplateFolderPath };
     src_cmakeLists /= "CMakeLists.txt";
 
-    fs::copy(src_cmakeLists, projectFolderPath, fs::copy_options::none, ec);
-    if (ec.value() > 0)
+    fs::copy(src_cmakeLists, projectFolderPath, fs::copy_options::none, errorCode);
+    if (errorCode)
     {
-        return std::unexpected{ ec.message() };
+        return std::unexpected{ errorCode.message() };
     }
 
     std::cout << "...done!\n";
     std::cout << "Now generating project...\n";
 
-    std::wstring cmdLine{ L"cmake -B build -G \"Visual Studio 17 2022\" -DENGINE_CORE_SDK_DIR=C:\\Dev\\EngineSdk\\sdk" };
+    const std::wstring cmakePathWithSpaces = std::format(L"\"{}\"", context.cmakePath);
+    std::wstring cmdLine{ cmakePathWithSpaces + L" -B build -G \"Visual Studio 17 2022\" -DENGINE_CORE_SDK_DIR=" + context.sdkPath };
     
     STARTUPINFOW startupInfo{};
     startupInfo.cb = sizeof(startupInfo);
 
     PROCESS_INFORMATION processInfo{};
-    std::vector<wchar_t> cmdBuf(cmdLine.begin(), cmdLine.end());
-    cmdBuf.push_back(L'\0');
 
     const auto workingPath = projectFolderPath.wstring();
 
     if (!CreateProcessW(
-        nullptr,                // search for executable in PATH
-        cmdBuf.data(),
+        context.cmakePath.data(),                
+        cmdLine.data(),
         nullptr,
         nullptr,
         FALSE,
@@ -509,7 +503,7 @@ Editor::CommandReturnType CreateProject(const std::vector<std::string>& commandA
 }
 
 Editor::CommandReturnType Echo(const std::vector<std::string>& commandAndArguments, 
-    Editor::Context& context,
+    [[maybe_unused]] Editor::Context& context,
     Editor::IEditorTask& task)
 {
     Editor::TaskProgressScope _(task);
@@ -543,12 +537,6 @@ void TryExecute(const std::vector<std::string>& tokens,
         auto executor = executors.find(command);
         if (executor != executors.end())
         {
-            std::string prms = "";
-            if (tokens.size() > 1)
-            {
-                prms = tokens[1];
-            }
-
             const auto& fn = executor->second;
             Editor::EditorTask et(fn, tokens, context);
 
@@ -568,11 +556,91 @@ void TryExecute(const std::vector<std::string>& tokens,
     }
 } 
 
+std::expected<std::wstring, std::wstring> GetVSBundledCmakePath()
+{
+    // Since VS 2017+, every VS installer places vswhere.exe at a fixed, edition-independent
+    // path: C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe.
+    // Run it once (e.g. vshwere -latest -property installationPath) to get the VS install
+    // root, then append the fixed suffix:
+    // Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe
+    // This is the standard, MS-documented way tools locate VS-bundled binaries without
+    // hardcoding an edition / path.
+    // https://learn.microsoft.com/en-us/visualstudio/install/tools-for-managing-visual-studio-instances?view=visualstudio
+
+    SECURITY_ATTRIBUTES sa{ sizeof(sa), nullptr, TRUE };
+    HANDLE readPipe{ nullptr };
+    HANDLE writePipe{ nullptr };
+    if (!CreatePipe(&readPipe, &writePipe, &sa, 0))
+    {
+        return std::unexpected{ L"Couldn't create pipe." };
+    }
+
+    SetHandleInformation(readPipe, HANDLE_FLAG_INHERIT, 0);
+
+    STARTUPINFOW si{};
+    si.cb = sizeof(si);
+    si.dwFlags = STARTF_USESTDHANDLES;
+    si.hStdOutput = writePipe;
+    si.hStdError = writePipe;
+    si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+
+    PROCESS_INFORMATION pi{};
+    std::wstring cmdLine = L"C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere -latest -property installationPath";
+
+    BOOL ok = CreateProcessW(
+        nullptr,                // LPCWSTR lpApplicationName, can be null
+        cmdLine.data(),         // LPWSTR lpCommandLine, the command line to be executed
+        nullptr, nullptr,       // security and thread attributes; can be null
+        TRUE,                   // bInheritHandles
+        CREATE_NO_WINDOW,       // dwCreationFlags
+        nullptr,                // lpEnvironment; if null, uses the env of the calling process
+        nullptr,                // lpCurrentDirectory, can be null
+        &si,                    // startupInfo
+        &pi);                   // processInfo
+
+    CloseHandle(writePipe);
+
+    if (!ok)
+    {
+        CloseHandle(readPipe);
+        const auto errorCode = GetLastError();
+        return std::unexpected{ std::format(L"Process invocation error: {}", errorCode) };
+    }
+
+    std::wstring output;
+    char buffer[4096];
+    DWORD bytesRead = 0;
+
+    while (ReadFile(readPipe, buffer, sizeof(buffer), &bytesRead, nullptr) && bytesRead)
+    {
+        int wideLen = MultiByteToWideChar(CP_UTF8, 0, buffer, (int)bytesRead, nullptr, 0);
+        if (wideLen > 0)
+        {
+            const std::size_t oldSize{ output.size() };
+            output.resize(oldSize + wideLen);
+            MultiByteToWideChar(CP_UTF8, 0, buffer, (int)bytesRead, &output[oldSize], wideLen);
+        }
+    }
+
+    WaitForSingleObject(pi.hProcess, INFINITE);
+
+    CloseHandle(readPipe);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+    while (!output.empty() && (output.back() == L'\r' || output.back() == L'\n'))
+    {
+        output.pop_back();
+    }
+
+    output += L"\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe";
+
+    return output;
+}
+
 
 int main()
 {
-    bool isQuitRequested = false;
-
     std::unordered_map<std::string, Editor::CommandTaskFN> executors;
     executors["echo"] = Echo;
 
@@ -587,8 +655,22 @@ int main()
     executors["createProject"] = CreateProject;
     executors["cproj"] = CreateProject;
 
+    // TODO: Read this from an editor settings file
     Editor::Context context;
-    context.gameTemplatePath = "c:\\Users\\andra\\source\\repos\\Engine\\game-template";
+    context.gameTemplatePath = L"C:\\Users\\andra\\source\\repos\\Engine\\game-template";
+    context.sdkPath = L"C:\\Dev\\EngineSdk\\sdk";
+
+    const auto vsBundledCMakePath = GetVSBundledCmakePath();
+    if (vsBundledCMakePath.has_value())
+    {
+        std::wcout << "Awesome!; cmake path: " << vsBundledCMakePath.value() << "\n";
+        context.cmakePath = vsBundledCMakePath.value();
+    }
+    else
+    {
+        std::wcout << "Failed to get VS-bundled cmake path. Error: " << vsBundledCMakePath.error() << "\n";
+    }
+
 
     while (!context.isQuitRequested)
     {
