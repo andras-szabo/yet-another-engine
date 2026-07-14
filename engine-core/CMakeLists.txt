@@ -34,6 +34,7 @@ target_sources(engine-core
 
   PUBLIC
     FILE_SET CXX_MODULES FILES
+      src/Asset.ixx
       src/Component.ixx
       src/ComponentRegistry.ixx
       src/IComponentStorage.ixx
