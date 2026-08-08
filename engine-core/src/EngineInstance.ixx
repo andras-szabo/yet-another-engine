@@ -5,9 +5,11 @@ module;
 export module EngineInstance;
 
 #if defined ( __INTELLISENSE__ )
+#include "AssetDatabase.ixx"
 #include "IComponentStorage.ixx"
 #include "Scene.ixx"
 #else
+import AssetDatabase;
 import IComponentStorage;
 import Scene;
 #endif
@@ -38,6 +40,7 @@ namespace Engine
 
 		std::unique_ptr<IComponentStorage> _componentStorage;
 		Scene::Scene* _activeScene{ nullptr };
+		Engine::AssetDatabase _assetDatabase;
 	};
 
 	export class ENGINE_CORE_API EngineInstance
@@ -47,6 +50,7 @@ namespace Engine
 		static void Shutdown();
 		static EngineInstance& Get();
 		static IComponentStorage& GetComponentStorage();
+		static AssetDatabase& GetAssetDatabase();
 		static void SetActiveScene(Scene::Scene&& scene);
 		static const Scene::Scene& GetActiveScene();
 		static Scene::Scene& GetActiveSceneRW();

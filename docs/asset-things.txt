@@ -1,0 +1,66 @@
+So, let's think about the asset database, loading assets and stuff.
+
+What's the problem we're trying to solve?
+   We'd like to be able to access some kind of asset using an asset type and a guid. (Or even,
+   to look up the type of the asset just by guid.)
+   
+   In the editor, we'd also like to be able to associate an asset with a path (in
+   both directions), and add / remove / import / inspect &c various files.
+
+   And it would be nice to be able to use the same kind of API for accessing assets
+   in game, as in the editor. But, of course, it would also be nice not having to keep
+   editor functionality in the core engine.
+
+OK, so what would an runtime API look like?
+   Something like:
+   	
+	future<T*> LoadAssetAsync(guid, type)
+	T* LoadAsset(guid, type);
+	void ReleaseAsset(guid);
+
+   ...so this would require: map<guid, T*>
+   or indeed: map<guid, RefCountedWrapper>
+
+   How would this be initialized? Like, how to actually save the files? Let's read
+   up on this in _teh ultimate source_. I suppose that technically we could leave
+   everything in a separate file as well, to start with.
+
+   Mmmm. Yes.
+
+   First approach:
+   	- AssetDatabase:
+		- a wrapper around 2 maps: guidToPath, and pathToGuid.
+		- expose as an engine-core service, not as read only, so a
+		  shipped game can resolve assets w/o the editor present.
+
+
+	- AssetRef<T>: stores a GUID and resolves lazily:
+		- ask the AssetDatabase (or asset loader) for a given resource,
+		  and cache it until invalidated.
+
+It feels like we need more though:
+	- what about partial importing?
+	- what about content OTA?
+	- what about dependencies?
+
+
+Question. Will I need the facility to have composite assets that cross-reference one another,
+such that I'll need an extra file to keep track of those references? E.g. say we have
+a model that has a mesh and materials and potentially animations. Am I correct in thinking
+that this "model" must be converted into an asset of our own? So, Blender, Maya -> export
+the mesh and the material and the anims separately, and I'll create an asset file that
+describes it in the terms of the engine, with guids- ?
+
+	=> yes. This is a bit different to how Unity does it. But I think that is OK.
+
+= So then, next steps.
+	- create AssetDatabase as a Core Engine service.
+	- have it wrap around 2 maps	
+		= actually, read up on maps, which ones not to use from the STL?
+	- add a method to recursively walk the project asset folder, and
+	  read .meta files; or create them - as used by the editor
+	- add a method to serialize at least one of the maps (to be used in game)
+	- add a method to deserialize at least one of the maps.
+
+
+Let's just do _something_, we can iterate on it later.

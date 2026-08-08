@@ -46,6 +46,13 @@ namespace Engine
 	}
 
 	// static
+	AssetDatabase& EngineInstance::GetAssetDatabase()
+	{
+		assert(_instance != nullptr && "Engine instance not initialized?");
+		return _instance->_impl->_assetDatabase;
+	}
+
+	// static
 	IComponentStorage& EngineInstance::GetComponentStorage()
 	{
 		assert(_instance != nullptr && "Engine instance not initialized?");

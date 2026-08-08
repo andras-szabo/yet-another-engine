@@ -15,6 +15,7 @@ generate_export_header(engine-core
 # determine the correct build order automatically.
 target_sources(engine-core
   PRIVATE
+    src/AssetDatabase.cpp
     src/Component.cpp 
     src/ComponentRegistry.cpp
     src/ComponentStorage.cpp
@@ -35,6 +36,7 @@ target_sources(engine-core
   PUBLIC
     FILE_SET CXX_MODULES FILES
       src/Asset.ixx
+      src/AssetDatabase.ixx
       src/Component.ixx
       src/ComponentRegistry.ixx
       src/IComponentStorage.ixx

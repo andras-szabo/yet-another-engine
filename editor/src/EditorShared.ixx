@@ -11,12 +11,22 @@ import std;
 
 namespace Editor
 {
+    struct Context;
+    struct IEditorTask;
+
+    export typedef std::expected<void, std::string> CommandReturnType;
+    export typedef std::function<CommandReturnType(const std::vector<std::string>&, Context&, IEditorTask&)> CommandTaskFN;
+
     export struct Context
     {
         std::wstring gameTemplatePath{ L"" };
         std::wstring sdkPath{ L"" };
         std::wstring cmakePath{ L"" };
         bool isQuitRequested{ false };
+
+        std::unordered_map<std::string, std::string> editorCommands;
+
+        void CollectExecutorInfo(const std::unordered_map<std::string, Editor::CommandTaskFN>& executors);
     };
 
     export struct IEditorTask
@@ -40,8 +50,7 @@ namespace Editor
         
     };
 
-    export typedef std::expected<void, std::string> CommandReturnType;
-    export typedef std::function<CommandReturnType(const std::vector<std::string>&, Context&, IEditorTask&)> CommandTaskFN;
+
 } // namespace Editor
 
 module :private;

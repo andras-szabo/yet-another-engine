@@ -1,6 +1,9 @@
 add_executable(editor)
 
 target_sources(editor 
+    PRIVATE
+	  src/EditorShared.cpp
+
 	PUBLIC
 	  FILE_SET CXX_MODULES FILES
 	  src/EditorTests.ixx

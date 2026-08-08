@@ -370,6 +370,35 @@ std::vector<std::string> Split(const std::string& str)
     return tokens;
 }
 
+Editor::CommandReturnType Help([[maybe_unused]] const std::vector<std::string>& commandAndArguments,
+    [[maybe_unused]] Editor::Context& context,
+    Editor::IEditorTask& task)
+{
+    std::cout << std::this_thread::get_id() << "\n";
+    task.SetProgress(0.0f);
+    const float totalCmdCount = static_cast<float>(context.editorCommands.size());
+    float cmdIndex = 1.0f;
+    std::cout << "Available commands: \n";
+
+    std::vector<std::string> keys;
+    for (const auto& cmd : context.editorCommands)
+    {
+        keys.push_back(cmd.first);
+    }
+
+    std::sort(keys.begin(), keys.end());
+
+    for (const auto& key : keys)
+    {
+        const auto& cmd = context.editorCommands[key];
+        std::cout << key << "\n";
+        task.SetProgress(cmdIndex / totalCmdCount);
+        cmdIndex += 1.0f;
+    }
+
+    return {};
+}
+
 
 Editor::CommandReturnType Cls([[maybe_unused]] const std::vector<std::string>& commandAndArguments, 
     [[maybe_unused]] Editor::Context& context,
@@ -396,7 +425,11 @@ Editor::CommandReturnType Status([[maybe_unused]] const std::vector<std::string>
     std::cout << "Editor context:\n";
     task.SetProgress(0.5f);
     std::cout << "  Quit requested? " << context.isQuitRequested << "\n";
+    std::wcout << "  Game template path: " << context.gameTemplatePath << "\n";
+    std::wcout << "  SDK path: " << context.sdkPath << "\n";
+    std::wcout << "  CMake path: " << context.cmakePath << "\n";
     task.SetProgress(1.0f);
+
     return {};
 }
 
@@ -531,6 +564,7 @@ void TryExecute(const std::vector<std::string>& tokens,
                 std::unordered_map<std::string, Editor::CommandTaskFN>& executors,
                 Editor::Context& context)
 {
+    std::cout << "======== (" << std::this_thread::get_id() << ")\n";
     if (tokens.size() > 0)
     {
         const auto command = tokens[0];
@@ -543,6 +577,8 @@ void TryExecute(const std::vector<std::string>& tokens,
             // We could poll the task, but for now:
 
             const auto ret = et.Result();
+
+            std::cout << "========\n";
 
             if (ret.has_value())
             {
@@ -655,10 +691,14 @@ int main()
     executors["createProject"] = CreateProject;
     executors["cproj"] = CreateProject;
 
+    executors["help"] = Help;
+    executors["h"] = Help;
+
     // TODO: Read this from an editor settings file
     Editor::Context context;
     context.gameTemplatePath = L"C:\\Users\\andra\\source\\repos\\Engine\\game-template";
     context.sdkPath = L"C:\\Dev\\EngineSdk\\sdk";
+    context.CollectExecutorInfo(executors);
 
     const auto vsBundledCMakePath = GetVSBundledCmakePath();
     if (vsBundledCMakePath.has_value())
