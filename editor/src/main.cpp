@@ -391,7 +391,7 @@ Editor::CommandReturnType Help([[maybe_unused]] const std::vector<std::string>& 
     for (const auto& key : keys)
     {
         const auto& cmd = context.editorCommands[key];
-        std::cout << key << "\n";
+        std::cout << key << "   -   " << cmd<< "\n";
         task.SetProgress(cmdIndex / totalCmdCount);
         cmdIndex += 1.0f;
     }
@@ -561,7 +561,7 @@ Editor::CommandReturnType Echo(const std::vector<std::string>& commandAndArgumen
 
 
 void TryExecute(const std::vector<std::string>& tokens, 
-                std::unordered_map<std::string, Editor::CommandTaskFN>& executors,
+                std::unordered_map<std::string, Editor::EditorCommand>& executors,
                 Editor::Context& context)
 {
     std::cout << "======== (" << std::this_thread::get_id() << ")\n";
@@ -571,7 +571,7 @@ void TryExecute(const std::vector<std::string>& tokens,
         auto executor = executors.find(command);
         if (executor != executors.end())
         {
-            const auto& fn = executor->second;
+            const auto& fn = executor->second.commandFunction;
             Editor::EditorTask et(fn, tokens, context);
 
             // We could poll the task, but for now:
@@ -677,28 +677,31 @@ std::expected<std::wstring, std::wstring> GetVSBundledCmakePath()
 
 int main()
 {
+    std::unordered_map<std::string, Editor::EditorCommand> executors_;
     std::unordered_map<std::string, Editor::CommandTaskFN> executors;
-    executors["echo"] = Echo;
 
-    executors["c"] = Cls;
-    executors["cls"] = Cls;
-    executors["clear"] = Cls;
-    executors["q"] = Quit;
-    executors["quit"] = Quit;
+    executors_["echo"] = { Echo, "Log to console" };
 
-    executors["status"] = Status;
+    executors_["c"] = { Cls, "Clear screen" };
+    executors_["cls"] = { Cls, "Clear screen" };
+    executors_["clear"] = { Cls, "Clear screen" };
 
-    executors["createProject"] = CreateProject;
-    executors["cproj"] = CreateProject;
+    executors_["q"] = { Quit, "Quit the editor" };
+    executors_["quit"] = { Quit, "Quit the editor" };
 
-    executors["help"] = Help;
-    executors["h"] = Help;
+    executors_["status"] = { Status, "Print status" };
+
+    executors_["createProject"] = { CreateProject, "Create project" };
+    executors_["cproj"] = { CreateProject, "Create project" };
+
+    executors_["help"] = { Help, "Print list of commands" };
+    executors_["h"] = { Help, "Print list of commands" };
 
     // TODO: Read this from an editor settings file
     Editor::Context context;
     context.gameTemplatePath = L"C:\\Users\\andra\\source\\repos\\Engine\\game-template";
     context.sdkPath = L"C:\\Dev\\EngineSdk\\sdk";
-    context.CollectExecutorInfo(executors);
+    context.CollectExecutorInfo(executors_);
 
     const auto vsBundledCMakePath = GetVSBundledCmakePath();
     if (vsBundledCMakePath.has_value())
@@ -719,7 +722,7 @@ int main()
         std::getline(std::cin, command);
         const auto tokens = Split(command);
 
-        TryExecute(tokens, executors, context);
+        TryExecute(tokens, executors_, context);
     }
 
     return 0;

@@ -13,7 +13,7 @@ import std;
 
 namespace Editor
 {
-	void Context::CollectExecutorInfo(const std::unordered_map<std::string, CommandTaskFN>& executors)
+	void Context::CollectExecutorInfo(const std::unordered_map<std::string, EditorCommand>& executors)
 	{
 		editorCommands.clear();
 
@@ -22,7 +22,7 @@ namespace Editor
 			editorCommands.insert(std::pair<std::string, std::string>
 			{
 				executor.first,
-				"TBA" // TODO: add command description
+				executor.second.description
 			});
 		}
 	}

@@ -17,6 +17,12 @@ namespace Editor
     export typedef std::expected<void, std::string> CommandReturnType;
     export typedef std::function<CommandReturnType(const std::vector<std::string>&, Context&, IEditorTask&)> CommandTaskFN;
 
+    export struct EditorCommand
+    {
+        CommandTaskFN commandFunction;
+        std::string description;
+    };
+
     export struct Context
     {
         std::wstring gameTemplatePath{ L"" };
@@ -26,7 +32,7 @@ namespace Editor
 
         std::unordered_map<std::string, std::string> editorCommands;
 
-        void CollectExecutorInfo(const std::unordered_map<std::string, Editor::CommandTaskFN>& executors);
+        void CollectExecutorInfo(const std::unordered_map<std::string, Editor::EditorCommand>& executors);
     };
 
     export struct IEditorTask
