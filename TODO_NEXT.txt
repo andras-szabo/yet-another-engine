@@ -1,4 +1,28 @@
 TODO next:
+
+= finish AssetDatabase::Populate
+
+
+Asset database:
+  - implement "AssetDatabase::PopulateFromFolder", leave it open for future
+    partial importing, where you can filter which folders to _actually_ open.
+	- save previous maps so that on exception or error we can restore them
+	- clear the current maps
+    	- recursively walk the (filtered) path tree.
+		- for each source file:
+			- check if a corresponding meta file is present.
+				- if it is not, create one
+			=> so now we have a source asset and a meta file.
+			   Check if there's a GUID clash. If there is, log a warning,
+			   then generate a new GUID; log a warning, and save the
+			   change (that a new GUID was generated for asset X) in some
+			   structure keeping track of how successful the import was.
+	- log the "this is what happened on import" thing
+
+  - expose AssetDatabase as an engine-core service.
+
+----
+
   o Editor starts running in an endless loop, waiting for a console command.
   o If the command is "quit", we stop.
   ... If the command is "createProject <path/to/project/folder>":

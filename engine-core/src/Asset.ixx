@@ -4,7 +4,7 @@ export module Asset;
 
 namespace Engine
 {
-	enum class AssetType
+	export enum class AssetType
 	{
 		Undefined = 0,
 
