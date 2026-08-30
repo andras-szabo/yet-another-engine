@@ -696,6 +696,8 @@ int main()
 
     executors_["help"] = { Help, "Print list of commands" };
     executors_["h"] = { Help, "Print list of commands" };
+    executors_["l"] = { Help, "Print list of commands" };
+    executors_["list"] = { Help, "Print list of commands" };
 
     // TODO: Read this from an editor settings file
     Editor::Context context;
