@@ -2,7 +2,12 @@ TODO next:
 
 = finish AssetDatabase::Populate
 
+- attach .meta to the extension: "PXL_123.jpg.meta" &c; so that should solve
+  the multiple asset names (bar the exception) problem
 
+- hook up editor progress into pop_adb somehow?
+
+----
 Asset database:
   - implement "AssetDatabase::PopulateFromFolder", leave it open for future
     partial importing, where you can filter which folders to _actually_ open.

@@ -370,6 +370,22 @@ std::vector<std::string> Split(const std::string& str)
     return tokens;
 }
 
+Editor::CommandReturnType PopulateAssetDatabase(
+    [[maybe_unused]] const std::vector<std::string>& commandAndArguments,
+    [[maybe_unused]] Editor::Context& context,
+    Editor::IEditorTask& task)
+{
+    task.SetProgress(0.0f);
+
+    auto& assetDatabase = Engine::EngineInstance::GetAssetDatabase();
+
+    const auto contextState = context.GetCurrentState();
+    assetDatabase.PopulateFromFolder(contextState.projectPath);
+
+    task.SetProgress(1.0f);
+    return {};
+}
+
 Editor::CommandReturnType Help([[maybe_unused]] const std::vector<std::string>& commandAndArguments,
     [[maybe_unused]] Editor::Context& context,
     Editor::IEditorTask& task)
@@ -413,7 +429,7 @@ Editor::CommandReturnType Quit([[maybe_unused]] const std::vector<std::string>& 
     Editor::Context& context,
     Editor::IEditorTask& task)
 {
-    context.isQuitRequested = true;
+    context.RequestQuit();
     task.SetProgress(1.0f);
     return {};
 }
@@ -424,10 +440,15 @@ Editor::CommandReturnType Status([[maybe_unused]] const std::vector<std::string>
 {
     std::cout << "Editor context:\n";
     task.SetProgress(0.5f);
-    std::cout << "  Quit requested? " << context.isQuitRequested << "\n";
-    std::wcout << "  Game template path: " << context.gameTemplatePath << "\n";
-    std::wcout << "  SDK path: " << context.sdkPath << "\n";
-    std::wcout << "  CMake path: " << context.cmakePath << "\n";
+
+    const auto state = context.GetCurrentState();
+
+    std::cout << "  Quit requested? " << state.isQuitRequested << "\n";
+    std::wcout << "  Game template path: " << state.gameTemplatePath << "\n";
+    std::wcout << "  SDK path: " << state.sdkPath << "\n";
+    std::wcout << "  CMake path: " << state.cmakePath << "\n";
+    std::wcout << "  Project path: " << state.projectPath << "\n";
+
     task.SetProgress(1.0f);
 
     return {};
@@ -463,8 +484,10 @@ Editor::CommandReturnType CreateProject(const std::vector<std::string>& commandA
     
     std::cout << "OK, folder created, now to copy files...\n";
     
+    const auto contextState = context.GetCurrentState();
+
     // Copy "src" folder
-    fs::path gameTemplateFolderPath{ context.gameTemplatePath };
+    fs::path gameTemplateFolderPath{ contextState.gameTemplatePath };
 
     fs::copy_options options{ fs::copy_options::recursive };
 
@@ -494,8 +517,8 @@ Editor::CommandReturnType CreateProject(const std::vector<std::string>& commandA
     std::cout << "...done!\n";
     std::cout << "Now generating project...\n";
 
-    const std::wstring cmakePathWithSpaces = std::format(L"\"{}\"", context.cmakePath);
-    std::wstring cmdLine{ cmakePathWithSpaces + L" -B build -G \"Visual Studio 17 2022\" -DENGINE_CORE_SDK_DIR=" + context.sdkPath };
+    const std::wstring cmakePathWithSpaces = std::format(L"\"{}\"", contextState.cmakePath);
+    std::wstring cmdLine{ cmakePathWithSpaces + L" -B build -G \"Visual Studio 17 2022\" -DENGINE_CORE_SDK_DIR=" + contextState.sdkPath };
     
     STARTUPINFOW startupInfo{};
     startupInfo.cb = sizeof(startupInfo);
@@ -505,7 +528,7 @@ Editor::CommandReturnType CreateProject(const std::vector<std::string>& commandA
     const auto workingPath = projectFolderPath.wstring();
 
     if (!CreateProcessW(
-        context.cmakePath.data(),                
+        contextState.cmakePath.data(),                
         cmdLine.data(),
         nullptr,
         nullptr,
@@ -531,6 +554,8 @@ Editor::CommandReturnType CreateProject(const std::vector<std::string>& commandA
     }
 
     std::cout << "...Done!\n";
+
+    context.SetProjectPath(projectFolderPath.wstring());
     
     return {};
 }
@@ -699,25 +724,34 @@ int main()
     executors_["l"] = { Help, "Print list of commands" };
     executors_["list"] = { Help, "Print list of commands" };
 
+    executors_["adb_pop"] = { PopulateAssetDatabase, "Populate asset database" };
+
     // TODO: Read this from an editor settings file
     Editor::Context context;
-    context.gameTemplatePath = L"C:\\Users\\andra\\source\\repos\\Engine\\game-template";
-    context.sdkPath = L"C:\\Dev\\EngineSdk\\sdk";
+
+    Editor::ContextState contextState;
+    contextState.gameTemplatePath = L"C:\\Users\\andra\\source\\repos\\Engine\\game-template";
+    contextState.sdkPath = L"C:\\Dev\\EngineSdk\\sdk";
+    contextState.projectPath = L"C:\\Users\\andra\\source\\Foo";
+
     context.CollectExecutorInfo(executors_);
 
     const auto vsBundledCMakePath = GetVSBundledCmakePath();
     if (vsBundledCMakePath.has_value())
     {
         std::wcout << "Awesome!; cmake path: " << vsBundledCMakePath.value() << "\n";
-        context.cmakePath = vsBundledCMakePath.value();
+        contextState.cmakePath = vsBundledCMakePath.value();
     }
     else
     {
         std::wcout << "Failed to get VS-bundled cmake path. Error: " << vsBundledCMakePath.error() << "\n";
     }
 
+    context.SetState(contextState);
 
-    while (!context.isQuitRequested)
+    Engine::EngineInstance::Initialize(std::make_unique<Engine::ComponentStorage>());
+
+    while (!context.IsQuitRequested())
     {
         std::string command;
         std::cout << "Editor ready; command? ";

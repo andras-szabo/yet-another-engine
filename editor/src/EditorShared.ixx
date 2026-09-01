@@ -3,6 +3,7 @@ module;
 export module EditorShared;
 
 #if defined ( __INTELLISENSE__ )
+#include <mutex>
 #include <string>
 #else
 #endif
@@ -23,16 +24,30 @@ namespace Editor
         std::string description;
     };
 
-    export struct Context
+    export struct ContextState
     {
         std::wstring gameTemplatePath{ L"" };
         std::wstring sdkPath{ L"" };
         std::wstring cmakePath{ L"" };
+        std::wstring projectPath{ L"" };
         bool isQuitRequested{ false };
+    };
 
+    export struct Context
+    {
         std::unordered_map<std::string, std::string> editorCommands;
-
         void CollectExecutorInfo(const std::unordered_map<std::string, Editor::EditorCommand>& executors);
+        void SetProjectPath(std::wstring_view projectPath);
+
+        ContextState GetCurrentState();
+        void SetState(const ContextState& state);
+
+        bool IsQuitRequested();
+        void RequestQuit();
+
+    private:
+        std::mutex _contextLock;
+        ContextState _state;
     };
 
     export struct IEditorTask

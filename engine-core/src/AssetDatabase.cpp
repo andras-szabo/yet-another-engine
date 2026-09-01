@@ -2,14 +2,17 @@ module;
 
 #include <cassert>
 #include "engine_core_api.h"
+#include "LoggerMacros.h"
 
 module AssetDatabase;
 
 #if defined ( __INTELLISENSE__ )
 #include "AssetDatabase.ixx"
 #include "DataFile.ixx"
+#include "Logger.ixx"
 #else
 import DataFile;
+import Logger;
 import std;
 #endif
 
@@ -79,17 +82,19 @@ namespace Engine
 
 		for (const auto& entry : fs::recursive_directory_iterator(path))
 		{
+			LOG_TRACE("Path: {}", entry.path().string());
+
 			if (DoesMatchFilter(entry))
 			{
 				const auto assetType = IsAssetFile(entry);
 				if (assetType != AssetType::Undefined)
 				{
-					// TODO
-					//		- check if there's a corresponding .meta file, and create one if not
-					//		- then add it to the maps
-
-					// TODO what if there are assets called the same,
-					// but w/ different extensions :(
+					const std::string assetPath = entry.path().string();
+					if (guidsByPath.find(assetPath) != guidsByPath.end())
+					{
+						LOG_ERROR("Asset path has multiple associated GUIDs. {}", assetPath);
+						continue;
+					}
 
 					fs::path metaFilePath {};
 					Engine::GUID guid = Engine::GUID::Invalid();
@@ -103,18 +108,34 @@ namespace Engine
 						Engine::AssetType serializedAssetType{ Engine::AssetType::Undefined };
 						if (!TryExtractGuidAndAssetTypeFromMetaFile(metaFilePath, guid, serializedAssetType))
 						{
-							return Engine::Unexpected{ Engine::Error { Engine::ErrorType::File, "Guid collision!" } };
+							LOG_ERROR("Asset meta file looks broken. {}", metaFilePath.string());
+							continue;
 						}
 
-						// TODO:
-						// if the serialized asset type is different to the actual one,
-						// maybe log a warning?
+						if (serializedAssetType != assetType)
+						{
+							LOG_ERROR("Asset meta file type mismatch. {} actual: {}, expected: {}", assetPath,
+								AssetTypeToString(assetType),
+								AssetTypeToString(serializedAssetType));
+							continue;
+						}
 					}
 
-					// So now we have a guid and an asset type;
-					// now to check that the guid is indeed unique in the map...
+					const auto existingPath = pathsByGuid.find(guid);
+					if (existingPath != pathsByGuid.end())
+					{
+						const auto existingPathAsString = existingPath->first;
+						LOG_ERROR("Asset GUID collision. {} and {} share the same GUID.",
+							existingPathAsString, 
+							assetPath);
 
-					//TODO
+						continue;
+					}
+
+					LOG_INFO("Asset file added to database: {} ({}) -> {}", assetPath, AssetTypeToString(assetType), guid);
+
+					pathsByGuid.emplace(guid, assetPath);
+					guidsByPath.emplace(assetPath, guid);
 				}
 			}
 		}
@@ -123,6 +144,18 @@ namespace Engine
 		_impl->guidsByPath = std::move(guidsByPath);
 
 		return {};
+	}
+
+	std::string AssetDatabase::AssetTypeToString(AssetType t) const
+	{
+		switch (t)
+		{
+			case AssetType::Scene:		return "Scene";
+			case AssetType::StaticMesh:	return "Static Mesh";
+			case AssetType::Texture:	return "Texture";
+		}
+
+		return "Undefined";
 	}
 
 	bool AssetDatabase::DoesMatchFilter(const std::filesystem::directory_entry& directoryEntry) const
@@ -138,8 +171,10 @@ namespace Engine
 
 		Engine::DataFile out;
 
-		out["GUID"].SetULong(guid.id);
-		out["Type"].SetInt(static_cast<int>(assetType));
+		out["Data"].SetULong(guid.id, 0);
+		out["Data"].SetInt(static_cast<int>(assetType), 1);
+		out["Data"].SetString(AssetTypeToString(assetType), 2);
+
 		// TODO other things
 
 		Engine::DataFile::Serialize(out, metaFilePath.string());
@@ -156,8 +191,8 @@ namespace Engine
 		{
 			const auto& value = meta.value();
 
-			guid = value["GUID"].GetULong();
-			type = static_cast<Engine::AssetType>(value["Type"].GetInt());
+			guid = value["Data"].GetULong();
+			type = static_cast<Engine::AssetType>(value["Data"].GetInt(1));
 
 			return true;
 

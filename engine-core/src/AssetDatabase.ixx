@@ -29,10 +29,11 @@ namespace Engine
 					std::make_pair(std::wstring {L".scene"}, Engine::AssetType::Scene),		// TODO
 					std::make_pair(std::wstring {L".fbx"}, Engine::AssetType::StaticMesh),	// TODO
 					std::make_pair(std::wstring {L".png"}, Engine::AssetType::Texture),
+					std::make_pair(std::wstring {L".jpg"}, Engine::AssetType::Texture),
 					// TODO
 				})
 			{
-				assetTypesByExtension.emplace(extension, Engine::AssetType::Undefined);
+				assetTypesByExtension.emplace(extension, type);
 			}
 		}
 
@@ -66,6 +67,7 @@ namespace Engine
 		bool DoesMetaFileExist(const std::filesystem::directory_entry& directoryEntry, std::filesystem::path& metaFilePath) const;
 		Engine::GUID CreateMetaFile(Engine::AssetType assetType, const std::filesystem::path& metaFilePath) const;
 		bool TryExtractGuidAndAssetTypeFromMetaFile(const std::filesystem::path& metaFilePath, Engine::GUID& guid, Engine::AssetType& type) const;
+		std::string AssetTypeToString(Engine::AssetType assetType) const;
 	};
 
 } // namespace Engine
