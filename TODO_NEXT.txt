@@ -2,8 +2,9 @@ TODO next:
 
 = finish AssetDatabase::Populate
 
-- attach .meta to the extension: "PXL_123.jpg.meta" &c; so that should solve
-  the multiple asset names (bar the exception) problem
+- add a console command to open a project
+	- which I think will force us to save a project as well,
+	  i.e. a some_project.datafile or something
 
 - hook up editor progress into pop_adb somehow?
 
@@ -44,4 +45,8 @@ Asset database:
 		=> 1.) confirm that this works:
 			o call cproj and confirm it creates the folder
 			o run the cmdline above and see what happens.
+
+DONE:
+- attach .meta to the extension: "PXL_123.jpg.meta" &c; so that should solve
+  the multiple asset names (bar the exception) problem
 
