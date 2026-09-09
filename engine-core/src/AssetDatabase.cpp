@@ -105,12 +105,15 @@ namespace Engine
 					}
 					else
 					{
+						LOG_INFO("Meta file exists...");
 						Engine::AssetType serializedAssetType{ Engine::AssetType::Undefined };
 						if (!TryExtractGuidAndAssetTypeFromMetaFile(metaFilePath, guid, serializedAssetType))
 						{
 							LOG_ERROR("Asset meta file looks broken. {}", metaFilePath.string());
 							continue;
 						}
+
+						LOG_INFO("Meta file has type and GUID");
 
 						if (serializedAssetType != assetType)
 						{
@@ -229,7 +232,9 @@ namespace Engine
 		const fs::path metaExtension{ ".meta" };
 
 		metaFilePath = directoryEntry.path();
-		metaFilePath.replace_extension(metaExtension);
+		metaFilePath.concat(metaExtension.string());
+
+		LOG_INFO(metaFilePath.string());
 
 		return fs::exists(metaFilePath);
 	}
