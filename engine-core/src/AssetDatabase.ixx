@@ -21,6 +21,13 @@ import std;
 
 namespace Engine
 {
+	/// <summary>
+	/// A function that, given a path, reads the file, and turns it into some kind of
+	/// deserialized blob of data, which you'll be able to cast to a specific type of
+	/// asset with static_pointer_cast.
+	/// </summary>
+	export using AssetLoaderFn = std::shared_ptr<void>(*)(const std::string_view path);
+
 	struct AssetDatabase_Impl
 	{
 		AssetDatabase_Impl()
@@ -40,6 +47,10 @@ namespace Engine
 		std::unordered_map<Engine::GUID, std::string> pathsByGuid;
 		std::unordered_map<std::string, Engine::GUID> guidsByPath;
 		std::unordered_map<std::wstring, Engine::AssetType> assetTypesByExtension;
+
+	private:
+		std::unordered_map<Engine::GUID, std::shared_ptr<void>> _loadedAssets;
+		std::unordered_map<unsigned int, AssetLoaderFn> _loaderFunctions;
 	};
 
 	export class ENGINE_CORE_API AssetDatabase
