@@ -1,5 +1,25 @@
 TODO next:
 
+- implement the following:
+  - AssetRef<T> has a simple API:
+  	- is loaded?
+	- load
+		=> asks the asset db to load the asset,
+		   and "increments ref count"
+		=> needs to be atomic, so that only one asset ref
+		   calls "lock" on the weak ptr
+
+	bool unload
+		=> asks the asset db to decrement the ref count,
+		which might or might not lead to the asset unloaded
+		(return value could tell you if the asset is still
+		in memory; assetDB might decide to prune the expired
+		weak_ptr in this case)
+
+  - make sure that AssetRef doesn't try to serialize weak_ptr
+  (See Copilot session on Sept. 27, between 7 and 8 AM)
+
+
 = finish AssetDatabase::Populate
 
 - add a console command to open a project

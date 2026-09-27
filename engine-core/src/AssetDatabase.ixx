@@ -48,9 +48,62 @@ namespace Engine
 		std::unordered_map<std::string, Engine::GUID> guidsByPath;
 		std::unordered_map<std::wstring, Engine::AssetType> assetTypesByExtension;
 
+		Engine::Expected<void> RegisterAssetLoader(const std::wstring& extension, AssetLoaderFn loaderFn)
+		{
+			if (_loaderFunctionsByExtension.find(extension) != _loaderFunctionsByExtension.end())
+			{
+				return Engine::Unexpected({ Engine::ErrorType::Undefined, "An asset loader is already registered for this extension." });
+			}
+
+			_loaderFunctionsByExtension[extension] = loaderFn;
+			return {};
+		}
+
+		Engine::Expected<std::weak_ptr<void>> LoadAsset(const std::string_view path, Engine::AssetType assetType)
+		{
+			const auto loadedGuid = guidsByPath.find(std::string(path));
+
+			if (loadedGuid != guidsByPath.end())
+			{
+				const auto guid = loadedGuid->second;
+				const auto loadedAssetIt = _loadedAssetsByGUID.find(guid);
+
+				if (loadedAssetIt != _loadedAssetsByGUID.end())
+				{
+					return loadedAssetIt->second.lock();
+				}
+			}
+
+			const auto extension = std::filesystem::path(path).extension();
+			const auto loaderIt = _loaderFunctionsByExtension.find(extension);
+			if (loaderIt == _loaderFunctionsByExtension.end())
+			{
+				return Engine::Unexpected({ Engine::ErrorType::Undefined, "No loader function registered for this file extension." });
+			}
+
+			const auto& loaderFn = loaderIt->second;
+			const std::shared_ptr<void> loadedAssetPtr = loaderFn(path);
+			if (!loadedAssetPtr)
+			{
+				return Engine::Unexpected({ Engine::ErrorType::Undefined, "Failed to load asset." });
+			}
+
+			// Store the loaded asset in the map
+			const auto guidIt = guidsByPath.find(std::string(path));
+			if (guidIt == guidsByPath.end())
+			{
+				return Engine::Unexpected({ Engine::ErrorType::Undefined, "No GUID found for the given path." });
+			}
+
+			const auto guid = guidIt->second;
+			_loadedAssetsByGUID.insert_or_assign(guid, loadedAssetPtr);
+
+			return loadedAssetPtr;
+		}
+
 	private:
-		std::unordered_map<Engine::GUID, std::shared_ptr<void>> _loadedAssets;
-		std::unordered_map<unsigned int, AssetLoaderFn> _loaderFunctions;
+		std::unordered_map<Engine::GUID, std::weak_ptr<void>> _loadedAssetsByGUID;
+		std::unordered_map<std::wstring, AssetLoaderFn> _loaderFunctionsByExtension;
 	};
 
 	export class ENGINE_CORE_API AssetDatabase

@@ -64,3 +64,172 @@ describes it in the terms of the engine, with guids- ?
 
 
 Let's just do _something_, we can iterate on it later.
+
+======================================================
+Random early morning thoughts about this.
+So imagine we have a .txt file, which would correspond to some internal
+TextAsset. (It might be possible to create a TextAsset from a different
+kind of file as well, e.g. an rtf of what have you.)
+
+AssetDatabase finds the source asset file, and attaches a .meta file to describe it
+(is this the "importing"?).
+Say I want to load the asset, how do?
+	std::future<T*> AssetDatabase.LoadAsset<T>(guid);
+	  - look up the path in the map, make sure we have the meta file there too.
+	  - "T" could be a Texture2D, a TextAsset, an AnimationClip - or some user
+	    created / defined asset, so this needs to be expandable.
+	  - ok, so how will the asset database know what to do? and how will the
+	    asset database keep the data in a type erased way?
+	      - look for an asset loader method, using the asset's type ID. This
+	        is expected to take a path, and return a T*. Except that the
+		asset database wouldn't store the T*; it would save a void* for that
+		asset, and own that void* ptr.
+		Actually maybe it's better if AssetLoader<T> returns a void*, as that
+		will be the one to store; but it will also have a method to return
+		a T* from a void*, just static_cast<> ....?
+
+
+Maybe it's easier to work thru this with a concrete example. So say we have a source
+.txt file, we need to have a TextAsset, which is internally just a string. Actually,
+why would we have to have a TextAsset- what benefit does it give us that we don't
+have with std::string?
+
+shared_ptr<void> AssetLoader<std::string>::LoadFromPath(path)
+{
+	= open the file
+	= make_shared<std::string>
+	= populate said text
+	= return the ptr
+}
+
+Then, assetDatabase:
+- oh, jolly good, I have a shared_ptr<void>, so I can save that in my map of loaded
+  assets:
+  	unordered_map<GUID, shared_ptr<void>>
+
+- if someone asks for an std::string:
+shared_ptr<std::string> AssetDatabase::LoadAsset<std::string>(GUID)
+{
+	= ok, is this already loaded?
+	= if it is, jolly good, return it
+	= if not, look for the AssetLoader and load it,
+		but store it as a shared_ptr<void>
+
+	= then use std::static_pointer_cast<std::string>(stored_shared_ptr_to_void)
+	  to return the actual thing.
+}
+
+std::static_pointer_cast<T>(std::shared_ptr<U>): creates a new shared pointer, pointing
+  to a T, from an existing shared pointer, pointing to a U, by calling static_cast on the
+  stored pointer. The new shared pointer will share ownership with the existing one!,
+  so this is exactly what we need (see assetDbExperiments).
+
+
+Regarding the AssetRef class.
+- "Resolve" doesn't make sense to me. Why would I want to "resolve" that reference?
+  I want to load or unload the thing that is at the end of it.
+
+- So how about this:
+
+	using LoaderFunction = std::shared_ptr<void>(*)(const std::string&);
+	or
+	using LoaderFunction = std::shared_ptr<void>(*)(const std::string_view);
+
+	- AssetDatabase has:
+	  std::unordered_map<GUID, std::shared_ptr<void>> _loadedAssets;
+	  std::unordered_map<TypeID, LoaderFunction> _loaderFunctions;
+
+	  template <typename T>
+	  std::shared_ptr<void> DoLoadAsset(const std::string& path);
+
+	  template <typename T>
+	  void RegisterLoadFunction(LoaderFunction fn)
+	  {
+	  	_loaderFunctions.emplace(std::make_pair(GetTypeID<T>(), fn));
+	  }
+
+	  template <typename T>
+	  std::shared_ptr<void> DoLoadAsset(const string& path)
+	  {
+	  	auto ldFn = _loaderFunctions.find(GetTypeID<T>());
+		if (ldFn != _loaderFunctions.end())
+		{
+			return (*ldFn).second(path);
+		}
+
+		// handle error
+	  }
+
+
+// But what about multi threaded loading?
+- protect assetDB whereever needed
+- let AssetRef be not opinionated about this
+	- if you want to load multi threaded, launch a new task or something
+	- or, actually:
+		- what if this is the built-in?
+			AssetDB.StartLoading(assetRef); // fire-and-forget
+							// but then how to cancel,
+							// how to know when to
+							// unload?
+
+
+OK, baby steps, first thing, the assetDB itself,
+and creating the macro that registers the type.
+
+  OK, so should what exactly should "TypeID" mean? Is it a type as in "a scene",
+  or "a texture"; or a specific type such as "a texture from a .png file"?
+
+  I think it should be whatever the type that we want to extract from the AssetDB.
+  If we're interested in a scene, then it should be associated w/ the scene;
+  if we're interested in a texture, then it should be associated w/ a texture;
+  but the loader function should expect various different file extensions,
+  maybe?
+
+  So eg: say we have TextAsset, w/ a file ID.
+  The assetDB knows that there's "foo.txt", with a guid and a path associated with it,
+  and an Engine::AssetType::TextAsset. Jolly good.
+
+  Now, I have an AssetRef<TextAsset>, with a GUID. What if I want to load this?
+    -> Dear assetDB. Here is a GUID. Please load this asset for me.
+      -> AssetDB: OK, let's see. Do I have this GUID associated w/ a loaded asset?
+      	 => if yes: 
+	 	=> jolly good, I can return the shared_ptr to you immediately.
+	 => if not:
+	 	=> OK, let me look up the path for this asset, ok, found it.
+		Now, I need to open the file and read it, and convert it from
+		the raw data to a TextAsset, how should I do it?
+			=> There should be a function registered w/ assetDB
+			   that knows how to deserialize it:
+			   	TextAsset(*)(std::string_view) maybe?
+				or, hear me out, what if this already
+				returns a shared_ptr<void>?
+
+				I mean, the clue is in the name - _loader_ function?
+
+		=> So, if I have to load, then:
+			- look up the loader function
+			- invoke it, and save the shared_ptr in _loadedAssets
+			- return using static_pointer_cast to T
+
+    => now, what if you want to associate multiple file types with the asset loader?
+    E.g. we have a built-in one that creates TextAsset from .txt, but what if you want
+    to add one that creates one from .docx or whatevs?
+    	=> TextAssetLoader
+		.RegisterFileExtension(".docx", LoaderFunction)
+
+			=> but maybe that we can leave for a later exercise
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  	
