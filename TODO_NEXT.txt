@@ -13,11 +13,15 @@ TODO next:
 		=> asks the asset db to decrement the ref count,
 		which might or might not lead to the asset unloaded
 		(return value could tell you if the asset is still
-		in memory; assetDB might decide to prune the expired
+		in memory; assetDB might decid:we to prune the expired
 		weak_ptr in this case)
 
   - make sure that AssetRef doesn't try to serialize weak_ptr
   (See Copilot session on Sept. 27, between 7 and 8 AM)
+
+  =>  OK, implemented "is loaded", "load" and "release" on the assetDatabase,
+      instead of AssetRef, but the point is we now should have the functionality.
+
 
 
 = finish AssetDatabase::Populate

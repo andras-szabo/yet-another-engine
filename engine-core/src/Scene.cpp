@@ -99,23 +99,23 @@ namespace Engine
 		GameObject* Scene::CreateGameObject(IComponentStorage* componentStorage,
 			std::string_view name,
 			int parentNodeIndex,
-			unsigned long long guid)
+			unsigned long long _guid)
 		{
-			if (guid == 0)
+			if (_guid == 0)
 			{
-				guid = Engine::GUID().id;
+				_guid = Engine::GUID().id;
 			}
 
-			return _impl->CreateGameObject(componentStorage, name, parentNodeIndex, guid);
+			return _impl->CreateGameObject(componentStorage, name, parentNodeIndex, _guid);
 		}
 
 
 		GameObject* SceneImpl::CreateGameObject(IComponentStorage* componentStorage,
 			std::string_view name,
 			int parentNodeIndex,
-			unsigned long long guid)
+			unsigned long long _guid)
 		{
-			auto go = std::make_unique<GameObject>(name, guid);
+			auto go = std::make_unique<GameObject>(name, _guid);
 			auto transform = go->AddComponent<Engine::Transform>(componentStorage, &storage, name, parentNodeIndex);
 			go->SetTransform(transform);
 

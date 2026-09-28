@@ -54,7 +54,7 @@ namespace Engine
 			GameObject* CreateGameObject(IComponentStorage* componentStorage,
 				std::string_view name,
 				int parentNodeIndex = 0,
-				unsigned long long guid = 0);
+				unsigned long long _guid = 0);
 
 			void Clear();
 		};
@@ -92,7 +92,7 @@ namespace Engine
 			GameObject* CreateGameObject(IComponentStorage* storage,
 				std::string_view name,
 				int parentNodeIndex,
-				unsigned long long guid = 0);
+				unsigned long long _guid = 0);
 
 			GameObject* GetGameObject(std::size_t nodeIndex);
 			const std::vector<std::unique_ptr<GameObject>>& GetAllGameObjects() const;

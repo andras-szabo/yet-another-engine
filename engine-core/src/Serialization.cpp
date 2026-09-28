@@ -11,6 +11,7 @@ module Serialization;
 #include "IComponentStorage.ixx"
 #include "DataFile.ixx"
 #include "GameObject.ixx"
+#include "GUID.ixx"
 #include "Logger.ixx"
 #include "Math.ixx"
 #include "Reflection.ixx"
@@ -21,6 +22,7 @@ import ComponentRegistry;
 import IComponentStorage;
 import DataFile;
 import Error;
+import GUID;
 import Logger;
 import Math;
 import Reflection;
@@ -98,6 +100,12 @@ namespace Engine
 			{
 				const auto value = *reinterpret_cast<const Vec4*>(baseAsCharPtr + field.offset);
 				out[field.name].SetFloats(4, value.x, value.y, value.z, value.w);
+				break;
+			}
+			case FieldType::GUID:
+			{
+				const auto value = *reinterpret_cast<const GUID*>(baseAsCharPtr + field.offset);
+				out[field.name].SetULong(static_cast<unsigned long long>(value));
 				break;
 			}
 			}
@@ -190,6 +198,15 @@ namespace Engine
 
 				break;
 			}
+			case FieldType::GUID:
+			{
+				auto* g = reinterpret_cast<GUID*>(baseAsCharPtr + field.offset);
+
+				const auto df = in[field.name];
+				*g = GUID(df.GetULong(0));
+
+				break;
+			}
 			}
 		}
 	}
@@ -256,13 +273,13 @@ namespace Engine
 				// The root should already have been saved
 				if (nodeIndex > 0)
 				{
-					const auto guid = std::stoull(guidStr);		// The node (gameObject) guid
+					const auto _guid = std::stoull(guidStr);		// The node (gameObject) guid
 					const auto gameObjectName = nodes[guidStr].GetString();
 					const auto parentNodeIndex = hierarchies[nodeIndex].parent;
 					auto* go = scene.CreateGameObject(&componentStorage,
 						gameObjectName,
 						parentNodeIndex,
-						guid);
+						_guid);
 
 					const auto& componentTypeIDs = nodes[guidStr][KEY_COMPONENTS].GetChildrenNames();
 
@@ -334,8 +351,8 @@ namespace Engine
 		for (const auto& goPtr : nodePtrs)
 		{
 			const GameObject* go = goPtr.get();
-			const unsigned long long guid = go->GetGUID().id;
-			const std::string guidAsString = std::to_string(guid);
+			const unsigned long long _guid = go->GetGUID().id;
+			const std::string guidAsString = std::to_string(_guid);
 			const std::string goName = std::string{ go->GetName() };
 
 			nodes[guidAsString].SetString(goName);

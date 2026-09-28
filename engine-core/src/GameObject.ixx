@@ -39,7 +39,7 @@ namespace Engine
 	{
 	public:
 		GameObject();
-		GameObject(std::string_view name, unsigned long long guid = 0);
+		GameObject(std::string_view name, unsigned long long _guid = 0);
 		~GameObject();
 
 		std::string_view GetName() const;
@@ -60,7 +60,7 @@ namespace Engine
 		const std::vector<Component*> GetComponents() const;
 
 	private:
-		void SetGUID(GUID guid);
+		void SetGUID(GUID _guid);
 
 		GUID _guid;
 		Transform* _transform{ nullptr };

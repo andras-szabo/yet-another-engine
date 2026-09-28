@@ -69,10 +69,10 @@ namespace std
 			return _ulongFormatter.parse(ctx);
 		}
 
-		auto format(Engine::GUID guid, std::format_context& ctx) const
+		auto format(Engine::GUID _guid, std::format_context& ctx) const
 		{
 			auto out = ctx.out();
-			out = _ulongFormatter.format(guid.id, ctx);
+			out = _ulongFormatter.format(_guid.id, ctx);
 			return out;
 		}
 	};
@@ -80,9 +80,9 @@ namespace std
 	template<>
 	struct hash<Engine::GUID>
 	{
-		std::size_t operator()(const Engine::GUID& guid) const
+		std::size_t operator()(const Engine::GUID& _guid) const
 		{
-			return hash<unsigned long long>()(guid.id);
+			return hash<unsigned long long>()(_guid.id);
 		}
 	};
 }

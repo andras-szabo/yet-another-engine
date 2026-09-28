@@ -97,17 +97,17 @@ namespace Engine
 					}
 
 					fs::path metaFilePath {};
-					Engine::GUID guid = Engine::GUID::Invalid();
+					Engine::GUID _guid = Engine::GUID::Invalid();
 
 					if (!DoesMetaFileExist(entry, metaFilePath))
 					{
-						guid = CreateMetaFile(assetType, metaFilePath);
+						_guid = CreateMetaFile(assetType, metaFilePath);
 					}
 					else
 					{
 						LOG_INFO("Meta file exists...");
 						Engine::AssetType serializedAssetType{ Engine::AssetType::Undefined };
-						if (!TryExtractGuidAndAssetTypeFromMetaFile(metaFilePath, guid, serializedAssetType))
+						if (!TryExtractGuidAndAssetTypeFromMetaFile(metaFilePath, _guid, serializedAssetType))
 						{
 							LOG_ERROR("Asset meta file looks broken. {}", metaFilePath.string());
 							continue;
@@ -124,7 +124,7 @@ namespace Engine
 						}
 					}
 
-					const auto existingPath = pathsByGuid.find(guid);
+					const auto existingPath = pathsByGuid.find(_guid);
 					if (existingPath != pathsByGuid.end())
 					{
 						const auto existingPathAsString = existingPath->first;
@@ -135,10 +135,10 @@ namespace Engine
 						continue;
 					}
 
-					LOG_INFO("Asset file added to database: {} ({}) -> {}", assetPath, AssetTypeToString(assetType), guid);
+					LOG_INFO("Asset file added to database: {} ({}) -> {}", assetPath, AssetTypeToString(assetType), _guid);
 
-					pathsByGuid.emplace(guid, assetPath);
-					guidsByPath.emplace(assetPath, guid);
+					pathsByGuid.emplace(_guid, assetPath);
+					guidsByPath.emplace(assetPath, _guid);
 				}
 			}
 		}
@@ -170,11 +170,11 @@ namespace Engine
 	Engine::GUID AssetDatabase::CreateMetaFile(Engine::AssetType assetType,
 		const std::filesystem::path& metaFilePath) const
 	{
-		const Engine::GUID guid{};
+		const Engine::GUID _guid{};
 
 		Engine::DataFile out;
 
-		out["Data"].SetULong(guid.id, 0);
+		out["Data"].SetULong(_guid.id, 0);
 		out["Data"].SetInt(static_cast<int>(assetType), 1);
 		out["Data"].SetString(AssetTypeToString(assetType), 2);
 
@@ -182,11 +182,11 @@ namespace Engine
 
 		Engine::DataFile::Serialize(out, metaFilePath.string());
 
-		return guid;
+		return _guid;
 	}
 
 	bool AssetDatabase::TryExtractGuidAndAssetTypeFromMetaFile(const std::filesystem::path& metaFilePath, 
-		Engine::GUID& guid, 
+		Engine::GUID& _guid, 
 		Engine::AssetType& type) const
 	{
 		const auto meta = Engine::DataFile::Deserialize(metaFilePath.string());
@@ -194,7 +194,7 @@ namespace Engine
 		{
 			const auto& value = meta.value();
 
-			guid = value["Data"].GetULong();
+			_guid = value["Data"].GetULong();
 			type = static_cast<Engine::AssetType>(value["Data"].GetInt(1));
 
 			return true;
@@ -238,4 +238,116 @@ namespace Engine
 
 		return fs::exists(metaFilePath);
 	}
+
+	Engine::Expected<void> AssetDatabase_Impl::RegisterAssetLoader(const std::wstring& extension, 
+		AssetLoaderFn loaderFn)
+	{
+		if (_loaderFunctionsByExtension.find(extension) != _loaderFunctionsByExtension.end())
+		{
+			return Engine::Unexpected({ Engine::ErrorType::Undefined, "An asset loader is already registered for this extension." });
+		}
+
+		_loaderFunctionsByExtension[extension] = loaderFn;
+		return {};
+	}
+
+	Engine::Expected<std::shared_ptr<void>> AssetDatabase_Impl::LoadAsset(const Engine::GUID guid)
+	{
+		// If the asset is already loaded, jolly good, let's return it.
+		const auto loadedAssetIt = _loadedAssetsByGUID.find(guid);
+
+		if (loadedAssetIt != _loadedAssetsByGUID.end() && !loadedAssetIt->second.expired())
+		{
+			return loadedAssetIt->second.lock();
+		}
+
+		// Otherwise, let's find the path for the asset
+		const auto pathIt = pathsByGuid.find(guid);
+		if (pathIt == pathsByGuid.end())
+		{
+			return Engine::Unexpected({ Engine::ErrorType::File, "No path found for the given asset GUID." });
+		}
+
+		// ...and load it from there.
+		auto loadedAssetPtr = DoLoadAssetFromPath(pathIt->second);
+		if (!loadedAssetPtr.has_value())
+		{
+			return loadedAssetPtr;
+		}
+
+		_loadedAssetsByGUID.insert_or_assign(guid, loadedAssetPtr.value());
+		return loadedAssetPtr;
+	}
+
+	Engine::Expected<std::shared_ptr<void>> AssetDatabase_Impl::LoadAsset(const std::string_view path)
+	{
+		// Find associated GUID
+		const auto loadedGuid = guidsByPath.find(std::string(path));
+		Engine::GUID guid{};
+
+		if (loadedGuid == guidsByPath.end())
+		{
+			return Engine::Unexpected({ Engine::ErrorType::File, "No GUID found for the given asset path." });
+		}
+
+		guid = loadedGuid->second;
+
+		// Find already-loaded asset by guid, if present
+		auto loadedAssetIt = _loadedAssetsByGUID.find(guid);
+		if (loadedAssetIt != _loadedAssetsByGUID.end() && !loadedAssetIt->second.expired())
+		{
+			return loadedAssetIt->second.lock();
+		}
+
+		// If not present, load it from disk...
+		auto loadedAssetPtr = DoLoadAssetFromPath(path);
+		if (!loadedAssetPtr.has_value())
+		{
+			return loadedAssetPtr;
+		}
+
+		// ... and cache it before returning
+		_loadedAssetsByGUID.insert_or_assign(guid, loadedAssetPtr.value());
+		return loadedAssetPtr;
+	}
+
+	Engine::Expected<std::shared_ptr<void>> AssetDatabase_Impl::DoLoadAssetFromPath(const std::string_view path)
+	{
+		const auto extension = std::filesystem::path(path).extension();
+		const auto loaderIt = _loaderFunctionsByExtension.find(extension);
+
+		if (loaderIt == _loaderFunctionsByExtension.end())
+		{
+			return Engine::Unexpected({ Engine::ErrorType::Undefined, "No loader function registered for this file extension." });
+		}
+
+		const auto& loaderFn = loaderIt->second;
+		const std::shared_ptr<void> loadedAssetPtr = loaderFn(path);
+		if (!loadedAssetPtr)
+		{
+			return Engine::Unexpected({ Engine::ErrorType::Undefined, "Failed to load asset." });
+		}
+
+		return loadedAssetPtr;
+	}
+
+	bool AssetDatabase_Impl::IsAssetLoaded(const Engine::GUID guid) const
+	{
+		const auto loadedAssetIt = _loadedAssetsByGUID.find(guid);
+		return loadedAssetIt != _loadedAssetsByGUID.end() && !loadedAssetIt->second.expired();
+	}
+
+	bool AssetDatabase_Impl::ReleaseAsset(const Engine::GUID guid)
+	{
+		const auto loadedAssetIt = _loadedAssetsByGUID.find(guid);
+
+		if (loadedAssetIt != _loadedAssetsByGUID.end() && loadedAssetIt->second.expired())
+		{
+			_loadedAssetsByGUID.erase(loadedAssetIt);
+			return true;
+		}
+
+		return false;
+	}
+	
 } // namespace Engine

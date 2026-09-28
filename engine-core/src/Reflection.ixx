@@ -22,6 +22,7 @@ namespace Engine
         Vec3,
         Vec4,
         Quaternion,
+        GUID,
     };
 
     struct FieldDescriptor;

@@ -38,8 +38,8 @@ namespace Engine
 	{
 	}
 
-	GameObject::GameObject(std::string_view name, unsigned long long guid)
-		: _gimpl{ new GOImpl(name) }, _guid{ guid }
+	GameObject::GameObject(std::string_view name, unsigned long long _guid)
+		: _gimpl{ new GOImpl(name) }, _guid{ _guid }
 	{
 	}
 
