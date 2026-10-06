@@ -177,7 +177,11 @@ namespace Engine
 				const std::wstring fileNameW{ evt->FileName, name_len };
 				const std::string fileName = Engine::WideToUtf8(fileNameW);
 
-				FileChangeEvent chgEvent{ fileNameW, L"", FileChangeType::Undefined };
+
+				std::filesystem::path filePath{ _watchedDirectoryPath };
+				filePath /= fileName;
+
+				FileChangeEvent chgEvent{ filePath.wstring(), L"", FileChangeType::Undefined };
 
 				switch (evt->Action)
 				{
@@ -194,7 +198,7 @@ namespace Engine
 					break;
 
 				case FILE_ACTION_RENAMED_OLD_NAME:
-					oldName = fileNameW;
+					oldName = filePath.wstring();
 					break;
 
 				case FILE_ACTION_RENAMED_NEW_NAME:

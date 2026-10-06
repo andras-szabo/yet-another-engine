@@ -85,6 +85,9 @@ namespace Engine
 
 		void Update(std::span<const Engine::FileChangeEvent> fileChangeEvents);
 
+		Engine::Expected<void> TryAddNewAsset(const std::filesystem::directory_entry& entry);
+		Engine::Expected<void> TryRemoveAsset(const std::filesystem::directory_entry& entry);
+
 		template <typename T>
 		bool IsAssetLoaded(const AssetRef<T>& assetRef) const;
 
@@ -97,7 +100,9 @@ namespace Engine
 	private:
 		bool DoesMatchFilter(const std::filesystem::directory_entry& directoryEntry) const;
 		bool DoesMetaFileExist(const std::filesystem::directory_entry& directoryEntry, std::filesystem::path& metaFilePath) const;
-		Engine::GUID CreateMetaFile(Engine::AssetType assetType, const std::filesystem::path& metaFilePath) const;
+		Engine::GUID CreateMetaFile(Engine::AssetType assetType, 
+			const std::filesystem::path& metaFilePath,
+			std::optional<Engine::GUID> guid = std::nullopt) const;
 		bool TryExtractGuidAndAssetTypeFromMetaFile(const std::filesystem::path& metaFilePath, Engine::GUID& _guid, Engine::AssetType& type) const;
 		std::string AssetTypeToString(Engine::AssetType assetType) const;
 	};

@@ -27,6 +27,7 @@ namespace Engine
 	{
 		std::wstring path;
 		std::wstring oldPath;
+
 		FileChangeType type;
 	};
 
