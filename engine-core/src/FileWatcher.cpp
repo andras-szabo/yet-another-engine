@@ -79,21 +79,24 @@ namespace Engine
 
 	void FileWatcher::Teardown()
 	{
+		if (_changeBuffer)
+		{
+			delete[] _changeBuffer;
+			_changeBuffer = nullptr;
+		}
+
 		if (_handle != INVALID_HANDLE_VALUE)
 		{
 			CloseHandle(_handle);
+			_handle = INVALID_HANDLE_VALUE;
 		}
 
 		if (_overlappedIO.hEvent != NULL)
 		{
 			CloseHandle(_overlappedIO.hEvent);
+			_overlappedIO.hEvent = NULL;
 		}
-
-		delete[] _changeBuffer;
-
-		_handle = INVALID_HANDLE_VALUE;
-		_overlappedIO.hEvent = NULL;
-		_changeBuffer = nullptr;
+		
 		_isValid = false;
 	}
 
@@ -206,7 +209,7 @@ namespace Engine
 			}
 
 			auto evt = reinterpret_cast<FILE_NOTIFY_INFORMATION*>(_changeBuffer);
-			while (true && !fileDidChange)
+			while (!fileDidChange && evt)
 			{
 				const DWORD name_len = evt->FileNameLength / sizeof(wchar_t);
 				switch (evt->Action)

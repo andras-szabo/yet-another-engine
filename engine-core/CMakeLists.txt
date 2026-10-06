@@ -21,6 +21,7 @@ target_sources(engine-core
     src/ComponentStorage.cpp
     src/IComponentStorage.cpp
     src/DataFile.cpp
+    src/DirectoryWatcher.cpp
     src/DllLoader.cpp
     src/EngineError.cpp
     src/EngineInstance.cpp
@@ -42,6 +43,7 @@ target_sources(engine-core
       src/IComponentStorage.ixx
       src/ComponentStorage.ixx
       src/DataFile.ixx
+      src/DirectoryWatcher.ixx
       src/DllLoader.ixx
       src/EngineCore.ixx
       src/EngineError.ixx

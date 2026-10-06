@@ -9,6 +9,7 @@
 // Import the engine-core module.
 // Once engine-core exports real symbols, they will be available here.
 #if defined ( __INTELLISENSE__ )
+#include "../../engine-core/src/DirectoryWatcher.ixx"
 #include "../../engine-core/src/EngineError.ixx"
 #include "../../engine-core/src/EngineInstance.ixx"
 #include "../../engine-core/src/FileWatcher.ixx"
@@ -699,6 +700,18 @@ std::expected<std::wstring, std::wstring> GetVSBundledCmakePath()
     return output;
 }
 
+void PollDirectoryChanges(Editor::Context& context)
+{
+	LOG_INFO("Starting directory watcher thread...");
+	auto watcher = Engine::DirectoryWatcher{ context.GetCurrentState().projectPath };
+
+	while (!context.IsQuitRequested())
+	{
+        watcher.Poll();
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	}
+}
+
 
 int main()
 {
@@ -751,6 +764,12 @@ int main()
 
     Engine::EngineInstance::Initialize(std::make_unique<Engine::ComponentStorage>());
 
+	// Start a thread to poll for directory changes
+    std::cout << "\n";
+	std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::thread directoryWatcherThread(PollDirectoryChanges, std::ref(context));
+	std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
     while (!context.IsQuitRequested())
     {
         std::string command;
@@ -760,6 +779,8 @@ int main()
 
         TryExecute(tokens, executors_, context);
     }
+
+	directoryWatcherThread.join();
 
     return 0;
 }

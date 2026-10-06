@@ -1,5 +1,104 @@
 TODO next:
 
+- P5-04: Implement a directory-level file watcher (ReadDirectoryChangesW), to detect
+  asset additions / modifications / deletions.
+
+  * Context: FileWatcher.ixx already wraps ReadDirectoryChangesW, but it's hard-coded
+    to watch one directory for one known target filename (built for DLL hot-reload,
+    P4-04) -- it can't currently watch an entire asset tree, or report which of many
+    files changed.
+
+  * Why: Asset hot-reload needs to observe an entire (possibly nested) asset folder
+    and distinguish add/modify/delete/rename per file, not poll a single known filename.
+  
+  * Approach: Don't repurpose FileWatcher in place. Add a new DirectoryWatcher that
+    parses the full FILE_NOTIFY_INFORMATION buffer into a list of (relative path,
+    change kind) entries per Poll(), reusing the existing non-blocking OVERLAPPED
+    pattern for consistency with P4-04. Feed results into AssetDatabase: a rename
+    should look up th existing .meta and preserve the GUID, not mint a new one.
+
+
+- ReadDirectoryChangesW:
+  - in winbase.h
+  - Retrieves information that describes the changes within the specified directory.
+    The function does not report changes to the specified directory itself.
+
+  - Syntax:
+    BOOL ReadDirectoryChangesW(
+    	[in] HANDLE hDirectory,
+	[out] LPVOID lpBuffer,
+	[in] DWORD nBufferLength,
+	[in] BOOL bWatchSubtree,
+	[in] DWORD dwNotifyFilter,
+	[out, optional] LPDWORD lpBytesReturned,
+	[in, out, optional] LPOVERLAPPED lpOverlapped,
+	[in, optional] LPOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine);
+
+    hDirectory: A handle to the directory monitored. Must be opened with FILE_LIST_DIRECTORY
+                access right, or an access right such as GENERIC_READ that includes that.
+
+    lpBuffer: A pointer to the DWORD-aligned formatted buffer in which read results are
+	      to be returned. The structure of this buffer is defined by the
+	      FILE_NOTIFY_INFORMATION structure. This buffer is filled either sync or
+	      async, depending on how the directory is opened and what value is given to
+	      the lpOverlapped parameter.
+
+    nBufferLength: The size of the buffer pointed to by lpBuffer, in bytes.
+
+    bWatchSubtree: if TRUE, the function monitors the directory tree rooted at the specified
+    		   directory. If FALSE, the function monitors only the directory specified
+		   by the hDirectory parameter.
+
+    dwNotifyFilter: The filter criteria that the function checks to determine if the wait op
+    		    has completed. This is to be read as a bitfield, and I think we need:
+		    FILE_NOTIFY_CHANGE_FILE_NAME (1) |
+		    FILE_NOTIFY_CHANGE_DIR_NAME (2) |
+		    FILE_NOTIFY_CHANGE_SIZE (8) |
+		    FILE_NOTIFY_CHANGE_LAST_WRITE (16) |
+		    FILE_NOTIFY_CHANGE_CREATION (64)
+
+    lpBytesReturned: For synchronous calls, this param receives the number of bytes
+    		     transferred into the lpBuffer parameter. For async calls, this param
+		     is undefined. You must use an async notification technique to
+		     retrieve the # of bytes transferred.
+
+    lpOverlapped: A pointer to an OVERLAPPED structure that supplies data to be used
+    		  during async operation. Otherwise, this value is NULL.
+
+    lpCompletionRoutine: A pointer to a completion routine to be called when the op has been
+    			 completed or canceled and the calling thread is in an alertable
+			 wait state. For more info, see FileIOCompletionRoutine.
+
+    Return value: if the function succeeds, the return value is nonzero. For async calls,
+    		  this means that the op was successfully queued. If the function fails,
+		  the return value is 0; call GetLastError if interested.
+
+
+    Remarks:
+      - to obtain a handle to a directory, use the CreateFile function with the
+        FILE_FLAG_BACKUP_SEMANTICS flag. To open it async, additionally specify
+	FILE_FLAG_OVERLAPPED.
+
+      - When you first call ReadDirectoryChangesW, the system allocates a buffer to store
+        change info. This buffer is associated with the directory handle until it is closed,
+	and its size does not change during its lifetime. Directory changes that occur
+	between calls to this function are added to the buffer and returned with the next
+	call. If the buffer overflows, ReadDirectoryChangesW will still return true,
+	but the entire contents of the buffer are discared and the lpBytesReturned param
+	will be zero, which indicates that your buffer was too small.
+
+      - For async completion, you can receive notification in one of three ways.
+
+        - using the GetOverlappedResult function.
+	- using the GetQueuedCompletionStatus function.
+	- using a completion routine.
+
+
+
+
+
+
+
 - implement the following:
   - AssetRef<T> has a simple API:
   	- is loaded?
