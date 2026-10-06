@@ -39,6 +39,10 @@ namespace Engine
 		ENGINE_CORE_API bool IsValid() const;
 		ENGINE_CORE_API bool Poll();
 
+		// TODO: This is a bit unfortunate, as this breaks encapsulation by
+		// exposing the internal OVERLAPPED event to callers. 
+		ENGINE_CORE_API HANDLE GetWaitHandle() const;
+
 	private:
 		HANDLE _handle{ NULL };
 		OVERLAPPED _overlappedIO{};

@@ -705,11 +705,34 @@ void PollDirectoryChanges(Editor::Context& context)
 	LOG_INFO("Starting directory watcher thread...");
 	auto watcher = Engine::DirectoryWatcher{ context.GetCurrentState().projectPath };
 
-	while (!context.IsQuitRequested())
-	{
-        watcher.Poll();
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-	}
+    bool keepWaiting{ true };
+    while (keepWaiting)
+    {
+		HANDLE handles[2] = { 
+            watcher.GetWaitHandle(), 
+            context.GetQuitRequestedEventHandle() 
+        };
+
+		DWORD waitForChangesOrQuit = WaitForMultipleObjects(
+            2,
+            handles,
+		    FALSE, 
+            INFINITE);
+
+        if (waitForChangesOrQuit == WAIT_OBJECT_0)
+        {
+            watcher.Poll();
+        }
+        else
+        {
+            if (waitForChangesOrQuit != WAIT_OBJECT_0 + 1)
+            {
+				LOG_ERROR("Unexpected result from WaitForMultipleObjects: {}", waitForChangesOrQuit);
+            }
+
+            keepWaiting = false;
+        }
+    }
 }
 
 

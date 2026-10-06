@@ -33,6 +33,11 @@ namespace Engine
 		Teardown();
 	}
 
+	HANDLE DirectoryWatcher::GetWaitHandle() const
+	{
+		return _overlappedIO.hEvent;
+	}
+
 	void DirectoryWatcher::Setup(const std::wstring& directoryPath)
 	{
 		_watchedDirectoryPath = directoryPath;
@@ -141,7 +146,7 @@ namespace Engine
 		assert(_isValid && "Trying to poll invalid DirectoryWatcher");
 
 		DWORD numberOfBytesTransferred{ 0 };
-		BOOL bWait{ false };
+		BOOL bWait{ FALSE };
 
 		const auto getResultSuccess = GetOverlappedResult(
 			_handle,

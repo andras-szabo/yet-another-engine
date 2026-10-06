@@ -1,5 +1,7 @@
 module;
 
+#include <Windows.h>
+
 export module EditorShared;
 
 #if defined ( __INTELLISENSE__ )
@@ -35,6 +37,8 @@ namespace Editor
 
     export struct Context
     {
+        ~Context();
+
         std::unordered_map<std::string, std::string> editorCommands;
         void CollectExecutorInfo(const std::unordered_map<std::string, Editor::EditorCommand>& executors);
         void SetProjectPath(std::wstring_view projectPath);
@@ -45,9 +49,12 @@ namespace Editor
         bool IsQuitRequested();
         void RequestQuit();
 
+        HANDLE GetQuitRequestedEventHandle();
+
     private:
         std::mutex _contextLock;
         ContextState _state;
+		HANDLE _quitRequestedEventHandle{ CreateEventW(NULL, TRUE, FALSE, NULL) };
     };
 
     export struct IEditorTask

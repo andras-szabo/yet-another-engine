@@ -1,5 +1,7 @@
 module;
 
+#include <Windows.h>
+
 module EditorShared;
 
 #if defined ( __INTELLISENSE__ )
@@ -14,6 +16,16 @@ import std;
 
 namespace Editor
 {
+	Context::~Context()
+	{
+		if (_quitRequestedEventHandle)
+		{
+			CloseHandle(_quitRequestedEventHandle);
+		}
+
+		_quitRequestedEventHandle = nullptr;
+	}
+
 	void Context::CollectExecutorInfo(const std::unordered_map<std::string, EditorCommand>& executors)
 	{
 		editorCommands.clear();
@@ -28,10 +40,17 @@ namespace Editor
 		}
 	}
 
+	HANDLE Context::GetQuitRequestedEventHandle()
+	{
+		std::lock_guard<std::mutex> guard{ _contextLock };
+		return _quitRequestedEventHandle;
+	}
+
 	void Context::RequestQuit()
 	{
 		std::lock_guard<std::mutex> guard{ _contextLock };
 		_state.isQuitRequested = true;
+		SetEvent(_quitRequestedEventHandle);
 	}
 
 	bool Context::IsQuitRequested()
