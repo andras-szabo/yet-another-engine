@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cassert>
 #include <filesystem>
+#include <functional>
 #include <Windows.h>
 #include <string>
 #include <vector>
@@ -26,11 +27,11 @@ import EditorShared;
 import EngineCore;
 import EngineInstance;
 import EditorTests;
+import FileWatcher;
 import HotReloadManager;
 import EditorTasks;
-#endif
-
 import std;
+#endif
 
 using namespace Engine;
 
@@ -704,6 +705,11 @@ void PollDirectoryChanges(Editor::Context& context)
 {
 	LOG_INFO("Starting directory watcher thread...");
 	auto watcher = Engine::DirectoryWatcher{ context.GetCurrentState().projectPath };
+    
+	watcher.RegisterCallback([&context](const Engine::FileChangeEvent& event)
+		{
+            context.CollectFileChangeEvent(event);
+		});
 
     bool keepWaiting{ true };
     while (keepWaiting)
@@ -793,6 +799,17 @@ int main()
     std::thread directoryWatcherThread(PollDirectoryChanges, std::ref(context));
 	std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
+    // This is here until we move the console IO (std::cin) into another thread
+    std::thread editorThread([&]()
+        {
+            while (!context.IsQuitRequested())
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                auto chgEvents = context.ConsumeFileChangeEvents();
+                Engine::EngineInstance::GetAssetDatabase().Update(chgEvents);
+            }
+        });
+
     while (!context.IsQuitRequested())
     {
         std::string command;
@@ -803,6 +820,7 @@ int main()
         TryExecute(tokens, executors_, context);
     }
 
+    editorThread.join();
 	directoryWatcherThread.join();
 
     return 0;

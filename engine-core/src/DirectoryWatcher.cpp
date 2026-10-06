@@ -9,9 +9,17 @@ module DirectoryWatcher;
 
 #if defined ( __INTELLISENSE__ )
 #include <filesystem>
+#include <functional>
+#include <vector>
+
+#include "DirectoryWatcher.ixx"
+#include "FileWatcher.ixx"
+#include "Logger.ixx"
 #include "Utility.ixx"
 #else
 import std;
+
+import FileWatcher;
 import Logger;
 import Utility;
 #endif
@@ -103,6 +111,11 @@ namespace Engine
 		_isValid = false;
 	}
 
+	void DirectoryWatcher::RegisterCallback(std::function<void(const FileChangeEvent&)> callback)
+	{
+		_callbacks.push_back(callback);
+	}
+
 	void DirectoryWatcher::StartWatching()
 	{
 		LPVOID lpBuffer{ _changeBuffer };
@@ -147,6 +160,7 @@ namespace Engine
 
 		DWORD numberOfBytesTransferred{ 0 };
 		BOOL bWait{ FALSE };
+		std::wstring oldName{};
 
 		const auto getResultSuccess = GetOverlappedResult(
 			_handle,
@@ -163,26 +177,41 @@ namespace Engine
 				const std::wstring fileNameW{ evt->FileName, name_len };
 				const std::string fileName = Engine::WideToUtf8(fileNameW);
 
+				FileChangeEvent chgEvent{ fileNameW, L"", FileChangeType::Undefined };
+
 				switch (evt->Action)
 				{
-					case FILE_ACTION_ADDED:
-						LOG_INFO("File added: {}", fileName);
-						break;
-					case FILE_ACTION_REMOVED:
-						LOG_INFO("File removed: {}", fileName);
-						break;
-					case FILE_ACTION_MODIFIED:
-						LOG_INFO("File modified: {}", fileName);
-						break;
-					case FILE_ACTION_RENAMED_OLD_NAME:
-						LOG_INFO("File renamed (old name): {}", fileName);
-						break;
-					case FILE_ACTION_RENAMED_NEW_NAME:
-						LOG_INFO("File renamed (new name): {}", fileName);
-						break;
-					default:
-						//TODO?
-						break;
+				case FILE_ACTION_ADDED:
+					chgEvent.type = FileChangeType::Added;
+					break;
+
+				case FILE_ACTION_REMOVED:
+					chgEvent.type = FileChangeType::Removed;
+					break;
+
+				case FILE_ACTION_MODIFIED:
+					chgEvent.type = FileChangeType::Modified;
+					break;
+
+				case FILE_ACTION_RENAMED_OLD_NAME:
+					oldName = fileNameW;
+					break;
+
+				case FILE_ACTION_RENAMED_NEW_NAME:
+					chgEvent.type = FileChangeType::Renamed;
+					chgEvent.oldPath = oldName;
+					break;
+
+				default:
+					break;
+				}
+
+				if (chgEvent.type != FileChangeType::Undefined)
+				{
+					for (const auto& callback : _callbacks)
+					{
+						callback(chgEvent);
+					}
 				}
 
 				if (evt->NextEntryOffset)

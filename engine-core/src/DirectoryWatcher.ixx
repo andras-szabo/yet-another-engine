@@ -6,8 +6,12 @@ module;
 export module DirectoryWatcher;
 
 #if defined ( __INTELLISENSE__ )
+#include <functional>
 #include <string>
+#include <vector>
+#include "FileWatcher.ixx"
 #else
+import FileWatcher;
 import std;
 #endif
 
@@ -38,6 +42,7 @@ namespace Engine
 
 		ENGINE_CORE_API bool IsValid() const;
 		ENGINE_CORE_API bool Poll();
+		ENGINE_CORE_API void RegisterCallback(std::function<void(const FileChangeEvent&)> callback);
 
 		// TODO: This is a bit unfortunate, as this breaks encapsulation by
 		// exposing the internal OVERLAPPED event to callers. 
@@ -49,9 +54,9 @@ namespace Engine
 		DWORD* _changeBuffer{ nullptr };
 		bool _isValid{ false };
 		std::wstring _watchedDirectoryPath;
+		std::vector<std::function<void(const FileChangeEvent&)>> _callbacks;
 
 		void StartWatching();
 		constexpr int GetChangeBufferSize() const;
-
 	};
 }

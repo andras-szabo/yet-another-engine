@@ -7,10 +7,15 @@ export module EditorShared;
 #if defined ( __INTELLISENSE__ )
 #include <mutex>
 #include <string>
+#include <expected>
+#include <functional>
+#include <span>
+#include <vector>
+#include "../../engine-core/src/FileWatcher.ixx"
 #else
-#endif
-
 import std;
+import FileWatcher;
+#endif
 
 namespace Editor
 {
@@ -50,11 +55,16 @@ namespace Editor
         void RequestQuit();
 
         HANDLE GetQuitRequestedEventHandle();
+        std::mutex& GetContextLock();
+
+		void CollectFileChangeEvent(const Engine::FileChangeEvent& event);
+        std::vector<Engine::FileChangeEvent> ConsumeFileChangeEvents();
 
     private:
         std::mutex _contextLock;
         ContextState _state;
 		HANDLE _quitRequestedEventHandle{ CreateEventW(NULL, TRUE, FALSE, NULL) };
+        std::vector<Engine::FileChangeEvent> _fileChangeEventQueue;
     };
 
     export struct IEditorTask

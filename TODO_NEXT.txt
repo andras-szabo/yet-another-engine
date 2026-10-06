@@ -1,4 +1,29 @@
 TODO next:
+-P5-05:
+  - continue with AssetDatabase refresh from asset folder observations.
+  	- basically, figure out AssetDatabase::Update, based on FileChangeEvents
+
+-P5-05:
+  o Create FileChangeEventType enum.
+  o Create FileChangeEvent struct.
+  o Create a FileChangeEvent Q in the editor context.
+  o Create an AssetDatabase.Update function; pass in FileChangeEvents.
+  o Implement AssetDatabase.Update. Do not consume the file change events q.
+  o The editor's main thread _is_ the editor main thread; the question is,
+    how we can do the console input / output not blocking. Cause right now
+    we are waiting for std::cin, I think.
+    	x but anyhow. Have the editor:
+		x have a concept of "assets" folder.
+		o create a directory watcher for this.
+		o update directory watcher such that it can have access
+		  to a file change event Q
+		o update directory watcher to fill up said Q
+		o have the editor update the DB w/ the q
+			o or rather, a copy of the Q
+			o then clear the Q
+			o then clear the copy, or log it or something
+
+ ... let's see what comes up.
 
 - P5-04: Implement a directory-level file watcher (ReadDirectoryChangesW), to detect
   asset additions / modifications / deletions.

@@ -5,6 +5,7 @@ module;
 module EditorShared;
 
 #if defined ( __INTELLISENSE__ )
+#include <iterator>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -40,6 +41,20 @@ namespace Editor
 		}
 	}
 
+	std::vector<Engine::FileChangeEvent> Context::ConsumeFileChangeEvents()
+	{
+		std::vector<Engine::FileChangeEvent> events;
+		{
+			std::lock_guard<std::mutex> guard{ _contextLock };
+			if (!_fileChangeEventQueue.empty())
+			{
+				events = std::move(_fileChangeEventQueue);
+			}
+		}
+
+		return events;
+	}
+
 	HANDLE Context::GetQuitRequestedEventHandle()
 	{
 		std::lock_guard<std::mutex> guard{ _contextLock };
@@ -57,6 +72,12 @@ namespace Editor
 	{
 		std::lock_guard<std::mutex> guard{ _contextLock };
 		return _state.isQuitRequested;
+	}
+
+	void Context::CollectFileChangeEvent(const Engine::FileChangeEvent& event)
+	{
+		std::lock_guard<std::mutex> guard{ _contextLock };
+		_fileChangeEventQueue.push_back(event);
 	}
 
 	ContextState Context::GetCurrentState()

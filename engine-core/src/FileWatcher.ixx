@@ -13,6 +13,23 @@ import std;
 
 namespace Engine
 {
+	export enum class FileChangeType : char
+	{
+		Undefined = 0,
+
+		Added = 1,
+		Modified = 2,
+		Removed = 3,
+		Renamed = 4
+	};
+
+	export struct FileChangeEvent
+	{
+		std::wstring path;
+		std::wstring oldPath;
+		FileChangeType type;
+	};
+
 	export class FileWatcher
 	{
 	public:

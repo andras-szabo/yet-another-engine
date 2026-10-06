@@ -6,16 +6,17 @@ export module AssetDatabase;
 
 #if defined ( __INTELLISENSE__ )
 #include <filesystem>
+#include <span>
 #include <unordered_map>
-
 #include "Asset.ixx"
 #include "EngineError.ixx"
+#include "FileWatcher.ixx"
 #include "Guid.ixx"
-
 #else
 import Asset;
 import GUID;
 import Error;
+import FileWatcher;
 import std;
 #endif
 
@@ -81,6 +82,8 @@ namespace Engine
 
 		Engine::Expected<void> PopulateFromFolder(const std::filesystem::path& path);
 		Engine::AssetType IsAssetFile(const std::filesystem::directory_entry& directoryEntry) const;
+
+		void Update(std::span<const Engine::FileChangeEvent> fileChangeEvents);
 
 		template <typename T>
 		bool IsAssetLoaded(const AssetRef<T>& assetRef) const;

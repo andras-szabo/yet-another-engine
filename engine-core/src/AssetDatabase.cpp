@@ -10,9 +10,11 @@ module AssetDatabase;
 #include "AssetDatabase.ixx"
 #include "DataFile.ixx"
 #include "Logger.ixx"
+#include "Utility.ixx"
 #else
 import DataFile;
 import Logger;
+import Utility;
 import std;
 #endif
 
@@ -53,6 +55,33 @@ namespace Engine
 	{
 		assert(_impl->pathsByGuid.size() == _impl->guidsByPath.size() && "AssetDatabase internal size mismatch!");
 		return static_cast<int>(_impl->pathsByGuid.size());
+	}
+
+	void AssetDatabase::Update(std::span<const Engine::FileChangeEvent> fileChangeEvents)
+	{
+		// TODO actually implement this
+		for (const auto& event : fileChangeEvents)
+		{
+			const std::string pathAsString = Engine::WideToUtf8(event.path);
+			switch (event.type)
+			{
+			case Engine::FileChangeType::Added:
+				LOG_INFO("File added: {}", pathAsString);
+				break;
+
+			case Engine::FileChangeType::Modified:
+				LOG_INFO("File modified: {}", pathAsString);
+				break;
+
+			case Engine::FileChangeType::Removed:
+				LOG_INFO("File removed: {}", pathAsString);
+				break;
+
+			case Engine::FileChangeType::Renamed:
+				LOG_INFO("File renamed: from {} to {}", Engine::WideToUtf8(event.oldPath), pathAsString);
+				break;
+			}
+		}
 	}
 
 	Engine::Expected<void> AssetDatabase::PopulateFromFolder(const std::filesystem::path& path)
@@ -96,7 +125,7 @@ namespace Engine
 						continue;
 					}
 
-					fs::path metaFilePath {};
+					fs::path metaFilePath{};
 					Engine::GUID _guid = Engine::GUID::Invalid();
 
 					if (!DoesMetaFileExist(entry, metaFilePath))
@@ -129,7 +158,7 @@ namespace Engine
 					{
 						const auto existingPathAsString = existingPath->first;
 						LOG_ERROR("Asset GUID collision. {} and {} share the same GUID.",
-							existingPathAsString, 
+							existingPathAsString,
 							assetPath);
 
 						continue;
@@ -153,9 +182,9 @@ namespace Engine
 	{
 		switch (t)
 		{
-			case AssetType::Scene:		return "Scene";
-			case AssetType::StaticMesh:	return "Static Mesh";
-			case AssetType::Texture:	return "Texture";
+		case AssetType::Scene:		return "Scene";
+		case AssetType::StaticMesh:	return "Static Mesh";
+		case AssetType::Texture:	return "Texture";
 		}
 
 		return "Undefined";
@@ -185,8 +214,8 @@ namespace Engine
 		return _guid;
 	}
 
-	bool AssetDatabase::TryExtractGuidAndAssetTypeFromMetaFile(const std::filesystem::path& metaFilePath, 
-		Engine::GUID& _guid, 
+	bool AssetDatabase::TryExtractGuidAndAssetTypeFromMetaFile(const std::filesystem::path& metaFilePath,
+		Engine::GUID& _guid,
 		Engine::AssetType& type) const
 	{
 		const auto meta = Engine::DataFile::Deserialize(metaFilePath.string());
@@ -239,7 +268,7 @@ namespace Engine
 		return fs::exists(metaFilePath);
 	}
 
-	Engine::Expected<void> AssetDatabase_Impl::RegisterAssetLoader(const std::wstring& extension, 
+	Engine::Expected<void> AssetDatabase_Impl::RegisterAssetLoader(const std::wstring& extension,
 		AssetLoaderFn loaderFn)
 	{
 		if (_loaderFunctionsByExtension.find(extension) != _loaderFunctionsByExtension.end())
@@ -349,5 +378,5 @@ namespace Engine
 
 		return false;
 	}
-	
+
 } // namespace Engine
