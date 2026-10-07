@@ -64,18 +64,23 @@ namespace Engine
 		// TODO actually implement the rest of this
 		for (const auto& event : fileChangeEvents)
 		{
+			const fs::directory_entry entry{ event.path };
+			const auto assetType = IsAssetFile(entry);
+
+			if (assetType == AssetType::Undefined)
+			{
+				continue;
+			}
+
 			const std::string pathAsString = Engine::WideToUtf8(event.path);
+
 			switch (event.type)
 			{
 
 			case Engine::FileChangeType::Added:
 			{
 				LOG_INFO("File added: {}", pathAsString);
-				const fs::directory_entry entry{ event.path };
-				if (IsAssetFile(entry) != AssetType::Undefined)
-				{
-					TryAddNewAsset(entry);
-				}
+				TryAddNewAsset(entry, assetType);
 				break;
 			}
 
@@ -86,32 +91,94 @@ namespace Engine
 			case Engine::FileChangeType::Removed:
 			{
 				LOG_INFO("File removed: {}", pathAsString);
-				const fs::directory_entry entry{ event.path };
-				if (IsAssetFile(entry) != AssetType::Undefined)
-				{
-					TryRemoveAsset(entry);
-				}
+				TryRemoveAsset(entry, assetType);
 				break;
 			}
 
 			case Engine::FileChangeType::Renamed:
+			{
 				LOG_INFO("File renamed: from {} to {}", Engine::WideToUtf8(event.oldPath), pathAsString);
+				const fs::directory_entry oldEntry { event.oldPath };
+				TryRenameAsset(entry, oldEntry, assetType);
 				break;
+			}
+
 			}
 		}
 	}
 
-	Engine::Expected<void> AssetDatabase::TryRemoveAsset(const std::filesystem::directory_entry& entry)
+	Engine::Expected<void> AssetDatabase::TryRenameAsset(const std::filesystem::directory_entry& entry,
+		const std::filesystem::directory_entry& oldEntry,
+		AssetType assetType)
 	{
 		namespace fs = std::filesystem;
 
-		const auto assetType = IsAssetFile(entry);
-		if (assetType == AssetType::Undefined)
+		assert(assetType != AssetType::Undefined && "Invalid asset type.");
+
+		const auto oldGuidByPath = _impl->guidsByPath.find(oldEntry.path().string());
+		const auto oldGuid = (oldGuidByPath != _impl->guidsByPath.end()) 
+			? oldGuidByPath->second 
+			: Engine::GUID::Invalid();
+
+		const auto newGuidByPath = _impl->guidsByPath.find(entry.path().string());
+		const auto newGuid = (newGuidByPath != _impl->guidsByPath.end())
+			? newGuidByPath->second
+			: Engine::GUID::Invalid();
+
+		fs::path oldMetaFilePath{};
+		bool doesOldMetaFileExist = DoesMetaFileExist(oldEntry, oldMetaFilePath);
+
+		fs::path newMetaFilePath{};
+		bool doesNewMetaFileExist = DoesMetaFileExist(entry, newMetaFilePath);
+
+		if (oldGuid.IsValid() && !newGuid.IsValid())
 		{
-			LOG_INFO("File removed: {} (not an asset file)", entry.path().string());
-			// Not an asset file, but this is not an error.
-			return {};
+			if (doesNewMetaFileExist)
+			{
+				LOG_ERROR("Asset rename error: new meta file already exists: {}", newMetaFilePath.string());
+				return Engine::Unexpected({ Engine::ErrorType::File, "Asset rename error: new meta file already exists." });
+			}
+
+			// Asset was renamed, update the database
+			LOG_INFO("Asset renamed: {} -> {}", oldEntry.path().string(), entry.path().string());
+
+			_impl->guidsByPath.erase(oldGuidByPath);
+			_impl->guidsByPath.emplace(entry.path().string(), oldGuid);
+			_impl->pathsByGuid[oldGuid] = entry.path().string();
+
+			CreateAssetMetaFile(assetType, newMetaFilePath, oldGuid);
+
+			if (doesOldMetaFileExist)
+			{
+				LOG_INFO("Removing associated meta file");
+				fs::remove(oldMetaFilePath);
+			}
 		}
+		else if (!oldGuid.IsValid() && newGuid.IsValid())
+		{
+			// Asset was renamed to an existing asset, update the database
+			LOG_INFO("Asset renamed to existing asset: {} -> {}", oldEntry.path().string(), entry.path().string());
+			return Engine::Unexpected({ Engine::ErrorType::File, "Asset renamed to existing asset." });
+		}
+		else if (oldGuid.IsValid() && newGuid.IsValid() && oldGuid != newGuid)
+		{
+			LOG_ERROR("Asset rename conflict: {} -> {} (GUIDs: {} -> {})", oldEntry.path().string(), entry.path().string(), oldGuid, newGuid);
+			return Engine::Unexpected({ Engine::ErrorType::File, "Asset rename conflict." });
+		}
+		else
+		{
+			LOG_ERROR("Asset rename error: {} -> {} (GUIDs: {} -> {})", oldEntry.path().string(), entry.path().string(), oldGuid, newGuid);
+			return Engine::Unexpected({ Engine::ErrorType::File, "Asset rename error." });
+		}
+
+		return {};
+	}
+
+	Engine::Expected<void> AssetDatabase::TryRemoveAsset(const std::filesystem::directory_entry& entry, AssetType assetType)
+	{
+		namespace fs = std::filesystem;
+
+		assert(assetType != AssetType::Undefined && "Invalid asset type.");
 
 		const std::string assetPath = entry.path().string();
 		const auto guidByPath = _impl->guidsByPath.find(assetPath);
@@ -145,16 +212,11 @@ namespace Engine
 		return {};
 	}
 
-	Engine::Expected<void> AssetDatabase::TryAddNewAsset(const std::filesystem::directory_entry& entry)
+	Engine::Expected<void> AssetDatabase::TryAddNewAsset(const std::filesystem::directory_entry& entry, AssetType assetType)
 	{
 		namespace fs = std::filesystem;
 
-		const auto assetType = IsAssetFile(entry);
-		if (assetType == AssetType::Undefined)
-		{
-			// Not an asset file, but this is not an error.
-			return {};
-		}
+		assert(assetType != AssetType::Undefined && "Invalid asset type.");
 
 		// 1. Check if the asset path is already associated with a guid.
 		const std::string assetPath = entry.path().string();
@@ -200,12 +262,12 @@ namespace Engine
 
 			// No meta file exists. maybe it was removed?; let's recreate it
 			LOG_INFO("Asset already in database, but no meta file exists. Recreating meta file: {} ({}) -> {}", assetPath, AssetTypeToString(assetType), guid);
-			CreateMetaFile(assetType, metaFilePath, guid);
+			CreateAssetMetaFile(assetType, metaFilePath, guid);
 			return {};
 		}
 		// Asset not in database yet, let's add it!
 
-		const auto guid = CreateMetaFile(assetType, metaFilePath);
+		const auto guid = CreateAssetMetaFile(assetType, metaFilePath);
 		const auto existingPath = _impl->pathsByGuid.find(guid);
 		if (existingPath != _impl->pathsByGuid.end())
 		{
@@ -271,7 +333,7 @@ namespace Engine
 
 					if (!DoesMetaFileExist(entry, metaFilePath))
 					{
-						_guid = CreateMetaFile(assetType, metaFilePath);
+						_guid = CreateAssetMetaFile(assetType, metaFilePath);
 					}
 					else
 					{
@@ -337,7 +399,7 @@ namespace Engine
 		return true;
 	}
 
-	Engine::GUID AssetDatabase::CreateMetaFile(Engine::AssetType assetType,
+	Engine::GUID AssetDatabase::CreateAssetMetaFile(Engine::AssetType assetType,
 		const std::filesystem::path& metaFilePath,
 		std::optional<Engine::GUID> guid) const
 	{
