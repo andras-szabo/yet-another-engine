@@ -91,6 +91,8 @@ namespace Engine
 			const std::filesystem::directory_entry& oldEntry,
 			AssetType assetType);
 
+		const std::unordered_map<std::string, Engine::GUID>& GetAssetGUIDsByPath() const;
+
 		template <typename T>
 		bool IsAssetLoaded(const AssetRef<T>& assetRef) const;
 
@@ -106,7 +108,10 @@ namespace Engine
 		Engine::GUID CreateAssetMetaFile(Engine::AssetType assetType, 
 			const std::filesystem::path& metaFilePath,
 			std::optional<Engine::GUID> guid = std::nullopt) const;
-		bool TryExtractGuidAndAssetTypeFromMetaFile(const std::filesystem::path& metaFilePath, Engine::GUID& _guid, Engine::AssetType& type) const;
+		bool TryExtractGuidAndAssetTypeFromMetaFile(const std::filesystem::path& metaFilePath, 
+			Engine::GUID& _guid, 
+			Engine::AssetType& type) const;
+
 		std::string AssetTypeToString(Engine::AssetType assetType) const;
 	};
 

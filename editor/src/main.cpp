@@ -372,6 +372,29 @@ std::vector<std::string> Split(const std::string& str)
     return tokens;
 }
 
+Editor::CommandReturnType ListAssets([[maybe_unused]] const std::vector<std::string>& commandAndArguments,
+	[[maybe_unused]] Editor::Context& context,
+	Editor::IEditorTask& task)
+{
+	task.SetProgress(0.0f);
+	const auto& assetDatabase = Engine::EngineInstance::GetAssetDatabase();
+	const auto assets = assetDatabase.GetAssetGUIDsByPath();
+	std::cout << "Assets:\n";
+
+	const auto count = static_cast<float>(assets.size());
+    float currentCount = 0.0f;
+
+	for (const auto& pathGuidPair : assets)
+	{
+		std::cout << "  " << pathGuidPair.first << " -> " << pathGuidPair.second.id << "\n";
+		currentCount += 1.0f;
+		task.SetProgress(currentCount / count);
+	}
+
+	task.SetProgress(1.0f);
+	return {};
+}
+
 Editor::CommandReturnType PopulateAssetDatabase(
     [[maybe_unused]] const std::vector<std::string>& commandAndArguments,
     [[maybe_unused]] Editor::Context& context,
@@ -767,6 +790,7 @@ int main()
     executors_["list"] = { Help, "Print list of commands" };
 
     executors_["adb_pop"] = { PopulateAssetDatabase, "Populate asset database" };
+    executors_["adb_list"] = { ListAssets, "List all assets in the asset database" };
 
     // TODO: Read this from an editor settings file
     Editor::Context context;

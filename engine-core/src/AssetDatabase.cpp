@@ -107,6 +107,11 @@ namespace Engine
 		}
 	}
 
+	const std::unordered_map<std::string, Engine::GUID>& AssetDatabase::GetAssetGUIDsByPath() const
+	{
+		return _impl->guidsByPath;
+	}
+
 	Engine::Expected<void> AssetDatabase::TryRenameAsset(const std::filesystem::directory_entry& entry,
 		const std::filesystem::directory_entry& oldEntry,
 		AssetType assetType)
