@@ -131,7 +131,7 @@ namespace Editor
 				}
 
 				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-			} while (waitForSeconds-- > 0);
+			} while (waitForSeconds --> 0);
 		}
 
 		if (_watcher.IsValid() && !_watcher.IsAvailableToCopy())

@@ -818,10 +818,7 @@ int main()
     Engine::EngineInstance::Initialize(std::make_unique<Engine::ComponentStorage>());
 
 	// Start a thread to poll for directory changes
-    std::cout << "\n";
-	std::this_thread::sleep_for(std::chrono::milliseconds(100));
     std::thread directoryWatcherThread(PollDirectoryChanges, std::ref(context));
-	std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     // This is here until we move the console IO (std::cin) into another thread
     std::thread editorThread([&]()
