@@ -38,6 +38,12 @@ namespace Engine
 			_activeScene = new Engine::Scene::Scene(std::forward<Scene::Scene&&>(scene));
 		}
 
+		void Run();
+		void Update(float dt);
+
+		bool IsQuitting() const;
+		float CalculateDeltaTime() const;
+
 		std::unique_ptr<IComponentStorage> _componentStorage;
 		Scene::Scene* _activeScene{ nullptr };
 		Engine::AssetDatabase _assetDatabase;
@@ -57,6 +63,9 @@ namespace Engine
 
 		EngineInstance(const EngineInstance& other) = delete;
 		EngineInstance& operator=(const EngineInstance& other) = delete;
+		
+		void Run();
+		void Update(float dt);
 
 	private:
 		EngineInstance() = default;

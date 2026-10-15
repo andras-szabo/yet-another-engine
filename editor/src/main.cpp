@@ -947,6 +947,12 @@ void PollDirectoryChanges(Editor::Context& context)
     }
 }
 
+void TestEngineUpdate(Engine::EngineInstance& engineInstance)
+{
+    const float dt = 1.0f / 60.0f;
+    engineInstance.Update(dt);
+}
+
 
 int main()
 {

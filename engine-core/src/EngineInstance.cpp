@@ -91,4 +91,66 @@ namespace Engine
 		_impl = new EngineInstance_Impl(std::forward<std::unique_ptr<IComponentStorage>>(componentStorage));
 	}
 
+	void EngineInstance::Run()
+	{
+		assert(_impl != nullptr && "Engine instance is not initialized!");
+		_impl->Run();
+	}
+
+	void EngineInstance_Impl::Run()
+	{
+		while (!IsQuitting())
+		{
+			float dt = CalculateDeltaTime();
+			Update(dt);
+		}
+	}
+
+	bool EngineInstance_Impl::IsQuitting() const
+	{
+		// TODO
+		return false;
+	}
+
+	void EngineInstance::Update(float dt)
+	{
+		assert(_impl != nullptr && "Engine instance is not initialized!");
+		_impl->Update(dt);
+	}
+
+	float EngineInstance_Impl::CalculateDeltaTime() const
+	{
+		static std::chrono::high_resolution_clock clock;
+		static auto lastTime = clock.now();
+
+		auto currentTime = clock.now();
+		float deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
+		lastTime = currentTime;
+
+		return deltaTime;
+
+	}
+
+	void EngineInstance_Impl::Update(float dt)
+	{
+		// Update input
+		// Update engine systems (physics etc)
+
+		if (_activeScene != nullptr)
+		{
+			_activeScene->UpdateWorldTransforms();
+
+			for (auto& gameObject : _activeScene->GetAllGameObjects())
+			{
+				for (auto* component : gameObject->GetComponents())
+				{
+					if (component->IsEnabled())
+					{
+						component->OnUpdate(dt);
+					}
+				}
+			}
+		}
+	}
+
 } // namespace Engine
