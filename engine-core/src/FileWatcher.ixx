@@ -7,7 +7,9 @@ export module FileWatcher;
 
 #if defined ( __INTELLISENSE__ )
 #include <string>
+#include "Utility.ixx"
 #else
+import Utility;
 import std;
 #endif
 

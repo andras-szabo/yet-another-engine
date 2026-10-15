@@ -9,12 +9,13 @@ export module EditorShared;
 #include <string>
 #include <expected>
 #include <functional>
-#include <span>
 #include <vector>
 #include "../../engine-core/src/FileWatcher.ixx"
+#include "../../engine-core/src/Utility.ixx"
 #else
 import std;
 import FileWatcher;
+import Utility;
 #endif
 
 namespace Editor
@@ -40,6 +41,15 @@ namespace Editor
         bool isQuitRequested{ false };
     };
 
+    export struct ProjectSettings
+    {
+        std::string projectName{ "Untitled" };
+        std::string dllPathDebug{ "" };
+        std::string dllPathRelease{ "" };
+
+        Engine::Version editorVersion{};
+    };
+
     export struct Context
     {
         ~Context();
@@ -60,11 +70,17 @@ namespace Editor
 		void CollectFileChangeEvent(const Engine::FileChangeEvent& event);
         std::vector<Engine::FileChangeEvent> ConsumeFileChangeEvents();
 
+        ProjectSettings GetProjectSettings();
+		void SetProjectSettings(const ProjectSettings& settings);
+
     private:
         std::mutex _contextLock;
         ContextState _state;
 		HANDLE _quitRequestedEventHandle{ CreateEventW(NULL, TRUE, FALSE, NULL) };
         std::vector<Engine::FileChangeEvent> _fileChangeEventQueue;
+
+        std::mutex _projectSettingsLock;
+        ProjectSettings _projectSettings;
     };
 
     export struct IEditorTask

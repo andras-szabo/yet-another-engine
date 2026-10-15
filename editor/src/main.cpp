@@ -474,9 +474,111 @@ Editor::CommandReturnType Status([[maybe_unused]] const std::vector<std::string>
     std::wcout << "  CMake path: " << state.cmakePath << "\n";
     std::wcout << "  Project path: " << state.projectPath << "\n";
 
+	const auto projectSettings = context.GetProjectSettings();
+	std::cout << "  Project settings:\n";
+	std::cout << "    Project Name: " << projectSettings.projectName << "\n";
+	std::cout << "    Editor Version: " << projectSettings.editorVersion.ToString() << "\n";
+	std::cout << "    DLL Path Debug: " << projectSettings.dllPathDebug << "\n";
+	std::cout << "    DLL Path Release: " << projectSettings.dllPathRelease << "\n";
+
     task.SetProgress(1.0f);
 
     return {};
+}
+
+Editor::CommandReturnType OpenProject(const std::vector<std::string>& commandAndArguments,
+	Editor::Context& context,
+	Editor::IEditorTask& task)
+{
+	namespace fs = std::filesystem;
+	Editor::TaskProgressScope _(task);
+	if (commandAndArguments.size() < 2)
+	{
+		return std::unexpected{ "Missing path." };
+	}
+
+	fs::path projectFolderPath{ commandAndArguments[1] };
+	if (!fs::exists(projectFolderPath))
+	{
+		return std::unexpected{ "Path does not exist." };
+	}
+	context.SetProjectPath(projectFolderPath.wstring());
+
+    // 1. Look for the project settings file 
+    // TODO: extract to its own function
+
+	fs::path projectSettingsFilePath { projectFolderPath };
+	projectSettingsFilePath /= "project.udf";
+
+	if (!fs::exists(projectSettingsFilePath))
+	{
+        LOG_INFO("Project settings file not found, creating default one.");
+		// Create a default project settings file
+		Engine::DataFile defaultSettings;
+
+		defaultSettings["ProjectName"] = "Untitled";
+
+        // TODO- this should come from the editor instance
+        defaultSettings["EditorVersion"] = "0.0.1";
+
+		defaultSettings["DLLPathDebug"] = "build\\Debug\\Game.dll";
+		defaultSettings["DLLPathRelease"] = "build\\Release\\Game.dll";
+
+		if (!Engine::DataFile::Serialize(defaultSettings, projectSettingsFilePath.string()))
+		{
+			return std::unexpected{ "Failed to create project settings file." };
+		}
+	}
+
+    LOG_INFO("Project settings file found, loading settings.");
+	const auto settingsMaybe = Engine::DataFile::Deserialize(projectSettingsFilePath.string());
+	if (settingsMaybe.has_value())
+	{
+		const auto& settings = settingsMaybe.value();
+		std::cout << "Project Name: " << settings["ProjectName"].GetString() << "\n";
+		std::cout << "Editor Version: " << settings["EditorVersion"].GetString() << "\n";
+		std::cout << "DLL Path Debug: " << settings["DLLPathDebug"].GetString() << "\n";
+		std::cout << "DLL Path Release: " << settings["DLLPathRelease"].GetString() << "\n";
+
+		Editor::ProjectSettings projectSettings;
+
+		projectSettings.projectName = settings["ProjectName"].GetString();
+		projectSettings.editorVersion = settings["EditorVersion"].GetString();
+		projectSettings.dllPathDebug = settings["DLLPathDebug"].GetString();
+		projectSettings.dllPathRelease = settings["DLLPathRelease"].GetString();
+
+		context.SetProjectSettings(projectSettings);
+	}
+	else
+	{
+		return std::unexpected{ "Failed to load project settings." };
+	}
+
+    // And now we should:
+    //  1. Look for the project settings file (some specific asset that needs to be in the project root).
+    //      = in the project folder, look for a specific asset file ("project.udf" - unalmas data file?)
+    //          = if the file is not there, create with default values:
+    //                  = project name "Untitled",
+    //                  = editor version
+	//                  = dll path debug "build\Debug\Game.dll"
+	//                  = dll path release "build\Release\Game.dll"
+    //          = once the file is opened, extract settings from it,
+    //              and create some shared project settings object that the editor can use,
+    //              maybe similar to context state but different-?
+	//    
+    //
+	//      = extract project name 
+	//      = extract dll path
+	//  2. Look for the serialized asset DB file.
+	//      = this should contain a list of assets that we actually want to open in the project,
+    //        on a folder-by-folder basis, and some kind of hash that describes the state of each folder.
+	//      = we can then collect folder hashes and see if any of them have changed since,
+	//        and if so, we can re-populate the asset database for that folder.
+	//      (Or, for now, we can just re-populate the entire asset db from the project root, and
+	//      then we can optimize later. )
+    //  3. Load the game dll and wait for reloads.
+
+	return {};
 }
 
 Editor::CommandReturnType CreateProject(const std::vector<std::string>& commandAndArguments, 
@@ -583,6 +685,62 @@ Editor::CommandReturnType CreateProject(const std::vector<std::string>& commandA
     context.SetProjectPath(projectFolderPath.wstring());
     
     return {};
+}
+
+Editor::CommandReturnType ProjectName(const std::vector<std::string>& commandAndArguments,
+	Editor::Context& context,
+	Editor::IEditorTask& task)
+{
+	Editor::TaskProgressScope _(task);
+
+	const bool readOnly = commandAndArguments.size() == 1;
+
+	auto projectSettings = context.GetProjectSettings();
+
+	if (readOnly)
+	{
+		std::cout << "Project name: " << projectSettings.projectName << "\n";
+		return {};
+	}
+
+	// Concatenate the remaining arguments to form the project name, in case it contains spaces.
+	std::ostringstream projectNameStream;
+
+	for (int i = 1; i < commandAndArguments.size(); ++i)
+	{
+		if (i > 1)
+		{
+			projectNameStream << " ";
+		}
+
+		projectNameStream << commandAndArguments[i];
+	}
+
+	projectSettings.projectName = projectNameStream.str();
+
+	context.SetProjectSettings(projectSettings);
+	const auto projectPath = context.GetCurrentState().projectPath;
+    
+	if (projectPath.empty())
+	{
+		return std::unexpected{ "No project path set." };
+	}
+
+	std::filesystem::path projectSettingsFilePath{ projectPath };
+	projectSettingsFilePath /= "project.udf";
+	Engine::DataFile df;
+	df["ProjectName"] = projectSettings.projectName;
+	df["EditorVersion"] = projectSettings.editorVersion.ToString();
+	df["DLLPathDebug"] = projectSettings.dllPathDebug;
+	df["DLLPathRelease"] = projectSettings.dllPathRelease;
+	if (!Engine::DataFile::Serialize(df, projectSettingsFilePath.string()))
+	{
+		return std::unexpected{ "Failed to save project settings file." };
+	}
+
+	std::cout << "Project name set to: " << projectSettings.projectName << "\n";
+
+	return {};
 }
 
 Editor::CommandReturnType Echo(const std::vector<std::string>& commandAndArguments, 
@@ -727,6 +885,31 @@ std::expected<std::wstring, std::wstring> GetVSBundledCmakePath()
 void PollDirectoryChanges(Editor::Context& context)
 {
 	LOG_INFO("Starting directory watcher thread...");
+
+    // Poll the context to see if a project path has been set; it not, wait for it.
+    bool hasProjectPath = false;
+	while (!hasProjectPath)
+	{
+		const auto state = context.GetCurrentState();
+		if (!state.projectPath.empty())
+		{
+			hasProjectPath = true;
+		}
+		else
+		{
+			if (state.isQuitRequested)
+			{
+				LOG_INFO("Quit requested; exiting directory watcher thread.");
+				return;
+			}
+
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+		}
+	}
+
+	const auto pathAsUtf8 = Engine::WideToUtf8(context.GetCurrentState().projectPath);
+    LOG_INFO("Project path set; starting directory watcher for {}", pathAsUtf8);
+
 	auto watcher = Engine::DirectoryWatcher{ context.GetCurrentState().projectPath };
     
 	watcher.RegisterCallback([&context](const Engine::FileChangeEvent& event)
@@ -789,8 +972,13 @@ int main()
     executors_["l"] = { Help, "Print list of commands" };
     executors_["list"] = { Help, "Print list of commands" };
 
+    executors_["openProject"] = { OpenProject, "Open project" };
+    executors_["oproj"] = { OpenProject, "Open project" };
+
     executors_["adb_pop"] = { PopulateAssetDatabase, "Populate asset database" };
     executors_["adb_list"] = { ListAssets, "List all assets in the asset database" };
+
+    executors_["pname"] = { ProjectName, "Get / Set project name" };
 
     // TODO: Read this from an editor settings file
     Editor::Context context;
@@ -798,7 +986,9 @@ int main()
     Editor::ContextState contextState;
     contextState.gameTemplatePath = L"C:\\Users\\andra\\source\\repos\\Engine\\game-template";
     contextState.sdkPath = L"C:\\Dev\\EngineSdk\\sdk";
-    contextState.projectPath = L"C:\\Users\\andra\\source\\Foo";
+
+    //contextState.projectPath = L"C:\\Users\\andra\\source\\Foo";
+    contextState.projectPath = L"";
 
     context.CollectExecutorInfo(executors_);
 

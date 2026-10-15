@@ -97,4 +97,16 @@ namespace Editor
 		std::lock_guard<std::mutex> l{ _contextLock };
 		_state.projectPath = std::wstring(projectPath);
 	}
+
+	ProjectSettings Context::GetProjectSettings()
+	{
+		std::lock_guard<std::mutex> l{ _projectSettingsLock };
+		return _projectSettings;
+	}
+
+	void Context::SetProjectSettings(const ProjectSettings& settings)
+	{
+		std::lock_guard<std::mutex> l{ _projectSettingsLock };
+		_projectSettings = settings;
+	}
 } // namespace Editor
