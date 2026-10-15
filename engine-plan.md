@@ -14,7 +14,7 @@
 | engine-core linkage | **Shared DLL** (`engine-core.dll`) — editor and game DLL both link against it so engine state (registries, allocators, type system) is never duplicated |
 | Binary output | All `.exe` and `.dll` outputs land in `build/bin/<Config>/` via `CMAKE_RUNTIME_OUTPUT_DIRECTORY` |
 | Serialization | Custom text format |
-| game-template | **DLL** (not exe) — exposes game lifecycle hooks (`GameInitialize`, `GameUpdate`, `GameShutdown`) and component registration; editor loads it at runtime |
+| game-template | **DLL** (not exe) — component registration (static RAII registrars, no explicit exported hooks); editor loads it at runtime |
 | Reflection | Manual field registration (macros) |
 | Namespace | All engine-owned code lives in `namespace Engine` |
 | Renderer | Abstraction layer only for MVP (backend TBD) |
@@ -163,7 +163,7 @@ Track and load project assets; provide stable references usable by components.
 
 The editor loads the game DLL and drives a game loop in the same process.
 
-- P6-01: Extend the game DLL ABI with game lifecycle hooks: `GameInitialize(Scene*)`, `GameUpdate(float dt)`, `GameShutdown()` exported as `extern "C"` alongside component registration
+- P6-01: ~~Extend the game DLL ABI with game lifecycle hooks~~ **Revised:** no new exported ABI surface. `EngineInstance` stays in the driving seat — the editor only ever calls `EngineInstance::Update(dt)`; it never calls into the game DLL directly. Per-GameObject logic continues to use the existing `Component::OnCreate/OnUpdate(dt)/OnDestroy` hooks, already driven automatically once P6-02's scene update loop exists. "Global" game-level logic (win conditions, spawners, level flow) that isn't tied to one GameObject should be modeled as a component on a persistent "GameManager"-style GameObject, not a parallel hook surface — this gets hot-reload, serialization, and the update loop for free. If engine→game event subscription is ever needed (e.g. `OnPlayStateChanged`), reuse the same static-RAII-registrar pattern already used for component registration (`docs/Component-Registration.txt`): a static object in the game DLL calls `EngineInstance::Subscribe(...)` from its constructor at DLL load time, so the editor still never needs to call into the DLL explicitly.
 - P6-02: Implement a fixed-timestep game loop driven by the editor (target Hz configurable, spiral-of-death guard)
 - P6-03: Implement Play / Pause / Stop state machine in the editor
 - P6-04: Implement scene state snapshot on Play start; restore original state on Stop (so edits made during play are discarded)
@@ -178,7 +178,7 @@ A thin launcher executable that runs a shipped game without the editor.
 - P7-01: Convert (or add) a `game-runner` CMake exe target that links `engine-core.dll` and loads the game DLL by path
 - P7-02: Implement command-line argument parsing (project path, scene to load, window config)
 - P7-03: Implement the standalone game loop (same fixed-timestep logic as the editor play mode, no editor overhead)
-- P7-04: Implement clean shutdown: call `GameShutdown`, unload DLL, destroy scene
+- P7-04: Implement clean shutdown: clear/destroy the active scene (triggering `OnDestroy` on all components via the normal teardown path), unload DLL
 
 ---
 
