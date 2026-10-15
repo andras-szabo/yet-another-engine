@@ -9,7 +9,9 @@ export module EditorShared;
 #include <string>
 #include <expected>
 #include <functional>
+#include <string>
 #include <vector>
+#include <sstream>
 #include "../../engine-core/src/FileWatcher.ixx"
 #include "../../engine-core/src/Utility.ixx"
 #else
@@ -30,6 +32,50 @@ namespace Editor
     {
         CommandTaskFN commandFunction;
         std::string description;
+    };
+
+    export enum class EditorPlayState
+    {
+        Undefined = 0,
+
+        Editing,
+        StartingPlay,
+        Playing,
+        Paused,
+        StoppingPlay,
+
+        ShuttingDown
+    };
+
+    export struct EditorState
+    {
+        EditorPlayState currentState { EditorPlayState::Undefined };
+		EditorPlayState desiredState { EditorPlayState::Undefined };
+
+        std::string ToString() const
+        {
+            std::ostringstream oss;
+
+			auto enumToStr = [](EditorPlayState state) -> std::string
+				{
+					switch (state)
+					{
+					case EditorPlayState::Undefined: return "Undefined";
+					case EditorPlayState::Editing: return "Editing";
+					case EditorPlayState::StartingPlay: return "StartingPlay";
+					case EditorPlayState::Playing: return "Playing";
+					case EditorPlayState::Paused: return "Paused";
+					case EditorPlayState::StoppingPlay: return "StoppingPlay";
+					case EditorPlayState::ShuttingDown: return "ShuttingDown";
+					default: return "Unknown";
+					}
+				};
+
+			oss << "current: " << enumToStr(currentState) << "; desired: " << enumToStr(desiredState);
+
+            return oss.str();
+        }
+
     };
 
     export struct ContextState
@@ -58,8 +104,8 @@ namespace Editor
         void CollectExecutorInfo(const std::unordered_map<std::string, Editor::EditorCommand>& executors);
         void SetProjectPath(std::wstring_view projectPath);
 
-        ContextState GetCurrentState();
-        void SetState(const ContextState& state);
+        ContextState GetContextState();
+        void SetContextState(const ContextState& state);
 
         bool IsQuitRequested();
         void RequestQuit();
@@ -73,14 +119,21 @@ namespace Editor
         ProjectSettings GetProjectSettings();
 		void SetProjectSettings(const ProjectSettings& settings);
 
+		EditorState GetEditorState();
+        void RequestEditorPlayModeStateChange(EditorPlayState requestedState);
+        void ExecuteRequestedPlayModeStateChange();
+
     private:
         std::mutex _contextLock;
-        ContextState _state;
+        ContextState _contextState;
 		HANDLE _quitRequestedEventHandle{ CreateEventW(NULL, TRUE, FALSE, NULL) };
         std::vector<Engine::FileChangeEvent> _fileChangeEventQueue;
 
         std::mutex _projectSettingsLock;
         ProjectSettings _projectSettings;
+
+        std::mutex _editorStateLock;
+        EditorState _editorState;
     };
 
     export struct IEditorTask

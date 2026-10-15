@@ -2,16 +2,19 @@ module;
 
 #include <cassert>
 #include "engine_core_api.h"
+#include "LoggerMacros.h"
 
 module EngineInstance;
 
 #if defined ( __INTELLISENSE__ )
 #include "IComponentStorage.ixx"
 #include "EngineInstance.ixx"
+#include "Logger.ixx"
 #include "Scene.ixx"
 #else
 import IComponentStorage;
 import Scene;
+import Logger;
 #endif
 
 import std;
@@ -118,6 +121,21 @@ namespace Engine
 		_impl->Update(dt);
 	}
 
+	void EngineInstance::OnPlayModeStart()
+	{
+		assert(_impl != nullptr && "Engine instance is not initialized!");
+		LOG_INFO("On Play Mode Start");
+		_impl->OnPlayModeStart();
+	}
+
+	void EngineInstance::OnPlayModeStop()
+	{
+		assert(_impl != nullptr && "Engine instance is not initialized!");
+		LOG_INFO("On Play Mode Stop");
+		_impl->OnPlayModeStop();
+	}
+
+	// TODO revise
 	float EngineInstance_Impl::CalculateDeltaTime() const
 	{
 		static std::chrono::high_resolution_clock clock;
@@ -128,11 +146,22 @@ namespace Engine
 		lastTime = currentTime;
 
 		return deltaTime;
+	}
 
+	void EngineInstance_Impl::OnPlayModeStart()
+	{
+		_elapsedSecondsInPlayMode = 0.0;
+	}
+
+	void EngineInstance_Impl::OnPlayModeStop()
+	{
 	}
 
 	void EngineInstance_Impl::Update(float dt)
 	{
+		const long double elapsedSeconds = trunc(static_cast<long double>(_elapsedSecondsInPlayMode));
+		_elapsedSecondsInPlayMode += dt;
+
 		// Update input
 		// Update engine systems (physics etc)
 
@@ -149,6 +178,15 @@ namespace Engine
 						component->OnUpdate(dt);
 					}
 				}
+			}
+		}
+
+		{
+			const long double seconds = trunc(static_cast<long double>(_elapsedSecondsInPlayMode));
+
+			if (seconds > elapsedSeconds)
+			{
+				LOG_INFO("EngineInstance update: {} seconds elapsed, dt = {}", seconds, dt);
 			}
 		}
 	}

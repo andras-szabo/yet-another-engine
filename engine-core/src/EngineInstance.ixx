@@ -40,6 +40,8 @@ namespace Engine
 
 		void Run();
 		void Update(float dt);
+		void OnPlayModeStart();
+		void OnPlayModeStop();
 
 		bool IsQuitting() const;
 		float CalculateDeltaTime() const;
@@ -47,6 +49,9 @@ namespace Engine
 		std::unique_ptr<IComponentStorage> _componentStorage;
 		Scene::Scene* _activeScene{ nullptr };
 		Engine::AssetDatabase _assetDatabase;
+
+		double _elapsedSecondsSinceStarup{ 0.0 };
+		double _elapsedSecondsInPlayMode{ 0.0 };
 	};
 
 	export class ENGINE_CORE_API EngineInstance
@@ -66,6 +71,9 @@ namespace Engine
 		
 		void Run();
 		void Update(float dt);
+
+		void OnPlayModeStart();
+		void OnPlayModeStop();
 
 	private:
 		EngineInstance() = default;

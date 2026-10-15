@@ -64,14 +64,14 @@ namespace Editor
 	void Context::RequestQuit()
 	{
 		std::lock_guard<std::mutex> guard{ _contextLock };
-		_state.isQuitRequested = true;
+		_contextState.isQuitRequested = true;
 		SetEvent(_quitRequestedEventHandle);
 	}
 
 	bool Context::IsQuitRequested()
 	{
 		std::lock_guard<std::mutex> guard{ _contextLock };
-		return _state.isQuitRequested;
+		return _contextState.isQuitRequested;
 	}
 
 	void Context::CollectFileChangeEvent(const Engine::FileChangeEvent& event)
@@ -80,28 +80,46 @@ namespace Editor
 		_fileChangeEventQueue.push_back(event);
 	}
 
-	ContextState Context::GetCurrentState()
+	ContextState Context::GetContextState()
 	{
 		std::lock_guard<std::mutex> guard{ _contextLock };
-		return _state;
+		return _contextState;
 	}
 
-	void Context::SetState(const ContextState& state)
+	void Context::SetContextState(const ContextState& state)
 	{
 		std::lock_guard<std::mutex> guard{ _contextLock };
-		_state = state;
+		_contextState = state;
 	}
 
 	void Context::SetProjectPath(std::wstring_view projectPath)
 	{
 		std::lock_guard<std::mutex> l{ _contextLock };
-		_state.projectPath = std::wstring(projectPath);
+		_contextState.projectPath = std::wstring(projectPath);
 	}
 
 	ProjectSettings Context::GetProjectSettings()
 	{
 		std::lock_guard<std::mutex> l{ _projectSettingsLock };
 		return _projectSettings;
+	}
+
+	EditorState Context::GetEditorState()
+	{
+		std::lock_guard<std::mutex> l{ _editorStateLock };
+		return _editorState;
+	}
+
+	void Context::RequestEditorPlayModeStateChange(EditorPlayState requestedState)
+	{
+		std::lock_guard<std::mutex> l{ _editorStateLock };
+		_editorState.desiredState = requestedState;
+	}
+
+	void Context::ExecuteRequestedPlayModeStateChange()
+	{
+		std::lock_guard<std::mutex> l{ _editorStateLock };
+		_editorState.currentState = _editorState.desiredState;
 	}
 
 	void Context::SetProjectSettings(const ProjectSettings& settings)
