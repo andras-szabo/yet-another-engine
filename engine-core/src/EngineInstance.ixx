@@ -52,6 +52,8 @@ namespace Engine
 
 		double _elapsedSecondsSinceStarup{ 0.0 };
 		double _elapsedSecondsInPlayMode{ 0.0 };
+		double _elapsedSinceLastFixedUpdate{ 0.0 };
+		double _fixedUpdateStep{ 1.0 / 60.0 };
 	};
 
 	export class ENGINE_CORE_API EngineInstance

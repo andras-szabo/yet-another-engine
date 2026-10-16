@@ -24,6 +24,7 @@ namespace Engine
 		virtual ~Component() = default;
 
 		virtual void OnCreate() {}
+		virtual void OnFixedUpdate([[maybe_unused]] float dt) {}
 		virtual void OnUpdate([[maybe_unused]] float dt) {}
 		virtual void OnDestroy() {}
 

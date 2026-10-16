@@ -164,7 +164,29 @@ namespace Engine
 
 		// Update input
 		// Update engine systems (physics etc)
+		
+		// Fixed update steps
+		_elapsedSinceLastFixedUpdate += dt;
+		while (_elapsedSinceLastFixedUpdate >= _fixedUpdateStep)
+		{
+			_elapsedSinceLastFixedUpdate -= _fixedUpdateStep;
+			if (_activeScene != nullptr)
+			{
+				_activeScene->UpdateWorldTransforms();
+				for (auto& gameObject : _activeScene->GetAllGameObjects())
+				{
+					for (auto* component : gameObject->GetComponents())
+					{
+						if (component->IsEnabled())
+						{
+							component->OnFixedUpdate(_fixedUpdateStep);
+						}
+					}
+				}
+			}
+		}
 
+		// Variable rate update step
 		if (_activeScene != nullptr)
 		{
 			_activeScene->UpdateWorldTransforms();
