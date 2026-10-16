@@ -809,6 +809,25 @@ Editor::CommandReturnType TogglePlayMode(const std::vector<std::string>& command
 	return {};
 }
 
+Editor::CommandReturnType ListSceneNodes(const std::vector<std::string>& commandAndArguments,
+	Editor::Context& context,
+	Editor::IEditorTask& task)
+{
+	Editor::TaskProgressScope _(task);
+	const auto& scene = Engine::EngineInstance::GetActiveScene();
+	std::cout << "Scene: " << scene.GetSceneName() << "\n";
+	std::cout << "Nodes:\n";
+	const auto nodeCount = scene.GetTransformStorage()->transformComponents.size();
+	float currentNodeIndex = 0.0f;
+	for (std::size_t i = 0; i < nodeCount; ++i)
+	{
+		std::cout << "  " << scene.GetNodeName(i) << "\n";
+		currentNodeIndex += 1.0f;
+		task.SetProgress(currentNodeIndex / static_cast<float>(nodeCount));
+	}
+	return {};
+}
+
 
 void TryExecute(const std::vector<std::string>& tokens,
 	std::unordered_map<std::string, Editor::EditorCommand>& executors,
@@ -1046,6 +1065,8 @@ int main()
 	executors_["play"] = { TogglePlayMode, "Enter / exit play mode" };
 	executors_["p"] = { PausePlayMode, "Pause / unpause play mode" };
 
+	executors_["ls"] = { ListSceneNodes, "List scene hierarchy" };
+
 	// TODO: Read this from an editor settings file; and make it part of an editorInstance
 	Editor::Context context;
 
@@ -1096,6 +1117,8 @@ int main()
 	std::chrono::high_resolution_clock clock;
 	auto lastTimeOnClock = clock.now();
 
+	Engine::DataFile _sceneStateWhenEnteringPlayMode;
+
 	while (!context.IsQuitRequested())
 	{
 		const auto currentTime = clock.now();
@@ -1119,6 +1142,11 @@ int main()
 		case Editor::EditorPlayState::StartingPlay:
 		{
 			LOG_INFO("Editor starting play mode...");
+			// Serialize current scene state
+			const auto& scene = Engine::EngineInstance::GetActiveScene();
+
+			_sceneStateWhenEnteringPlayMode.Clear();
+			Engine::SerializeScene(scene, _sceneStateWhenEnteringPlayMode);
 			Engine::EngineInstance::Get().OnPlayModeStart();
 
 			context.RequestEditorPlayModeStateChange(Editor::EditorPlayState::Playing);
@@ -1144,6 +1172,17 @@ int main()
 		{
 			LOG_INFO("Editor exiting play mode...");
 			Engine::EngineInstance::Get().OnPlayModeStop();
+
+			// Deserialize and restore scene state from earlier.
+			auto sceneMaybe = Engine::DeserializeScene(_sceneStateWhenEnteringPlayMode, Engine::EngineInstance::GetComponentStorage());
+			if (sceneMaybe.has_value())
+			{
+				Engine::EngineInstance::SetActiveScene(std::move(sceneMaybe.value()));
+			}
+			else
+			{
+				LOG_ERROR("Failed to restore scene state after exiting play mode: {}", sceneMaybe.error().message);
+			}
 
 			context.RequestEditorPlayModeStateChange(Editor::EditorPlayState::Editing);
 			break;
