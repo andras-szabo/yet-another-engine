@@ -179,7 +179,7 @@ namespace Engine
 					{
 						if (component->IsEnabled())
 						{
-							component->OnFixedUpdate(_fixedUpdateStep);
+							component->OnFixedUpdate(static_cast<float>(_fixedUpdateStep));
 						}
 					}
 				}

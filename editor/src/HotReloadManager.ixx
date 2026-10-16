@@ -8,8 +8,6 @@ module;
 
 export module HotReloadManager;
 
-import std;
-
 #if defined ( __INTELLISENSE__ )
 #include "../../engine-core/src/DataFile.ixx"
 #include "../../engine-core/src/DllLoader.ixx"
@@ -26,6 +24,8 @@ import Error;
 import FileWatcher;
 import Logger;
 import Serialization;
+
+import std;
 #endif
 
 namespace Editor

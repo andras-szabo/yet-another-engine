@@ -12,9 +12,8 @@ export module EngineInstance;
 import AssetDatabase;
 import IComponentStorage;
 import Scene;
-#endif
-
 import std;
+#endif
 
 namespace Engine
 {
