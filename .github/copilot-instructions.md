@@ -1,16 +1,29 @@
 # Copilot Instructions
 
+## Project overview
+This is a game engine project, as detailed in engine-plan.md. The goal of the project is not
+to be most efficient; rather, it's to make me learn and consider all the things that it takes
+to write such an engine. It's a kind of refresher of C++, and also a tool to learn about
+system / architecture design.
+
+## Working style
+- For "overview"/"what are my options" style questions: explain architectures, trade-offs,
+  and why engines commonly choose one approach over another - don't write code unless asked.
+- For "implement X" requests: make surgical, scoped changes only to what's asked.
+- Default to Plan mode (Shift+Tab) for anything touching more than one file/module, so
+  I can review the approach before code is written.
+
 ## Build
 
-**Toolchain:** Windows-only, MSVC (Visual Studio 2022 Community 17.14). Use the VS-bundled CMake — the system CMake in PATH is outdated (3.11):
+**Toolchain:** Windows-only, MSVC (Visual Studio 2026 Community 18). Use the VS-bundled CMake — the system CMake in PATH is outdated (3.11):
 ```
-"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
+"C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
 ```
 
 **Generate & build:**
 ```powershell
 # Configure (run once, or after CMakeLists changes)
-cmake -B build -G "Visual Studio 17 2022"
+cmake -B build -G "Visual Studio 18 2026"
 
 # Build (Debug or Release)
 cmake --build build --config Debug
@@ -161,3 +174,5 @@ REFLECTED_FIELDS(MyComp,
 Two access paths exist:
 - **Static:** `MyComp::GetFieldDescriptors()` — for compile-time/template use.
 - **Virtual:** `component->GetReflectedFields()` — for runtime use via `Component*`.
+
+

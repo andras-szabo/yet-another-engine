@@ -44,6 +44,8 @@ namespace Editor
 										   const std::wstring& fileName);
 
 		bool IsDllLoaded() const;
+		bool HasDllChanged();
+		Engine::Expected<void> ReloadDll();
 		void Update();
 
 	private:
@@ -67,6 +69,21 @@ namespace Editor
 	bool HotReloadManager::IsDllLoaded() const
 	{
 		return _loader.IsLoaded();
+	}
+
+	bool HotReloadManager::HasDllChanged() 
+	{
+		if (_watcher.IsValid())
+		{
+			return _watcher.Poll();
+		}
+
+		return false;
+	}
+
+	Engine::Expected<void> HotReloadManager::ReloadDll()
+	{
+		return LoadGameDll(_dllFolderPath, _fileName);
 	}
 
 	void HotReloadManager::Update()

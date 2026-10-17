@@ -110,6 +110,18 @@ namespace Editor
 		return _editorState;
 	}
 
+	bool Context::HasProjectDllChanged()
+	{
+		std::lock_guard<std::mutex> l{ _hotreloadManagerLock };
+		return _hotReloadManager.HasDllChanged();
+	}
+
+	Engine::Expected<void> Context::ReloadProjectDll()
+	{
+		std::lock_guard<std::mutex> l{ _hotreloadManagerLock };
+		return _hotReloadManager.ReloadDll();
+	}
+
 	void Context::RequestEditorPlayModeStateChange(EditorPlayState requestedState)
 	{
 		std::lock_guard<std::mutex> l{ _editorStateLock };

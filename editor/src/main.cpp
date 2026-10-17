@@ -406,7 +406,11 @@ Editor::CommandReturnType PopulateAssetDatabase(
 	auto& assetDatabase = Engine::EngineInstance::GetAssetDatabase();
 
 	const auto contextState = context.GetContextState();
-	assetDatabase.PopulateFromFolder(contextState.projectPath);
+	const auto populateResult = assetDatabase.PopulateFromFolder(contextState.projectPath);
+	if (!populateResult.has_value())
+	{
+		return std::unexpected{ "Failed to populate asset database: " + populateResult.error().message };
+	}
 
 	task.SetProgress(1.0f);
 	return {};
@@ -770,7 +774,7 @@ Editor::CommandReturnType Echo(const std::vector<std::string>& commandAndArgumen
 	return {};
 }
 
-Editor::CommandReturnType PausePlayMode(const std::vector<std::string>& commandAndArguments,
+Editor::CommandReturnType PausePlayMode([[maybe_unused]]const std::vector<std::string>& commandAndArguments,
 	Editor::Context& context,
 	Editor::IEditorTask& task)
 {
@@ -789,7 +793,7 @@ Editor::CommandReturnType PausePlayMode(const std::vector<std::string>& commandA
 	return {};
 }
 
-Editor::CommandReturnType TogglePlayMode(const std::vector<std::string>& commandAndArguments,
+Editor::CommandReturnType TogglePlayMode([[maybe_unused]]const std::vector<std::string>& commandAndArguments,
 	Editor::Context& context,
 	Editor::IEditorTask& task)
 {
@@ -809,8 +813,8 @@ Editor::CommandReturnType TogglePlayMode(const std::vector<std::string>& command
 	return {};
 }
 
-Editor::CommandReturnType ListSceneNodes(const std::vector<std::string>& commandAndArguments,
-	Editor::Context& context,
+Editor::CommandReturnType ListSceneNodes([[maybe_unused]] const std::vector<std::string>& commandAndArguments,
+	[[maybe_unused]] Editor::Context& context,
 	Editor::IEditorTask& task)
 {
 	Editor::TaskProgressScope _(task);
@@ -1118,10 +1122,45 @@ int main()
 	auto lastTimeOnClock = clock.now();
 
 	Engine::DataFile _sceneStateWhenEnteringPlayMode;
+	Engine::DataFile _sceneStateBeforeHotReload;
 
 	while (!context.IsQuitRequested())
 	{
 		const auto currentTime = clock.now();
+
+		// TODO export into its own method
+		if (context.HasProjectDllChanged())
+		{
+			LOG_INFO("Hot reload detected a change in the game DLL; reloading...");
+
+			auto& scene = Engine::EngineInstance::GetActiveSceneRW();
+			_sceneStateBeforeHotReload.Clear();
+			Engine::SerializeScene(scene, _sceneStateBeforeHotReload);
+
+			Engine::EngineInstance::Get().OnPlayModeStop();
+			scene.Clear();										// Explicitly clearing the scene to get rid of 
+																// dangling pointers to components that were in the old DLL.
+
+			const auto reloadResult = context.ReloadProjectDll();
+			if (!reloadResult.has_value())
+			{
+				LOG_ERROR("Failed to reload game DLL: {}", reloadResult.error().message);
+			}
+			else
+			{
+				auto sceneMaybe = Engine::DeserializeScene(_sceneStateBeforeHotReload, Engine::EngineInstance::GetComponentStorage());
+				if (sceneMaybe.has_value())
+				{
+					Engine::EngineInstance::SetActiveScene(std::move(sceneMaybe.value()));
+					LOG_INFO("Scene state restored after hot reload.");
+				}
+				else
+				{
+					LOG_ERROR("Failed to restore scene state after hot reload: {}", sceneMaybe.error().message);
+				}
+			}
+		}
+
 
 		Editor::EditorState editorState = context.GetEditorState();
 		switch (editorState.currentState)
@@ -1171,7 +1210,9 @@ int main()
 		case Editor::EditorPlayState::StoppingPlay:
 		{
 			LOG_INFO("Editor exiting play mode...");
+
 			Engine::EngineInstance::Get().OnPlayModeStop();
+			Engine::EngineInstance::GetActiveSceneRW().Clear();
 
 			// Deserialize and restore scene state from earlier.
 			auto sceneMaybe = Engine::DeserializeScene(_sceneStateWhenEnteringPlayMode, Engine::EngineInstance::GetComponentStorage());

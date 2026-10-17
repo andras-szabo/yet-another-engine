@@ -12,11 +12,15 @@ export module EditorShared;
 #include <string>
 #include <vector>
 #include <sstream>
+#include "../../engine-core/src/EngineError.ixx"
 #include "../../engine-core/src/FileWatcher.ixx"
 #include "../../engine-core/src/Utility.ixx"
+#include "HotReloadManager.ixx"
 #else
 import std;
+import Error;
 import FileWatcher;
+import HotReloadManager;
 import Utility;
 #endif
 
@@ -123,6 +127,9 @@ namespace Editor
         void RequestEditorPlayModeStateChange(EditorPlayState requestedState);
         void ExecuteRequestedPlayModeStateChange();
 
+        bool HasProjectDllChanged();
+        Engine::Expected<void> ReloadProjectDll();
+
     private:
         std::mutex _contextLock;
         ContextState _contextState;
@@ -134,6 +141,9 @@ namespace Editor
 
         std::mutex _editorStateLock;
         EditorState _editorState;
+
+        std::mutex _hotreloadManagerLock;
+        HotReloadManager _hotReloadManager;
     };
 
     export struct IEditorTask
