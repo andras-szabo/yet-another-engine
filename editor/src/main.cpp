@@ -1122,116 +1122,115 @@ int main()
 	auto lastTimeOnClock = clock.now();
 
 	Engine::DataFile _sceneStateWhenEnteringPlayMode;
-	Engine::DataFile _sceneStateBeforeHotReload;
 
 	while (!context.IsQuitRequested())
 	{
-		const auto currentTime = clock.now();
+		Editor::EditorState editorState = context.GetEditorState();
 
 		// TODO export into its own method
+		bool triedHotReload = false;
 		if (context.HasProjectDllChanged())
 		{
 			LOG_INFO("Hot reload detected a change in the game DLL; reloading...");
 
-			auto& scene = Engine::EngineInstance::GetActiveSceneRW();
-			_sceneStateBeforeHotReload.Clear();
-			Engine::SerializeScene(scene, _sceneStateBeforeHotReload);
+			if (editorState.currentState == Editor::EditorPlayState::Playing || editorState.currentState == Editor::EditorPlayState::Paused)
+			{
+				LOG_INFO("Hot reload detected while in play mode; exiting play mode...");
+				Engine::EngineInstance::Get().OnPlayModeStop();
+			}
 
-			Engine::EngineInstance::Get().OnPlayModeStop();
-			scene.Clear();										// Explicitly clearing the scene to get rid of 
-																// dangling pointers to components that were in the old DLL.
-
+			// ReloadProjectDll already takes care of serializing the current scene before
+			// the reload, clearing the actual scene, then reloading, then deserializing the
+			// previous scene state back into the engine, and setting it as the active scene.
 			const auto reloadResult = context.ReloadProjectDll();
 			if (!reloadResult.has_value())
 			{
-				LOG_ERROR("Failed to reload game DLL: {}", reloadResult.error().message);
+				LOG_ERROR("Failed to reload game DLL: {}; pausing", reloadResult.error().message);
+				context.RequestEditorPlayModeStateChange(Editor::EditorPlayState::StoppingPlay);
 			}
 			else
 			{
-				auto sceneMaybe = Engine::DeserializeScene(_sceneStateBeforeHotReload, Engine::EngineInstance::GetComponentStorage());
+				if (editorState.currentState == Editor::EditorPlayState::Playing || editorState.currentState == Editor::EditorPlayState::Paused)
+				{
+					LOG_INFO("Hot reload succeeded; re-entering play mode...");
+					Engine::EngineInstance::Get().OnPlayModeStart();
+				}
+			}
+
+			triedHotReload = true;
+		}
+
+		if (!triedHotReload)
+		{
+			switch (editorState.currentState)
+			{
+			case Editor::EditorPlayState::Undefined:
+			{
+				LOG_INFO("Editor state is undefined; setting to Editing.");
+				context.RequestEditorPlayModeStateChange(Editor::EditorPlayState::Editing);
+				break;
+			}
+
+			case Editor::EditorPlayState::Editing:
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				break;
+			}
+
+			case Editor::EditorPlayState::StartingPlay:
+			{
+				LOG_INFO("Editor starting play mode...");
+				// Serialize current scene state
+				const auto& scene = Engine::EngineInstance::GetActiveScene();
+
+				_sceneStateWhenEnteringPlayMode.Clear();
+				Engine::SerializeScene(scene, _sceneStateWhenEnteringPlayMode);
+				Engine::EngineInstance::Get().OnPlayModeStart();
+
+				context.RequestEditorPlayModeStateChange(Editor::EditorPlayState::Playing);
+				break;
+			}
+
+			case Editor::EditorPlayState::Playing:
+			{
+				auto currentTime = clock.now();
+				dt = std::chrono::duration<float>(currentTime - lastTimeOnClock).count();
+				Engine::EngineInstance::Get().Update(dt);
+				break;
+			}
+
+			case Editor::EditorPlayState::Paused:
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+				break;
+			}
+
+			case Editor::EditorPlayState::StoppingPlay:
+			{
+				LOG_INFO("Editor exiting play mode...");
+
+				Engine::EngineInstance::Get().OnPlayModeStop();
+				Engine::EngineInstance::GetActiveSceneRW().Clear();
+
+				// Deserialize and restore scene state from earlier.
+				auto sceneMaybe = Engine::DeserializeScene(_sceneStateWhenEnteringPlayMode, Engine::EngineInstance::GetComponentStorage());
 				if (sceneMaybe.has_value())
 				{
 					Engine::EngineInstance::SetActiveScene(std::move(sceneMaybe.value()));
-					LOG_INFO("Scene state restored after hot reload.");
 				}
 				else
 				{
-					LOG_ERROR("Failed to restore scene state after hot reload: {}", sceneMaybe.error().message);
+					LOG_ERROR("Failed to restore scene state after exiting play mode: {}", sceneMaybe.error().message);
 				}
+
+				context.RequestEditorPlayModeStateChange(Editor::EditorPlayState::Editing);
+				break;
 			}
-		}
-
-
-		Editor::EditorState editorState = context.GetEditorState();
-		switch (editorState.currentState)
-		{
-		case Editor::EditorPlayState::Undefined:
-		{
-			LOG_INFO("Editor state is undefined; setting to Editing.");
-			context.RequestEditorPlayModeStateChange(Editor::EditorPlayState::Editing);
-			break;
-		}
-
-		case Editor::EditorPlayState::Editing:
-		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
-			break;
-		}
-
-		case Editor::EditorPlayState::StartingPlay:
-		{
-			LOG_INFO("Editor starting play mode...");
-			// Serialize current scene state
-			const auto& scene = Engine::EngineInstance::GetActiveScene();
-
-			_sceneStateWhenEnteringPlayMode.Clear();
-			Engine::SerializeScene(scene, _sceneStateWhenEnteringPlayMode);
-			Engine::EngineInstance::Get().OnPlayModeStart();
-
-			context.RequestEditorPlayModeStateChange(Editor::EditorPlayState::Playing);
-			lastTimeOnClock = clock.now();
-
-			break;
-		}
-
-		case Editor::EditorPlayState::Playing:
-		{
-			dt = std::chrono::duration<float>(currentTime - lastTimeOnClock).count();
-			Engine::EngineInstance::Get().Update(dt);
-			break;
-		}
-
-		case Editor::EditorPlayState::Paused:
-		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
-			break;
-		}
-
-		case Editor::EditorPlayState::StoppingPlay:
-		{
-			LOG_INFO("Editor exiting play mode...");
-
-			Engine::EngineInstance::Get().OnPlayModeStop();
-			Engine::EngineInstance::GetActiveSceneRW().Clear();
-
-			// Deserialize and restore scene state from earlier.
-			auto sceneMaybe = Engine::DeserializeScene(_sceneStateWhenEnteringPlayMode, Engine::EngineInstance::GetComponentStorage());
-			if (sceneMaybe.has_value())
-			{
-				Engine::EngineInstance::SetActiveScene(std::move(sceneMaybe.value()));
 			}
-			else
-			{
-				LOG_ERROR("Failed to restore scene state after exiting play mode: {}", sceneMaybe.error().message);
-			}
-
-			context.RequestEditorPlayModeStateChange(Editor::EditorPlayState::Editing);
-			break;
-		}
 		}
 
 		context.ExecuteRequestedPlayModeStateChange();
-		lastTimeOnClock = currentTime;
+		lastTimeOnClock = clock.now();
 	}
 
 	inputThread.join();
