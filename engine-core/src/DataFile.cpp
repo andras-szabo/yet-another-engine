@@ -25,11 +25,11 @@ namespace Engine
 	struct DataFile_Impl
 	{
 		DataFile_Impl();
-		DataFile_Impl(const DataFile_Impl & other);
-		DataFile_Impl& operator=(const DataFile_Impl & other);
+		DataFile_Impl(const DataFile_Impl& other);
+		DataFile_Impl& operator=(const DataFile_Impl& other);
 
-		DataFile_Impl(DataFile_Impl && other) noexcept;
-		DataFile_Impl& operator=(DataFile_Impl && other) noexcept;
+		DataFile_Impl(DataFile_Impl&& other) noexcept;
+		DataFile_Impl& operator=(DataFile_Impl&& other) noexcept;
 		~DataFile_Impl();
 
 		std::vector<std::string> content;
@@ -278,6 +278,8 @@ namespace Engine
 
 	DataFile DataFile::DeepCopy() const
 	{
+		assert(_impl != nullptr && "DataFile _impl is null; was this moved from?");
+
 		DataFile copy;
 		copy._impl = std::make_unique<DataFile_Impl>(*_impl);
 		return copy;
@@ -292,12 +294,14 @@ namespace Engine
 
 	DataFile& DataFile::operator[](std::string_view name)
 	{
+		assert(_impl != nullptr && "DataFile _impl is null; was this moved from?");
+
 		auto item = _impl->childIndexByName.find(name);
 
 		if (item == _impl->childIndexByName.end())
 		{
 			_impl->childrenNames.push_back(std::string(name));
-			auto nameAsString = _impl->childrenNames.back();
+			const auto& nameAsString = _impl->childrenNames.back();
 			_impl->childIndexByName[nameAsString] = static_cast<int>(_impl->children.size());
 			_impl->children.push_back(std::make_unique<DataFile>());
 
@@ -309,11 +313,15 @@ namespace Engine
 
 	const DataFile& DataFile::operator[](std::string_view name) const
 	{
+		assert(_impl != nullptr && "DataFile _impl is null; was this moved from?");
+
 		return at(name);
 	}
 
 	const DataFile& DataFile::at(std::string_view name) const // Will throw if key not present.
 	{
+		assert(_impl != nullptr && "DataFile _impl is null; was this moved from?");
+
 		const auto item = _impl->childIndexByName.find(name);
 
 		if (item == _impl->childIndexByName.end())
@@ -326,12 +334,13 @@ namespace Engine
 
 	bool DataFile::IsEmpty() const
 	{
-		return _impl->content.size() == (std::size_t)0 && _impl->children.size() == (std::size_t)0;
+		return _impl == nullptr || 
+			   _impl->content.size() == (std::size_t)0 && _impl->children.size() == (std::size_t)0;
 	}
 
 	std::size_t DataFile::GetValueCount() const
 	{
-		return _impl->content.size();
+		return _impl == nullptr ? 0 : _impl->content.size();
 	}
 
 	void DataFile::SetInt(int i, int index)
@@ -375,16 +384,20 @@ namespace Engine
 
 	bool DataFile::HasChild(std::string_view name) const
 	{
-		return _impl->childIndexByName.find(name) != _impl->childIndexByName.end();
+		return _impl != nullptr && _impl->childIndexByName.find(name) != _impl->childIndexByName.end();
 	}
 
 	std::vector<const DataFile*> DataFile::GetChildren() const
 	{
 		std::vector<const DataFile*> children;
-		children.reserve(_impl->children.size());
-		for (const auto& child : _impl->children)
+
+		if (_impl != nullptr)
 		{
-			children.push_back(child.get());
+			children.reserve(_impl->children.size());
+			for (const auto& child : _impl->children)
+			{
+				children.push_back(child.get());
+			}
 		}
 
 		return children;
@@ -392,11 +405,16 @@ namespace Engine
 
 	std::vector<std::string> DataFile::GetChildrenNames() const
 	{
-		return _impl->childrenNames;
+		return _impl == nullptr ? std::vector<std::string>{} : _impl->childrenNames;
 	}
 
 	void DataFile::Clear()
 	{
+		if (_impl == nullptr)
+		{
+			return;
+		}
+
 		_impl->content.clear();
 		_impl->children.clear();
 		_impl->childrenNames.clear();
@@ -410,6 +428,8 @@ namespace Engine
 
 	void DataFile::SetString(const std::string& str, int index)
 	{
+		assert(_impl != nullptr && "DataFile _impl is null; was this moved from?");
+
 		if (0 <= index)
 		{
 			if (index >= static_cast<int> (_impl->content.size()))
@@ -423,6 +443,8 @@ namespace Engine
 
 	Engine::Expected<std::string> DataFile::TryGetString(int index) const
 	{
+		assert(_impl != nullptr && "DataFile _impl is null; was this moved from?");
+
 		if (0 <= index && index < _impl->content.size())
 		{
 			return _impl->content[index];
@@ -433,6 +455,8 @@ namespace Engine
 
 	const std::string& DataFile::GetString(int index) const
 	{
+		assert(_impl != nullptr && "DataFile _impl is null; was this moved from?");
+
 		if (0 <= index && index < _impl->content.size())
 		{
 			return _impl->content[index];
@@ -443,6 +467,8 @@ namespace Engine
 
 	Engine::Expected<int> DataFile::TryGetInt(int index) const
 	{
+		assert(_impl != nullptr && "DataFile _impl is null; was this moved from?");
+
 		if (0 <= index && index < _impl->content.size())
 		{
 			return GetInt(index);
@@ -475,6 +501,8 @@ namespace Engine
 
 	std::string DataFile::ToString(const std::string& indent) const
 	{
+		assert(_impl != nullptr && "DataFile _impl is null; was this moved from?");
+
 		const std::string comma{ ", " };
 
 		std::function<void(const DataFile&, std::ostream&, int)> Write = [&]

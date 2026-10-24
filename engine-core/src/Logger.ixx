@@ -16,9 +16,7 @@ export module Logger;	// closes the global module fragment,
 						// begins the module purview
 
 #if defined ( __INTELLISENSE__ )
-#include "Utility.ixx"
 #else
-import Utility;
 #endif
 
 namespace Engine
@@ -118,15 +116,15 @@ struct std::formatter<Engine::LogLevel> : std::formatter<std::string_view>
 	}
 };
 
-template<>
-struct std::formatter<std::wstring> : std::formatter<std::string_view>
-{
-	auto format(const std::wstring& wstr, std::format_context& ctx) const
-	{
-		std::string str = Engine::WideToUtf8(wstr);
-		return std::formatter<std::string_view>::format(str, ctx);
-	}
-};
+//template<>
+//struct std::formatter<std::wstring> : std::formatter<std::string_view>
+//{
+//	auto format(const std::wstring& wstr, std::format_context& ctx) const
+//	{
+//		std::string str = Engine::WideToUtf8(wstr);
+//		return std::formatter<std::string_view>::format(str, ctx);
+//	}
+//};
 
 namespace Engine
 {

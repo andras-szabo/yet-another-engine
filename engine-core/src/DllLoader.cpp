@@ -65,7 +65,7 @@ namespace Engine
 	{
 		assert(_moduleHandle == nullptr && "DllLoader already loaded a dll.");
 
-		LOG_INFO("Loading DLL: {}", std::string(path.begin(), path.end()));
+		LOG_INFO("Loading DLL: {}", WideToUtf8(path));
 
 		if (_moduleHandle != nullptr)
 		{

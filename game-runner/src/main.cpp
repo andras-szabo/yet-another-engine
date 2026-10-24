@@ -23,7 +23,7 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
-	const auto gameDllPath = Engine::MultiByteToWide(argv[1]);
+	const std::string gameDllPath{ argv[1] };
 	LOG_INFO("Game dll path: {}", gameDllPath);
 
 	Engine::DllLoader dllLoader;
