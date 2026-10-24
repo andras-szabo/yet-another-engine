@@ -120,13 +120,13 @@ namespace Editor
 
 		if (IsDllLoaded())
 		{
-			const auto serializedScene = SerializeCurrentScene();
+			auto serializedScene = SerializeCurrentScene();
 			if (!serializedScene.has_value())
 			{
 				return Engine::Unexpected{ serializedScene.error() };
 			}
 
-			previousScene = serializedScene.value();
+			previousScene = std::move(serializedScene).value();
 
 			Engine::EngineInstance::GetActiveSceneRW().Clear();
 			const bool didUnload = _loader.Unload();

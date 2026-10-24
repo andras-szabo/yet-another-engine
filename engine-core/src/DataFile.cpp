@@ -22,6 +22,54 @@ import std;
 
 namespace Engine
 {
+	struct DataFile_Impl
+	{
+		DataFile_Impl();
+		DataFile_Impl(const DataFile_Impl & other);
+		DataFile_Impl& operator=(const DataFile_Impl & other);
+
+		DataFile_Impl(DataFile_Impl && other) noexcept;
+		DataFile_Impl& operator=(DataFile_Impl && other) noexcept;
+		~DataFile_Impl();
+
+		std::vector<std::string> content;
+		std::vector<std::unique_ptr<DataFile>> children;
+		std::vector<std::string> childrenNames;
+		std::unordered_map<std::string, int, StringViewHash, StringViewEq> childIndexByName;
+	};
+
+	DataFile_Impl::DataFile_Impl() = default;
+
+	DataFile_Impl::DataFile_Impl(const DataFile_Impl& other)
+		: content(other.content),
+		childrenNames(other.childrenNames),
+		childIndexByName(other.childIndexByName)
+	{
+		children.reserve(other.children.size());
+		for (const auto& child : other.children)
+		{
+			auto copy = child->DeepCopy();
+			children.push_back(std::make_unique<DataFile>(std::move(copy)));
+		}
+	}
+
+	DataFile_Impl::DataFile_Impl(DataFile_Impl&& other) noexcept = default;
+
+	DataFile_Impl& DataFile_Impl::operator=(const DataFile_Impl& other)
+	{
+		if (this != &other)
+		{
+			DataFile_Impl copy(other);
+			*this = std::move(copy);
+		}
+
+		return *this;
+	}
+
+	DataFile_Impl& DataFile_Impl::operator=(DataFile_Impl&& other) noexcept = default;
+
+	DataFile_Impl::~DataFile_Impl() = default;
+
 	std::size_t StringViewHash::operator()(std::string_view sv) const noexcept
 	{
 		return std::hash<std::string_view>{}(sv);
@@ -55,6 +103,11 @@ namespace Engine
 		serializable.ToDataFile(*this);
 		return *this;
 	}
+
+	DataFile::~DataFile() = default;
+
+	DataFile::DataFile(DataFile&& other) noexcept = default;
+	DataFile& DataFile::operator=(DataFile&& other) noexcept = default;
 
 	std::string DataFile::EscapeString(const std::string& str)
 	{
@@ -94,7 +147,7 @@ namespace Engine
 
 				// Write contents
 				const auto contentSize = d.GetValueCount();
-				if (contentSize == 0 && d._impl.children.empty())
+				if (contentSize == 0 && d._impl->children.empty())
 				{
 					return;
 				}
@@ -117,11 +170,11 @@ namespace Engine
 				}
 
 				int childIndex = 0;
-				for (const auto& childNode : d._impl.children)
+				for (const auto& childNode : d._impl->children)
 				{
-					f << indentStr(currentIndent, indent) << "[" << d._impl.childrenNames.at(childIndex++) << "]\n";
+					f << indentStr(currentIndent, indent) << "[" << d._impl->childrenNames.at(childIndex++) << "]\n";
 					f << indentStr(currentIndent, indent) << "{\n";
-					Write(childNode, f, currentIndent + 1);
+					Write(*childNode, f, currentIndent + 1);
 					f << indentStr(currentIndent, indent) << "}\n";
 				}
 			};
@@ -218,27 +271,40 @@ namespace Engine
 		return Engine::Unexpected({ Engine::ErrorType::File, "Couldn't open file" });
 	}
 
-	DataFile::DataFile(std::size_t expectedChildrenCount)
+	DataFile::DataFile()
+		: _impl(std::make_unique<DataFile_Impl>())
 	{
-		_impl.children.reserve(expectedChildrenCount);
-		_impl.childIndexByName.reserve(expectedChildrenCount);
+	}
+
+	DataFile DataFile::DeepCopy() const
+	{
+		DataFile copy;
+		copy._impl = std::make_unique<DataFile_Impl>(*_impl);
+		return copy;
+	}
+
+	DataFile::DataFile(std::size_t expectedChildrenCount)
+		: _impl(std::make_unique<DataFile_Impl>())
+	{
+		_impl->children.reserve(expectedChildrenCount);
+		_impl->childIndexByName.reserve(expectedChildrenCount);
 	}
 
 	DataFile& DataFile::operator[](std::string_view name)
 	{
-		auto item = _impl.childIndexByName.find(name);
+		auto item = _impl->childIndexByName.find(name);
 
-		if (item == _impl.childIndexByName.end())
+		if (item == _impl->childIndexByName.end())
 		{
-			_impl.childrenNames.push_back(name.data());
-			auto nameAsString = _impl.childrenNames.back();
-			_impl.childIndexByName[nameAsString] = static_cast<int>(_impl.children.size());
-			_impl.children.emplace_back();
+			_impl->childrenNames.push_back(std::string(name));
+			auto nameAsString = _impl->childrenNames.back();
+			_impl->childIndexByName[nameAsString] = static_cast<int>(_impl->children.size());
+			_impl->children.push_back(std::make_unique<DataFile>());
 
-			return _impl.children.back();
+			return *_impl->children.back();
 		}
 
-		return _impl.children[(*item).second];
+		return *_impl->children[(*item).second];
 	}
 
 	const DataFile& DataFile::operator[](std::string_view name) const
@@ -246,20 +312,26 @@ namespace Engine
 		return at(name);
 	}
 
-	const DataFile& DataFile::at(std::string_view name) const				// Will throw if key not present.
+	const DataFile& DataFile::at(std::string_view name) const // Will throw if key not present.
 	{
-		const auto item = _impl.childIndexByName.find(name);
-		return _impl.children[(*item).second];
+		const auto item = _impl->childIndexByName.find(name);
+
+		if (item == _impl->childIndexByName.end())
+		{
+			throw std::out_of_range(std::format("Child node '{}' not found.", name));
+		}
+
+		return *_impl->children[(*item).second];
 	}
 
 	bool DataFile::IsEmpty() const
 	{
-		return _impl.content.size() == (std::size_t)0 && _impl.children.size() == (std::size_t)0;
+		return _impl->content.size() == (std::size_t)0 && _impl->children.size() == (std::size_t)0;
 	}
 
 	std::size_t DataFile::GetValueCount() const
 	{
-		return _impl.content.size();
+		return _impl->content.size();
 	}
 
 	void DataFile::SetInt(int i, int index)
@@ -303,25 +375,32 @@ namespace Engine
 
 	bool DataFile::HasChild(std::string_view name) const
 	{
-		return _impl.childIndexByName.find(name) != _impl.childIndexByName.end();
+		return _impl->childIndexByName.find(name) != _impl->childIndexByName.end();
 	}
 
-	std::vector<DataFile> DataFile::GetChildren() const
+	std::vector<const DataFile*> DataFile::GetChildren() const
 	{
-		return _impl.children;
+		std::vector<const DataFile*> children;
+		children.reserve(_impl->children.size());
+		for (const auto& child : _impl->children)
+		{
+			children.push_back(child.get());
+		}
+
+		return children;
 	}
 
 	std::vector<std::string> DataFile::GetChildrenNames() const
 	{
-		return _impl.childrenNames;
+		return _impl->childrenNames;
 	}
 
 	void DataFile::Clear()
 	{
-		_impl.content.clear();
-		_impl.children.clear();
-		_impl.childrenNames.clear();
-		_impl.childIndexByName.clear();
+		_impl->content.clear();
+		_impl->children.clear();
+		_impl->childrenNames.clear();
+		_impl->childIndexByName.clear();
 	}
 
 	void DataFile::SetString(const std::string_view strView, int index)
@@ -333,20 +412,20 @@ namespace Engine
 	{
 		if (0 <= index)
 		{
-			if (index >= static_cast<int> (_impl.content.size()))
+			if (index >= static_cast<int> (_impl->content.size()))
 			{
-				_impl.content.resize(index + 1);
+				_impl->content.resize(index + 1);
 			}
 
-			_impl.content[index] = str;
+			_impl->content[index] = str;
 		}
 	}
 
 	Engine::Expected<std::string> DataFile::TryGetString(int index) const
 	{
-		if (0 <= index && index < _impl.content.size())
+		if (0 <= index && index < _impl->content.size())
 		{
-			return _impl.content[index];
+			return _impl->content[index];
 		}
 
 		return Engine::Unexpected({ Engine::ErrorType::OutOfBounds, std::format("Read error at index {}", index) });
@@ -354,9 +433,9 @@ namespace Engine
 
 	const std::string& DataFile::GetString(int index) const
 	{
-		if (0 <= index && index < _impl.content.size())
+		if (0 <= index && index < _impl->content.size())
 		{
-			return _impl.content[index];
+			return _impl->content[index];
 		}
 
 		return EMPTY_STRING;
@@ -364,7 +443,7 @@ namespace Engine
 
 	Engine::Expected<int> DataFile::TryGetInt(int index) const
 	{
-		if (0 <= index && index < _impl.content.size())
+		if (0 <= index && index < _impl->content.size())
 		{
 			return GetInt(index);
 		}
@@ -412,7 +491,7 @@ namespace Engine
 					};
 
 				// Write contents
-				if (d.GetValueCount() == 0 && d._impl.children.size() == 0)
+				if (d.GetValueCount() == 0 && d._impl->children.size() == 0)
 				{
 					return;
 				}
@@ -436,11 +515,11 @@ namespace Engine
 				}
 
 				int  childIndex = 0;
-				for (const auto& childNode : d._impl.children)
+				for (const auto& childNode : d._impl->children)
 				{
-					f << indentStr(currentIndent, indent) << "[" << d._impl.childrenNames.at(childIndex++) << "]\n";
+					f << indentStr(currentIndent, indent) << "[" << d._impl->childrenNames.at(childIndex++) << "]\n";
 					f << indentStr(currentIndent, indent) << "{\n";
-					Write(childNode, f, currentIndent + 1);
+					Write(*childNode, f, currentIndent + 1);
 					f << indentStr(currentIndent, indent) << "}\n";
 				}
 			};

@@ -12,9 +12,11 @@ module DllLoader;
 #include "DllLoader.ixx"
 #include "EngineError.ixx"
 #include "Logger.ixx"
+#include "Utility.ixx"
 #else
 import Logger;
 import Error;
+import Utility;
 
 import std;
 #endif
@@ -52,11 +54,18 @@ namespace Engine
 		return _moduleHandle != nullptr;
 	}
 
+	Expected<void> DllLoader::Load(const std::string& path)
+	{
+		return Load(MultiByteToWide(path));
+	}
+
 	// "When specifying a path, be sure to use backslashes,
-	// not forward slashes.
+	// not forward slashes."
 	Expected<void> DllLoader::Load(const std::wstring& path)
 	{
 		assert(_moduleHandle == nullptr && "DllLoader already loaded a dll.");
+
+		LOG_INFO("Loading DLL: {}", std::string(path.begin(), path.end()));
 
 		if (_moduleHandle != nullptr)
 		{

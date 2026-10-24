@@ -80,7 +80,15 @@ namespace Engine
 			case Engine::FileChangeType::Added:
 			{
 				LOG_INFO("File added: {}", pathAsString);
-				TryAddNewAsset(entry, assetType);
+				const auto assetAdd = TryAddNewAsset(entry, assetType);
+				if (assetAdd.has_value())
+				{
+					LOG_INFO("Successfully added new asset: {}", pathAsString);
+				}
+				else
+				{
+					LOG_ERROR("Failed to add new asset: {}, {}", pathAsString, assetAdd.error().message);
+				}
 				break;
 			}
 
@@ -91,15 +99,32 @@ namespace Engine
 			case Engine::FileChangeType::Removed:
 			{
 				LOG_INFO("File removed: {}", pathAsString);
-				TryRemoveAsset(entry, assetType);
+				const auto assetRemoval = TryRemoveAsset(entry, assetType);
+				if (assetRemoval.has_value())
+				{
+					LOG_INFO("Successfully removed asset: {}", pathAsString);
+				}
+				else
+				{
+					LOG_ERROR("Failed to remove asset: {}, {}", pathAsString, assetRemoval.error().message);
+				}
 				break;
 			}
 
 			case Engine::FileChangeType::Renamed:
 			{
-				LOG_INFO("File renamed: from {} to {}", Engine::WideToUtf8(event.oldPath), pathAsString);
+				const auto oldEntryString = Engine::WideToUtf8(event.oldPath);
+				LOG_INFO("File renamed: from {} to {}", oldEntryString, pathAsString);
 				const fs::directory_entry oldEntry { event.oldPath };
-				TryRenameAsset(entry, oldEntry, assetType);
+				const auto assetRename = TryRenameAsset(entry, oldEntry, assetType);
+				if (assetRename.has_value())
+				{
+					LOG_INFO("Successfully renamed asset: {} -> {}", oldEntryString, pathAsString);
+				}
+				else
+				{
+					LOG_ERROR("Failed to rename asset: {} -> {}, {}", oldEntryString, pathAsString, assetRename.error().message);
+				}
 				break;
 			}
 

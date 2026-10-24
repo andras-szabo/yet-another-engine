@@ -10,6 +10,7 @@ module;
 export module DllLoader;
 
 #if defined ( __INTELLISENSE__ )
+#include <string>
 #include "EngineError.ixx"
 #include "Logger.ixx"
 #else
@@ -26,6 +27,7 @@ namespace Engine
 		DllLoader() = default;
 		~DllLoader();
 
+		Expected<void> Load(const std::string& path);
 		Expected<void> Load(const std::wstring& path);
 		bool Unload();
 		bool IsLoaded() const;
@@ -57,5 +59,5 @@ namespace Engine
 		return reinterpret_cast<FPtr>(address);
 	}
 
-	export Expected<void> CheckGameDllVersion(const DllLoader& dll);
+	export ENGINE_CORE_API Expected<void> CheckGameDllVersion(const DllLoader& dll);
 } // namespace Engine

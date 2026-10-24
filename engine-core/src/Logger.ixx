@@ -15,6 +15,12 @@ module;	// This tells the compiler that what follows is the global fragment,
 export module Logger;	// closes the global module fragment,
 						// begins the module purview
 
+#if defined ( __INTELLISENSE__ )
+#include "Utility.ixx"
+#else
+import Utility;
+#endif
+
 namespace Engine
 {
 	export enum class LogLevel
@@ -109,6 +115,16 @@ struct std::formatter<Engine::LogLevel> : std::formatter<std::string_view>
 		}
 
 		return std::formatter<std::string_view>::format(name, ctx);
+	}
+};
+
+template<>
+struct std::formatter<std::wstring> : std::formatter<std::string_view>
+{
+	auto format(const std::wstring& wstr, std::format_context& ctx) const
+	{
+		std::string str = Engine::WideToUtf8(wstr);
+		return std::formatter<std::string_view>::format(str, ctx);
 	}
 };
 

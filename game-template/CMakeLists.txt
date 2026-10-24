@@ -45,7 +45,7 @@ target_include_directories(engine-core INTERFACE
 )
 
 # ─── Collect SDK module interfaces ───────────────────────────────────────────
-file(GLOB ENGINE_CORE_MODULE_INTERFACES "${ENGINE_CORE_SDK_DIR}/modules/*.ixx")
+file(GLOB ENGINE_CORE_MODULE_INTERFACES CONFIGURE_DEPENDS "${ENGINE_CORE_SDK_DIR}/modules/*.ixx")
 
 # ─── game-template DLL ────────────────────────────────────────────────────────
 # The engine SDK's .ixx files are added to game-template's own FILE_SET so MSVC
@@ -86,4 +86,3 @@ if(MSVC)
 endif()
 
 apply_compiler_options(game-template)
-

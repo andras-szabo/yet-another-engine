@@ -156,7 +156,7 @@ namespace Engine
 			{
 				auto* v = reinterpret_cast<Vec2*>(baseAsCharPtr + field.offset);
 
-				const auto df = in[field.name];
+				const auto& df = in[field.name];
 				v->x = df.GetFloat(0);
 				v->y = df.GetFloat(1);
 
@@ -165,7 +165,7 @@ namespace Engine
 			case FieldType::Vec3:
 			{
 				auto* v = reinterpret_cast<Vec3*>(baseAsCharPtr + field.offset);
-				const auto df = in[field.name];
+				const auto& df = in[field.name];
 
 				v->x = df.GetFloat(0);
 				v->y = df.GetFloat(1);
@@ -176,7 +176,7 @@ namespace Engine
 			case FieldType::Vec4:
 			{
 				auto* v = reinterpret_cast<Vec4*>(baseAsCharPtr + field.offset);
-				const auto df = in[field.name];
+				const auto& df = in[field.name];
 
 				v->x = df.GetFloat(0);
 				v->y = df.GetFloat(1);
@@ -189,7 +189,7 @@ namespace Engine
 			{
 				// Stored order matches SerializeFields: w, x, y, z
 				auto* q = reinterpret_cast<Quaternion*>(baseAsCharPtr + field.offset);
-				const auto df = in[field.name];
+				const auto& df = in[field.name];
 
 				q->w = df.GetFloat(0);
 				q->x = df.GetFloat(1);
@@ -202,7 +202,7 @@ namespace Engine
 			{
 				auto* g = reinterpret_cast<GUID*>(baseAsCharPtr + field.offset);
 
-				const auto df = in[field.name];
+				const auto& df = in[field.name];
 				*g = GUID(df.GetULong(0));
 
 				break;

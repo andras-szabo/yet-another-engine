@@ -26,4 +26,11 @@ function(apply_compiler_options target)
 			/O2		# Maximise optimisations
 		>
 	)
+
+	# Windows lean-and-mean to skip certain rarely used headers and
+	# legacy API. And also prevent min and max (macros), from breaking
+	# std::min, std::max, and std::numeric_limits<T>::max().
+	target_compile_definitions(${target} PRIVATE
+		$<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN NOMINMAX>
+	)
 endfunction()

@@ -33,6 +33,7 @@ target_sources(engine-core
     src/Scene.cpp
     src/Serialization.cpp
     src/Transform.cpp
+    src/Utility.cpp
 
   PUBLIC
     FILE_SET CXX_MODULES FILES
@@ -92,11 +93,14 @@ install(TARGETS engine-core
 # against the pre-built .lib above for the actual implementations.
 install(
     FILES
+        src/Asset.ixx
+        src/AssetDatabase.ixx
         src/Component.ixx
         src/ComponentRegistry.ixx
         src/IComponentStorage.ixx
         src/ComponentStorage.ixx
         src/DataFile.ixx
+        src/DirectoryWatcher.ixx
         src/DllLoader.ixx
         src/EngineCore.ixx
         src/EngineError.ixx
