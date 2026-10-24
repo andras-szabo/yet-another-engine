@@ -10,10 +10,9 @@ module EngineInstance;
 #include "IComponentStorage.ixx"
 #include "EngineInstance.ixx"
 #include "Logger.ixx"
+#include "ComponentStorage.ixx"
 #include "Scene.ixx"
 #else
-import IComponentStorage;
-import Scene;
 import Logger;
 #endif
 
@@ -25,6 +24,57 @@ namespace Engine
 	// initialization that should happen when the .dll is loaded, avoiding
 	// the SOIF.
 	EngineInstance* EngineInstance::_instance = nullptr;
+
+	struct EngineInstance_Impl
+	{
+		EngineInstance_Impl(std::unique_ptr<IComponentStorage> componentStorage)
+			: _componentStorage(std::move(componentStorage))
+		{
+			_activeScene = new Engine::Scene::Scene(_componentStorage.get(), "UntitledScene");
+		}
+
+		~EngineInstance_Impl()
+		{
+			delete _activeScene;
+			_activeScene = nullptr;
+		}
+
+		void SetActiveScene(Scene::Scene && scene)
+		{
+			delete _activeScene;
+			_activeScene = new Engine::Scene::Scene(std::forward<Scene::Scene&&>(scene));
+		}
+
+		void Run();
+		void Update(float dt);
+		void OnPlayModeStart();
+		void OnPlayModeStop();
+		void OnApplicationStart();
+		void OnApplicationQuit();
+
+		bool IsQuitting() const;
+		float CalculateDeltaTime() const;
+
+		std::unique_ptr<IComponentStorage> _componentStorage;
+		Scene::Scene* _activeScene{ nullptr };
+		Engine::AssetDatabase _assetDatabase;
+
+		double _elapsedSecondsSinceStarup{ 0.0 };
+		double _elapsedSecondsInPlayMode{ 0.0 };
+		double _elapsedSinceLastFixedUpdate{ 0.0 };
+		double _fixedUpdateStep{ 1.0 / 60.0 };
+
+		std::chrono::high_resolution_clock::time_point _applicationStartTime;
+	};
+
+	// static
+	void EngineInstance::Initialize()
+	{
+		if (_instance == nullptr)
+		{
+			_instance = new EngineInstance(std::make_unique<ComponentStorage>());
+		}
+	}
 
 	// static
 	void EngineInstance::Initialize(std::unique_ptr<IComponentStorage> componentStorage)
@@ -121,6 +171,20 @@ namespace Engine
 		_impl->Update(dt);
 	}
 
+	void EngineInstance::OnApplicationStart()
+	{
+		assert(_impl != nullptr && "Engine instance is not initialized!");
+		LOG_INFO("On Application Start");
+		_impl->OnApplicationStart();
+	}
+
+	void EngineInstance::OnApplicationQuit()
+	{
+		assert(_impl != nullptr && "Engine instance is not initialized!");
+		LOG_INFO("On Application Quit");
+		_impl->OnApplicationQuit();
+	}
+
 	void EngineInstance::OnPlayModeStart()
 	{
 		assert(_impl != nullptr && "Engine instance is not initialized!");
@@ -154,6 +218,15 @@ namespace Engine
 	}
 
 	void EngineInstance_Impl::OnPlayModeStop()
+	{
+	}
+
+	void EngineInstance_Impl::OnApplicationStart()
+	{
+		_applicationStartTime = std::chrono::high_resolution_clock::now();
+	}
+
+	void EngineInstance_Impl::OnApplicationQuit()
 	{
 	}
 

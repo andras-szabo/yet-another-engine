@@ -3,12 +3,12 @@
 
 #if defined ( __INTELLISENSE__ )
 
+#include "../../engine-core/src/ComponentStorage.ixx"
 #include "../../engine-core/src/DllLoader.ixx"
 #include "../../engine-core/src/EngineCore.ixx"
 #include "../../engine-core/src/EngineInstance.ixx"
 
 #else
-import DllLoader;
 import EngineCore;
 import EngineInstance;
 
@@ -46,6 +46,17 @@ int main(int argc, char* argv[])
 		LOG_ERROR("Game dll version is not compatible.");
 		return 1;
 	}
+
+	LOG_INFO("Initializing engine instance...");
+	Engine::EngineInstance::Initialize();
+
+	auto& engineInstance = Engine::EngineInstance::Get();
+
+	LOG_INFO("Running engine instance...");
+
+	engineInstance.OnApplicationStart();
+	engineInstance.Run();
+	engineInstance.OnApplicationQuit();
 
 	return 0;
 }
