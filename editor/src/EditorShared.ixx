@@ -113,6 +113,7 @@ namespace Editor
 
         bool IsQuitRequested();
         void RequestQuit();
+        bool HasProjectOpen();
 
         HANDLE GetQuitRequestedEventHandle();
         std::mutex& GetContextLock();

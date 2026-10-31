@@ -74,6 +74,12 @@ namespace Editor
 		return _contextState.isQuitRequested;
 	}
 
+	bool Context::HasProjectOpen()
+	{
+		std::lock_guard<std::mutex> guard{ _contextLock };
+		return !_contextState.projectPath.empty();
+	}
+
 	void Context::CollectFileChangeEvent(const Engine::FileChangeEvent& event)
 	{
 		std::lock_guard<std::mutex> guard{ _contextLock };

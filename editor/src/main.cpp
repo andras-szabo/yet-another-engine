@@ -474,7 +474,8 @@ Editor::CommandReturnType Status([[maybe_unused]] const std::vector<std::string>
 	const auto contextState = context.GetContextState();
 	const auto editorState = context.GetEditorState();
 
-	std::cout << "  Quit requested? " << contextState.isQuitRequested << "\n";
+	std::cout << "  Has project open? " << (context.HasProjectOpen() ? "Yes" : "No") << "\n";
+	std::cout << "  Quit requested? " << (contextState.isQuitRequested ? "Yes" : "No") << "\n";
 	std::cout << "  Editor play state: " << editorState.ToString() << "\n";
 	std::wcout << "  Game template path: " << contextState.gameTemplatePath << "\n";
 	std::wcout << "  SDK path: " << contextState.sdkPath << "\n";
@@ -493,12 +494,52 @@ Editor::CommandReturnType Status([[maybe_unused]] const std::vector<std::string>
 	return {};
 }
 
+Editor::CommandReturnType TrySaveProject(const std::vector<std::string>& commandAndArguments,
+	Editor::Context& context,
+	Editor::IEditorTask& task)
+{
+	Editor::TaskProgressScope _{ task };
+
+	LOG_INFO("Trying to save current project ... ");
+
+	if (!context.HasProjectOpen())
+	{
+		LOG_INFO("No project open, nothing to save.");
+		task.SetProgress(1.0f);
+		return {};
+	}
+
+	// TODO - check if the project is actually dirty.
+
+	const auto projectPath = context.GetContextState().projectPath;
+	const auto projectSettings = context.GetProjectSettings();
+	std::filesystem::path projectSettingsFilePath{ projectPath };
+	projectSettingsFilePath /= "project.udf";
+	Engine::DataFile df;
+
+	df["ProjectName"] = projectSettings.projectName;
+	df["EditorVersion"] = projectSettings.editorVersion.ToString();
+	df["DLLPathDebug"] = projectSettings.dllPathDebug;
+	df["DLLPathRelease"] = projectSettings.dllPathRelease;
+
+	if (!Engine::DataFile::Serialize(df, projectSettingsFilePath.string()))
+	{
+		return std::unexpected{ "Failed to save project settings file." };
+	}
+
+	LOG_INFO("Project saved successfully.");
+
+	// TODO - save current scene changes if dirty
+	return {};
+}
+
 Editor::CommandReturnType OpenProject(const std::vector<std::string>& commandAndArguments,
 	Editor::Context& context,
 	Editor::IEditorTask& task)
 {
 	namespace fs = std::filesystem;
 	Editor::TaskProgressScope _(task);
+
 	if (commandAndArguments.size() < 2)
 	{
 		return std::unexpected{ "Missing path." };
@@ -509,6 +550,24 @@ Editor::CommandReturnType OpenProject(const std::vector<std::string>& commandAnd
 	{
 		return std::unexpected{ "Path does not exist." };
 	}
+
+	{
+		// Save the current project on this same thread,
+		// no need to spawn a new thread for this, as we
+		// are about to open a new project anyway; we would
+		// have to wait for the save to finish before opening
+		// the new one.
+		constexpr bool saveProjectAsynchronously = false;
+		const std::vector<std::string> emptyArgs;
+		Editor::EditorTask saveTask(TrySaveProject, emptyArgs, context, saveProjectAsynchronously);
+		const auto trySaveCurrent = saveTask.Result();
+
+		if (!trySaveCurrent.has_value())
+		{
+			return std::unexpected{ "Failed to save current project: " + trySaveCurrent.error() };
+		}
+	}
+
 	context.SetProjectPath(projectFolderPath.wstring());
 
 	// 1. Look for the project settings file 
@@ -560,30 +619,6 @@ Editor::CommandReturnType OpenProject(const std::vector<std::string>& commandAnd
 	{
 		return std::unexpected{ "Failed to load project settings." };
 	}
-
-	// And now we should:
-	//  1. Look for the project settings file (some specific asset that needs to be in the project root).
-	//      = in the project folder, look for a specific asset file ("project.udf" - unalmas data file?)
-	//          = if the file is not there, create with default values:
-	//                  = project name "Untitled",
-	//                  = editor version
-	//                  = dll path debug "build\Debug\Game.dll"
-	//                  = dll path release "build\Release\Game.dll"
-	//          = once the file is opened, extract settings from it,
-	//              and create some shared project settings object that the editor can use,
-	//              maybe similar to context state but different-?
-	//    
-	//
-	//      = extract project name 
-	//      = extract dll path
-	//  2. Look for the serialized asset DB file.
-	//      = this should contain a list of assets that we actually want to open in the project,
-	//        on a folder-by-folder basis, and some kind of hash that describes the state of each folder.
-	//      = we can then collect folder hashes and see if any of them have changed since,
-	//        and if so, we can re-populate the asset database for that folder.
-	//      (Or, for now, we can just re-populate the entire asset db from the project root, and
-	//      then we can optimize later. )
-	//  3. Load the game dll and wait for reloads.
 
 	return {};
 }
@@ -652,7 +687,7 @@ Editor::CommandReturnType CreateProject(const std::vector<std::string>& commandA
 	std::cout << "Now generating project...\n";
 
 	const std::wstring cmakePathWithSpaces = std::format(L"\"{}\"", contextState.cmakePath);
-	std::wstring cmdLine{ cmakePathWithSpaces + L" -B build -G \"Visual Studio 17 2022\" -DENGINE_CORE_SDK_DIR=" + contextState.sdkPath };
+	std::wstring cmdLine{ cmakePathWithSpaces + L" -B build -G \"Visual Studio 18 2026\" -DENGINE_CORE_SDK_DIR=" + contextState.sdkPath };
 
 	STARTUPINFOW startupInfo{};
 	startupInfo.cb = sizeof(startupInfo);
@@ -1061,6 +1096,10 @@ int main()
 	executors_["openProject"] = { OpenProject, "Open project" };
 	executors_["oproj"] = { OpenProject, "Open project" };
 
+	executors_["saveProject"] = { TrySaveProject, "Save current project if dirty" };
+	executors_["sproj"] = { TrySaveProject, "Save current project if dirty" };
+	executors_["s"] = { TrySaveProject, "Save current project if dirty" };
+
 	executors_["adb_pop"] = { PopulateAssetDatabase, "Populate asset database" };
 	executors_["adb_list"] = { ListAssets, "List all assets in the asset database" };
 
@@ -1096,7 +1135,7 @@ int main()
 
 	context.SetContextState(contextState);
 
-	Engine::EngineInstance::Initialize(std::make_unique<Engine::ComponentStorage>());
+	//Engine::EngineInstance::Initialize(std::make_unique<Engine::ComponentStorage>());
 
 	// Start a thread to poll for directory changes
 	std::thread directoryWatcherThread(PollDirectoryChanges, std::ref(context));
@@ -1107,8 +1146,11 @@ int main()
 			while (!context.IsQuitRequested())
 			{
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
-				auto chgEvents = context.ConsumeFileChangeEvents();
-				Engine::EngineInstance::GetAssetDatabase().Update(chgEvents);
+				if (context.HasProjectOpen())
+				{
+					auto chgEvents = context.ConsumeFileChangeEvents();
+					Engine::EngineInstance::GetAssetDatabase().Update(chgEvents);
+				}
 			}
 		});
 

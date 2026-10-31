@@ -26,7 +26,8 @@ namespace Editor
 
 		EditorTask(CommandTaskFN commandFN,
 				   const std::vector<std::string>& commandAndArguments,
-			       Context& editorContext);
+			       Context& editorContext,
+				   bool async = true);
 
 		EditorTask(EditorTask&& other);
 		EditorTask& operator=(EditorTask&& other);
@@ -65,13 +66,35 @@ namespace Editor
 
 	EditorTask::EditorTask(CommandTaskFN commandFN,
 		const std::vector<std::string>& commandAndArguments,
-		Context& editorContext)
+		Context& editorContext,
+		bool async)
 	{
-		_future = std::async(std::launch::async,
-			commandFN,
-			std::cref(commandAndArguments),
-			std::ref(editorContext),
-			std::ref(*this));
+		if (async)
+		{
+			_future = std::async(std::launch::async,
+				commandFN,
+				std::cref(commandAndArguments),
+				std::ref(editorContext),
+				std::ref(*this));
+		}
+		else
+		{
+			std::promise<std::expected<void, std::string>> promise;
+			_future = promise.get_future();
+
+			try
+			{
+				promise.set_value(commandFN(
+					std::cref(commandAndArguments),
+					std::ref(editorContext),
+					std::ref(*this)
+				));
+			}
+			catch (...)
+			{
+				promise.set_exception(std::current_exception());
+			}
+		}
 	}
 
 	std::expected<void, std::string> EditorTask::Result()
