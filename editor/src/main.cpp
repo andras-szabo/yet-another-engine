@@ -515,7 +515,7 @@ Editor::CommandReturnType DoTryCloseCurrentProject(Editor::Context& context)
 		return {};
 	}
 
-	context.SetProjectPath(L"");
+	context.CloseProject();
 	Engine::EngineInstance::Shutdown();
 
 	return {};
@@ -589,9 +589,18 @@ Editor::CommandReturnType OpenProject(const std::vector<std::string>& commandAnd
 		return std::unexpected{ "Path does not exist." };
 	}
 
-	if (context.HasProjectOpen() && context.GetEditorState().currentState != Editor::EditorPlayState::Editing)
+	if (context.HasProjectOpen())
 	{
-		return std::unexpected{ "Cannot open project while in play mode." };
+		if (context.GetEditorState().currentState != Editor::EditorPlayState::Editing)
+		{
+			return std::unexpected{ "Cannot open project while in play mode." };
+		}
+
+		if (context.GetContextState().projectPath == projectFolderPath.wstring())
+		{
+			LOG_INFO("Project already open, nothing to do.");
+			return {};
+		}
 	}
 
 	{
@@ -1131,7 +1140,7 @@ void PollDirectoryChanges(Editor::Context& context)
 
 void TestEngineUpdate(Engine::EngineInstance& engineInstance)
 {
-	const float dt = 1.0f / 60.0f;
+	const double dt = 1.0 / 60.0;
 	engineInstance.Update(dt);
 }
 
@@ -1242,9 +1251,12 @@ int main()
 	// This is where we handle the editor state machine. Once it's done, let's
 	// extract it into its own function.
 
-	float dt = 0.0f;
+	double dt = 0.0;
 	std::chrono::high_resolution_clock clock;
 	auto lastTimeOnClock = clock.now();
+	std::chrono::high_resolution_clock::time_point timeAtLastUpdate = lastTimeOnClock;
+	double elapsedSinceStart = 0.0;
+	auto timeAtStart = clock.now();
 
 	Engine::DataFile _sceneStateWhenEnteringPlayMode;
 
@@ -1253,6 +1265,7 @@ int main()
 		if (!context.HasProjectOpen())
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			lastTimeOnClock = clock.now();
 			continue;
 		}
 
@@ -1319,19 +1332,25 @@ int main()
 				Engine::EngineInstance::Get().OnPlayModeStart();
 
 				context.RequestEditorPlayModeStateChange(Editor::EditorPlayState::Playing);
+				elapsedSinceStart = 0.0;
+				timeAtStart = clock.now();
+				timeAtLastUpdate = timeAtStart;
 				break;
 			}
 
 			case Editor::EditorPlayState::Playing:
 			{
 				auto currentTime = clock.now();
-				dt = std::chrono::duration<float>(currentTime - lastTimeOnClock).count();
+				dt = std::chrono::duration<double>(currentTime - timeAtLastUpdate).count();
+				timeAtLastUpdate = currentTime;
+
 				Engine::EngineInstance::Get().Update(dt);
 				break;
 			}
 
 			case Editor::EditorPlayState::Paused:
 			{
+				timeAtLastUpdate = clock.now();
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
 				break;
 			}

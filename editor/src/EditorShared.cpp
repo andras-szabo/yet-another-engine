@@ -116,6 +116,13 @@ namespace Editor
 		return _editorState;
 	}
 
+	void Context::CloseProject()
+	{
+		std::lock_guard<std::mutex> l{ _contextLock };
+		_contextState.projectPath.clear();
+		SetProjectSettings({});
+	}
+
 	bool Context::HasProjectDllChanged()
 	{
 		std::lock_guard<std::mutex> l{ _hotreloadManagerLock };

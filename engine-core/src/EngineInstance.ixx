@@ -42,7 +42,7 @@ namespace Engine
 		EngineInstance& operator=(const EngineInstance& other) = delete;
 		
 		void Run();
-		void Update(float dt);
+		void Update(double dt);
 
 		void OnPlayModeStart();
 		void OnPlayModeStop();

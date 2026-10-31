@@ -46,7 +46,7 @@ namespace Engine
 		}
 
 		void Run();
-		void Update(float dt);
+		void Update(double dt);
 		void OnPlayModeStart();
 		void OnPlayModeStop();
 		void OnApplicationStart();
@@ -173,7 +173,7 @@ namespace Engine
 		return false;
 	}
 
-	void EngineInstance::Update(float dt)
+	void EngineInstance::Update(double dt)
 	{
 		assert(_impl != nullptr && "Engine instance is not initialized!");
 		_impl->Update(dt);
@@ -238,7 +238,7 @@ namespace Engine
 	{
 	}
 
-	void EngineInstance_Impl::Update(float dt)
+	void EngineInstance_Impl::Update(double dt)
 	{
 		const long double elapsedSeconds = trunc(static_cast<long double>(_elapsedSecondsInPlayMode));
 		_elapsedSecondsInPlayMode += dt;
@@ -260,7 +260,7 @@ namespace Engine
 					{
 						if (component->IsEnabled())
 						{
-							component->OnFixedUpdate(static_cast<float>(_fixedUpdateStep));
+							component->OnFixedUpdate(static_cast<double>(_fixedUpdateStep));
 						}
 					}
 				}

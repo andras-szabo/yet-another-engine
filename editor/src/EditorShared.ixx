@@ -131,6 +131,8 @@ namespace Editor
         bool HasProjectDllChanged();
         Engine::Expected<void> ReloadProjectDll();
 
+        void CloseProject();
+
     private:
         std::mutex _contextLock;
         ContextState _contextState;
