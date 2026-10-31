@@ -62,6 +62,10 @@
 | P6-03 — Fixed-timestep accumulator in `EngineInstance` | ✅ Done | Implemented inside `EngineInstance_Impl::Update(float dt)` (`EngineInstance.cpp`): accumulates `dt` into `_elapsedSinceLastFixedUpdate`, runs a `while (_elapsedSinceLastFixedUpdate >= _fixedUpdateStep)` loop calling `OnFixedUpdate` on every enabled component, then runs one variable-rate `OnUpdate` pass. **Remaining:** no spiral-of-death clamp on the catch-up loop yet (a very large `dt` — e.g. after a slow hot-reload — can still trigger an unbounded number of fixed steps in one call). |
 | P6-04 — Scene snapshot on Play start / restore on Stop | ✅ Done | `main.cpp`'s `StartingPlay` case serializes the active scene into `_sceneStateWhenEnteringPlayMode` before calling `OnPlayModeStart()`; `StoppingPlay` calls `OnPlayModeStop()`, clears the scene, and deserializes `_sceneStateWhenEnteringPlayMode` back, discarding any edits made during play. |
 | P6-05 — Hot-reload integrated with play state | ✅ Done | See Phase 6 section below for the full description, review history, and the one known residual limitation (fallback scene restore on a failed reload). |
+| P7-01 — Standalone runner target and DLL loading | ✅ Done | Root CMake includes `game-runner`; its executable links `engine-core`. `game-runner/src/main.cpp` loads the supplied game DLL with `DllLoader` and checks its ABI version. |
+| P7-02 — Runner command-line arguments | ⚠️ Partial | The runner accepts one positional game-DLL path (`<path_to_game_dll>`). Project path, scene selection, window configuration, and general argument parsing are not implemented; it does not load a project or scene. |
+| P7-03 — Standalone game loop | ⚠️ Partial | `EngineInstance::Run()` measures elapsed time and calls `Update(dt)`, which reuses the engine's fixed-update accumulator. **Blocking issue:** `EngineInstance_Impl::IsQuitting()` currently always returns `false`, so `Run()` cannot complete normally. The fixed-update catch-up loop also still lacks the P6-03 clamp noted above. |
+| P7-04 — Clean shutdown | ⚠️ Partial | `OnApplicationQuit()` is called after `Run()`, but is unreachable while `IsQuitting()` always returns false. The runner does not call `EngineInstance::Shutdown()` or explicitly tear down the active scene before DLL unload, so the planned component-destruction/unload sequence is not implemented. |
 
 ## MVP Goal
 
@@ -200,6 +204,8 @@ The first usable editor: a console application with typed commands.
 - P8-05: Implement save-scene command (serialize current scene back to disk)
 - P8-06: Implement play / pause / stop commands (drive the in-process game loop; snapshot and restore scene state)
 - P8-07: Implement hot-reload response: detect DLL rebuild, trigger Phase 5 reload flow, report to console
+
+**Phase transition:** Phase 7 remains incomplete as recorded above; proceeding to Phase 8 is intentional and does not imply the remaining runner work is done.
 
 ---
 

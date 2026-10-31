@@ -57,6 +57,7 @@ int main(int argc, char* argv[])
 	engineInstance.OnApplicationStart();
 	engineInstance.Run();
 	engineInstance.OnApplicationQuit();
+	engineInstance.Shutdown();
 
 	return 0;
 }
