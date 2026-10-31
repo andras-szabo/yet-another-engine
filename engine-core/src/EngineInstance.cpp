@@ -86,10 +86,18 @@ namespace Engine
 	}
 
 	// static
-	void EngineInstance::Shutdown()
+	Engine::Expected<void> EngineInstance::Shutdown()
 	{
-		delete _instance;
-		_instance = nullptr;
+		try
+		{
+			delete _instance;
+			_instance = nullptr;
+			return {};
+		}
+		catch (const std::exception& e)
+		{
+			return Engine::Unexpected({ Engine::ErrorType::Undefined, {"Failed to shutdown EngineInstance: {}", e.what()}});
+		}
 	}
 
 	// static

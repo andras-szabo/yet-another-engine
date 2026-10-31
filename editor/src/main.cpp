@@ -378,6 +378,12 @@ Editor::CommandReturnType ListAssets([[maybe_unused]] const std::vector<std::str
 	Editor::IEditorTask& task)
 {
 	task.SetProgress(0.0f);
+
+	if (!context.HasProjectOpen())
+	{
+		return std::unexpected{ "No project open." };
+	}
+	
 	const auto& assetDatabase = Engine::EngineInstance::GetAssetDatabase();
 	const auto assets = assetDatabase.GetAssetGUIDsByPath();
 	std::cout << "Assets:\n";
@@ -402,6 +408,11 @@ Editor::CommandReturnType PopulateAssetDatabase(
 	Editor::IEditorTask& task)
 {
 	task.SetProgress(0.0f);
+
+	if (!context.HasProjectOpen())
+	{
+		return std::unexpected{ "No project open." };
+	}
 
 	auto& assetDatabase = Engine::EngineInstance::GetAssetDatabase();
 
@@ -494,6 +505,30 @@ Editor::CommandReturnType Status([[maybe_unused]] const std::vector<std::string>
 	return {};
 }
 
+Editor::CommandReturnType DoTryCloseCurrentProject(Editor::Context& context)
+{
+	LOG_INFO("Trying to close current project ... ");
+
+	if (!context.HasProjectOpen())
+	{
+		LOG_INFO("No project open, nothing to close.");
+		return {};
+	}
+
+	context.SetProjectPath(L"");
+	Engine::EngineInstance::Shutdown();
+
+	return {};
+}
+
+Editor::CommandReturnType TryCloseProject(const std::vector<std::string>& commandAndArguments,
+	Editor::Context& context,
+	Editor::IEditorTask& task)
+{
+	Editor::TaskProgressScope _{ task };
+	return DoTryCloseCurrentProject(context);
+}
+
 Editor::CommandReturnType DoTrySaveCurrentProject(Editor::Context& context)
 {
 	LOG_INFO("Trying to save current project ... ");
@@ -554,6 +589,11 @@ Editor::CommandReturnType OpenProject(const std::vector<std::string>& commandAnd
 		return std::unexpected{ "Path does not exist." };
 	}
 
+	if (context.HasProjectOpen() && context.GetEditorState().currentState != Editor::EditorPlayState::Editing)
+	{
+		return std::unexpected{ "Cannot open project while in play mode." };
+	}
+
 	{
 		// Save the current project on this same thread,
 		// no need to spawn a new thread for this, as we
@@ -567,7 +607,13 @@ Editor::CommandReturnType OpenProject(const std::vector<std::string>& commandAnd
 		}
 	}
 
-	context.SetProjectPath(projectFolderPath.wstring());
+	{
+		const auto closeCurrent = DoTryCloseCurrentProject(context);
+		if (!closeCurrent.has_value())
+		{
+			return std::unexpected{ closeCurrent.error() };
+		}
+	}
 
 	// 1. Look for the project settings file 
 	// TODO: extract to its own function
@@ -619,6 +665,13 @@ Editor::CommandReturnType OpenProject(const std::vector<std::string>& commandAnd
 		return std::unexpected{ "Failed to load project settings." };
 	}
 
+	LOG_INFO("Project opened successfully at path: {}", projectFolderPath.string());
+	LOG_INFO("Initializing engine...");
+	Engine::EngineInstance::Initialize();
+	LOG_INFO("Engine initialized successfully.");
+
+	context.SetProjectPath(projectFolderPath.wstring());
+
 	return {};
 }
 
@@ -632,7 +685,7 @@ Editor::CommandReturnType CreateProject(const std::vector<std::string>& commandA
 
 	if (commandAndArguments.size() < 2)
 	{
-		return std::unexpected{ "Missing path." };
+		return std::unexpected{ "Missing path. (Usage: createProject <path>)" };
 	}
 
 	fs::path projectFolderPath{ commandAndArguments[1] };
@@ -723,6 +776,10 @@ Editor::CommandReturnType CreateProject(const std::vector<std::string>& commandA
 
 	std::cout << "...Done!\n";
 
+	// Initialize the engine instance with the new project path, but only _then_ acknowledge
+	// that this has happened
+
+	Engine::EngineInstance::Initialize();
 	context.SetProjectPath(projectFolderPath.wstring());
 
 	return {};
@@ -733,6 +790,11 @@ Editor::CommandReturnType ProjectName(const std::vector<std::string>& commandAnd
 	Editor::IEditorTask& task)
 {
 	Editor::TaskProgressScope _(task);
+
+	if (context.HasProjectOpen() == false)
+	{
+		return std::unexpected{ "No project open." };
+	}
 
 	const bool readOnly = commandAndArguments.size() == 1;
 
@@ -769,11 +831,14 @@ Editor::CommandReturnType ProjectName(const std::vector<std::string>& commandAnd
 
 	std::filesystem::path projectSettingsFilePath{ projectPath };
 	projectSettingsFilePath /= "project.udf";
+
 	Engine::DataFile df;
+
 	df["ProjectName"] = projectSettings.projectName;
 	df["EditorVersion"] = projectSettings.editorVersion.ToString();
 	df["DLLPathDebug"] = projectSettings.dllPathDebug;
 	df["DLLPathRelease"] = projectSettings.dllPathRelease;
+
 	if (!Engine::DataFile::Serialize(df, projectSettingsFilePath.string()))
 	{
 		return std::unexpected{ "Failed to save project settings file." };
@@ -813,6 +878,12 @@ Editor::CommandReturnType PausePlayMode([[maybe_unused]]const std::vector<std::s
 	Editor::IEditorTask& task)
 {
 	Editor::TaskProgressScope _(task);
+
+	if (context.HasProjectOpen() == false)
+	{
+		return std::unexpected{ "No project open." };
+	}
+
 	auto editorState = context.GetEditorState();
 
 	if (editorState.currentState == Editor::EditorPlayState::Playing)
@@ -832,6 +903,12 @@ Editor::CommandReturnType TogglePlayMode([[maybe_unused]]const std::vector<std::
 	Editor::IEditorTask& task)
 {
 	Editor::TaskProgressScope _(task);
+
+	if (context.HasProjectOpen() == false)
+	{
+		return std::unexpected{ "No project open." };
+	}
+
 	auto editorState = context.GetEditorState();
 
 	if (editorState.currentState == Editor::EditorPlayState::Editing)
@@ -852,6 +929,12 @@ Editor::CommandReturnType ListSceneNodes([[maybe_unused]] const std::vector<std:
 	Editor::IEditorTask& task)
 {
 	Editor::TaskProgressScope _(task);
+
+	if (!context.HasProjectOpen())
+	{
+		return std::unexpected{ "No project open." };
+	}
+
 	const auto& scene = Engine::EngineInstance::GetActiveScene();
 	std::cout << "Scene: " << scene.GetSceneName() << "\n";
 	std::cout << "Nodes:\n";
@@ -1094,6 +1177,7 @@ int main()
 
 	executors_["openProject"] = { OpenProject, "Open project" };
 	executors_["oproj"] = { OpenProject, "Open project" };
+	executors_["closeProject"] = { TryCloseProject, "Close current project" };
 
 	executors_["saveProject"] = { TrySaveProject, "Save current project if dirty" };
 	executors_["sproj"] = { TrySaveProject, "Save current project if dirty" };
@@ -1166,6 +1250,12 @@ int main()
 
 	while (!context.IsQuitRequested())
 	{
+		if (!context.HasProjectOpen())
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			continue;
+		}
+
 		Editor::EditorState editorState = context.GetEditorState();
 
 		// TODO export into its own method

@@ -218,12 +218,13 @@ namespace Engine
 			}
 
 			std::string_view lineView = line;
+			trim(lineView);
+
 			if (lineView.empty())
 			{
 				continue;
 			}
 
-			trim(lineView);
 			const bool isNode = lineView.front() == '[' && lineView.back() == ']';
 
 			if (isNode)

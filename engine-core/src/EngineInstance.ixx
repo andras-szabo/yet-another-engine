@@ -7,11 +7,13 @@ export module EngineInstance;
 #if defined ( __INTELLISENSE__ )
 #include "AssetDatabase.ixx"
 #include "IComponentStorage.ixx"
+#include "EngineError.ixx"
 #include "Scene.ixx"
 #else
 import AssetDatabase;
 import ComponentStorage;
 import IComponentStorage;
+import Error;
 import Logger;
 import Scene;
 
@@ -27,7 +29,8 @@ namespace Engine
 	public:
 		static void Initialize();
 		static void Initialize(std::unique_ptr<IComponentStorage> componentStorage);
-		static void Shutdown();
+		static Engine::Expected<void> Shutdown();
+
 		static EngineInstance& Get();
 		static IComponentStorage& GetComponentStorage();
 		static AssetDatabase& GetAssetDatabase();
