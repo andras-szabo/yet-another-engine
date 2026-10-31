@@ -79,6 +79,8 @@ namespace Editor
 		}
 		else
 		{
+			// promise is local, but _future will keep the shared,
+			// heap-allocated state alive until the result is consumed.
 			std::promise<std::expected<void, std::string>> promise;
 			_future = promise.get_future();
 
@@ -99,6 +101,10 @@ namespace Editor
 
 	std::expected<void, std::string> EditorTask::Result()
 	{
+		// Note: get() can be called once. It consumes the result and invalidates
+		// the future. shared_future allows repeated reads.
+		//
+		// Note 2: get() will rethrow any exception that was thrown in the async task.
 		return _future.get();
 	}
 

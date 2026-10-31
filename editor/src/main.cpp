@@ -494,22 +494,18 @@ Editor::CommandReturnType Status([[maybe_unused]] const std::vector<std::string>
 	return {};
 }
 
-Editor::CommandReturnType TrySaveProject(const std::vector<std::string>& commandAndArguments,
-	Editor::Context& context,
-	Editor::IEditorTask& task)
+Editor::CommandReturnType DoTrySaveCurrentProject(Editor::Context& context)
 {
-	Editor::TaskProgressScope _{ task };
-
 	LOG_INFO("Trying to save current project ... ");
 
 	if (!context.HasProjectOpen())
 	{
 		LOG_INFO("No project open, nothing to save.");
-		task.SetProgress(1.0f);
 		return {};
 	}
 
 	// TODO - check if the project is actually dirty.
+	// TODO - save current scene changes if dirty
 
 	const auto projectPath = context.GetContextState().projectPath;
 	const auto projectSettings = context.GetProjectSettings();
@@ -529,8 +525,15 @@ Editor::CommandReturnType TrySaveProject(const std::vector<std::string>& command
 
 	LOG_INFO("Project saved successfully.");
 
-	// TODO - save current scene changes if dirty
 	return {};
+}
+
+Editor::CommandReturnType TrySaveProject(const std::vector<std::string>& commandAndArguments,
+	Editor::Context& context,
+	Editor::IEditorTask& task)
+{
+	Editor::TaskProgressScope _{ task };
+	return DoTrySaveCurrentProject(context);
 }
 
 Editor::CommandReturnType OpenProject(const std::vector<std::string>& commandAndArguments,
@@ -557,14 +560,10 @@ Editor::CommandReturnType OpenProject(const std::vector<std::string>& commandAnd
 		// are about to open a new project anyway; we would
 		// have to wait for the save to finish before opening
 		// the new one.
-		constexpr bool saveProjectAsynchronously = false;
-		const std::vector<std::string> emptyArgs;
-		Editor::EditorTask saveTask(TrySaveProject, emptyArgs, context, saveProjectAsynchronously);
-		const auto trySaveCurrent = saveTask.Result();
-
+		const auto trySaveCurrent = DoTrySaveCurrentProject(context);
 		if (!trySaveCurrent.has_value())
 		{
-			return std::unexpected{ "Failed to save current project: " + trySaveCurrent.error() };
+			return std::unexpected{ trySaveCurrent.error() };
 		}
 	}
 
