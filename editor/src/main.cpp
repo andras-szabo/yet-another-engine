@@ -797,6 +797,95 @@ Editor::CommandReturnType CreateProject(const std::vector<std::string>& commandA
 	return {};
 }
 
+Editor::CommandReturnType TrySaveActiveScene(const std::vector<std::string>& commandAndArguments,
+	Editor::Context& context,
+	Editor::IEditorTask& task)
+{
+	Editor::TaskProgressScope _(task);
+	if (context.HasProjectOpen() == false)
+	{
+		return std::unexpected{ "No project open." };
+	}
+	
+	if (Engine::EngineInstance::HasActiveScene() == false)
+	{
+		return std::unexpected{ "No scene active." };
+	}
+
+	const auto& activeScene = Engine::EngineInstance::GetActiveScene();
+	// TODO: check if dirty. Dirty flag should probably not be a property of
+	// the scene itself; rather, the editor should keep track in a separate place
+	// whether the scene has been modified since last save. This is an editor feature;
+	// I don't want to litter the scene's runtime code with isDirty checks any time a 
+	// gameObject property is modified.
+
+	// 1. Deserialize into a datafile
+	Engine::DataFile sceneFile;
+	Engine::SerializeScene(activeScene, sceneFile);
+
+	// 2. Save the datafile to disk
+	// Where to get the scenePath from?
+	//			- the scene itself does not know it, and arguably it shouldn't either.
+	//			- the asset db should know where the scene was loaded from. But what if it
+	//			/ was created in memory and never saved to disk? Then it won't be in the asset db.
+	//			- the editor should know where the scene was loaded from, and it should keep track of it.
+
+	// OK, for now, just save it as "currentScene.scene" in the project folder.
+	std::filesystem::path scenePath{ context.GetContextState().projectPath };
+	scenePath /= "currentScene.scene";
+
+	if (Engine::DataFile::Serialize(sceneFile, scenePath.string()))
+	{
+		LOG_INFO("Scene saved successfully to {}", scenePath.string());
+		return {};
+	}
+
+	
+	return std::unexpected{ "Failed to save scene." };
+}
+
+Editor::CommandReturnType SceneName(const std::vector<std::string>& commandAndArguments,
+	Editor::Context& context,
+	Editor::IEditorTask& task)
+{
+	Editor::TaskProgressScope _(task);
+
+	if (context.HasProjectOpen() == false)
+	{
+		return std::unexpected{ "No project open." };
+	}
+
+	if (Engine::EngineInstance::HasActiveScene() == false)
+	{
+		return std::unexpected{ "No scene active." };
+	}
+
+	const bool readOnly = commandAndArguments.size() == 1;
+	auto& activeScene = Engine::EngineInstance::GetActiveSceneRW();
+
+	if (readOnly)
+	{
+		std::println("Active scene name: {}", activeScene.GetSceneName());
+		return {};
+	}
+
+	// Concatenate the remaining arguments to form the scene name, in case it contains spaces.
+	std::ostringstream sceneNameStream;
+	for (int i = 1; i < commandAndArguments.size(); ++i)
+	{
+		if (i > 1)
+		{
+			sceneNameStream << " ";
+		}
+		sceneNameStream << commandAndArguments[i];
+	}
+
+	activeScene.SetSceneName(sceneNameStream.str());
+	std::println("Active scene name set to: {}", activeScene.GetSceneName());
+
+	return {};
+}
+
 Editor::CommandReturnType ProjectName(const std::vector<std::string>& commandAndArguments,
 	Editor::Context& context,
 	Editor::IEditorTask& task)
@@ -945,6 +1034,11 @@ Editor::CommandReturnType ListSceneNodes([[maybe_unused]] const std::vector<std:
 	if (!context.HasProjectOpen())
 	{
 		return std::unexpected{ "No project open." };
+	}
+
+	if (Engine::EngineInstance::HasActiveScene() == false)
+	{
+		return std::unexpected{ "No scene active." };
 	}
 
 	const auto& scene = Engine::EngineInstance::GetActiveScene();
@@ -1204,6 +1298,10 @@ int main()
 	executors_["p"] = { PausePlayMode, "Pause / unpause play mode" };
 
 	executors_["ls"] = { ListSceneNodes, "List scene hierarchy" };
+
+	executors_["sceneName"] = { SceneName, "Get / Set active scene name" };
+	executors_["sceneSave"] = { TrySaveActiveScene, "Save active scene if dirty" };
+
 
 	// TODO: Read this from an editor settings file; and make it part of an editorInstance
 	Editor::Context context;

@@ -29,6 +29,32 @@ namespace Engine
 {
 	namespace Scene
 	{
+		struct SceneImpl
+		{
+			SceneImpl(IComponentStorage* componentStorage,
+				std::string_view,
+				std::size_t expectedNodeCount = 1024,
+				unsigned long long rootGuid = 0);
+
+			std::vector<Node> nodes;
+			TransformStorage storage;
+			std::deque<int> walkHelperQueue;
+			std::string sceneName;
+			// Declared last so it is destroyed first, ensuring components are torn down
+			// (via ~GameObject -> DestroyComponent) before TransformStorage is gone.
+			std::vector<std::unique_ptr<GameObject>> gameObjects;
+			
+
+			GameObject* CreateGameObject(IComponentStorage* componentStorage,
+				std::string_view name,
+				int parentNodeIndex = 0,
+				unsigned long long _guid = 0);
+
+			void SetSceneName(std::string_view newName);
+
+			void Clear();
+		};
+
 		void SceneImpl::Clear()
 		{
 			gameObjects.clear();
@@ -88,12 +114,18 @@ namespace Engine
 			nodes.reserve(expectedNodeCount);
 			gameObjects.reserve(expectedNodeCount);
 
-			const std::string rootName = std::string{ sceneName } + "_root";
+			const std::string rootName = "_Root";
 			if (rootGuid == 0)
 			{
 				rootGuid = GUID().id;
 			}
+
 			CreateGameObject(componentStorage, rootName, -1, rootGuid);
+		}
+
+		void SceneImpl::SetSceneName(std::string_view newName)
+		{
+			sceneName = newName;
 		}
 
 		GameObject* Scene::CreateGameObject(IComponentStorage* componentStorage,
@@ -146,6 +178,11 @@ namespace Engine
 		std::string_view Scene::GetSceneName() const
 		{
 			return _impl->sceneName;
+		}
+
+		void Scene::SetSceneName(std::string_view newName)
+		{
+			_impl->SetSceneName(newName);
 		}
 
 		std::string_view Scene::GetNodeName(std::size_t nodeIndex) const

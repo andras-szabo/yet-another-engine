@@ -12,7 +12,10 @@ module EngineInstance;
 #include "Logger.ixx"
 #include "ComponentStorage.ixx"
 #include "Scene.ixx"
+#include "Serialization.ixx"
 #else
+import DataFile;
+import Serialization;
 import Logger;
 #endif
 
@@ -25,24 +28,68 @@ namespace Engine
 	// the SOIF.
 	EngineInstance* EngineInstance::_instance = nullptr;
 
+	std::shared_ptr<void> LoadSceneFromFile(const std::string_view path)
+	{
+		namespace fs = std::filesystem;
+
+		// 1. Check if the scene file actually exists
+		fs::path scenePath{ path };
+		if (!fs::exists(scenePath))
+		{
+			LOG_ERROR("Scene file does not exist: {}", path);
+			return nullptr;
+		}
+
+		// 2. Load the scene file into a datafile
+		const auto sceneFileMaybe = Engine::DataFile::Deserialize(scenePath.string());
+
+		if (!sceneFileMaybe.has_value())
+		{
+			LOG_ERROR("Failed to deserialize scene file: {}, {}", path, sceneFileMaybe.error().message);
+			return nullptr;
+		}
+
+		// 3. Deserialize the scene from the datafile.
+		auto sceneMaybe = Engine::DeserializeScene(sceneFileMaybe.value(),
+			Engine::EngineInstance::GetComponentStorage());
+
+		// 4. Return gloriously
+		if (sceneMaybe.has_value())
+		{
+			return std::make_shared<Engine::Scene::Scene>(std::move(sceneMaybe.value()));
+		}
+
+		return nullptr;
+	}
+
 	struct EngineInstance_Impl
 	{
 		EngineInstance_Impl(std::unique_ptr<IComponentStorage> componentStorage)
 			: _componentStorage(std::move(componentStorage))
 		{
-			_activeScene = new Engine::Scene::Scene(_componentStorage.get(), "UntitledScene");
+			const auto registerResult = _assetDatabase.
+				RegisterAssetLoader(L".scene", LoadSceneFromFile);
+
+			if (!registerResult.has_value())
+			{
+				LOG_ERROR("Failed to register scene asset loader: {}", registerResult.error().message);
+			}
+			else
+			{
+				LOG_INFO("Scene asset loader registered successfully.");
+			}
+
+			//_activeScene = new Engine::Scene::Scene(_componentStorage.get(), "UntitledScene");
 		}
 
 		~EngineInstance_Impl()
 		{
-			delete _activeScene;
 			_activeScene = nullptr;
 		}
 
 		void SetActiveScene(Scene::Scene && scene)
 		{
-			delete _activeScene;
-			_activeScene = new Engine::Scene::Scene(std::forward<Scene::Scene&&>(scene));
+			_activeScene = std::make_shared<Engine::Scene::Scene>(std::forward<Scene::Scene&&>(scene));
 		}
 
 		void Run();
@@ -56,7 +103,7 @@ namespace Engine
 		float CalculateDeltaTime() const;
 
 		std::unique_ptr<IComponentStorage> _componentStorage;
-		Scene::Scene* _activeScene{ nullptr };
+		std::shared_ptr<Scene::Scene> _activeScene{ nullptr };
 		Engine::AssetDatabase _assetDatabase;
 
 		double _elapsedSecondsSinceStarup{ 0.0 };
@@ -124,6 +171,8 @@ namespace Engine
 	const Scene::Scene& EngineInstance::GetActiveScene()
 	{
 		assert(_instance != nullptr && "Engine instance not initialized?");
+		assert(_instance->_impl->_activeScene != nullptr && "Active scene is not set.");
+
 		return *(_instance->_impl->_activeScene);
 	}
 
@@ -131,8 +180,17 @@ namespace Engine
 	Scene::Scene& EngineInstance::GetActiveSceneRW()
 	{
 		assert(_instance != nullptr && "Engine instance not initialized?");
+		assert(_instance->_impl->_activeScene != nullptr && "Active scene is not set.");
+
 		return *(_instance->_impl->_activeScene);
 	}
+
+	// static
+	bool EngineInstance::HasActiveScene()
+	{
+		return _instance != nullptr && _instance->_impl->_activeScene != nullptr;
+	}
+
 
 	// static
 	void EngineInstance::SetActiveScene(Scene::Scene&& scene)

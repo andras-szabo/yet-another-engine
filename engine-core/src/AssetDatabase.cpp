@@ -8,21 +8,83 @@ module AssetDatabase;
 
 #if defined ( __INTELLISENSE__ )
 #include "AssetDatabase.ixx"
+#include "ComponentStorage.ixx"
 #include "DataFile.ixx"
 #include "Logger.ixx"
+#include "Serialization.ixx"
 #include "Utility.ixx"
 #else
 import DataFile;
 import Logger;
+import Serialization;
 import Utility;
+
 import std;
 #endif
 
 namespace Engine
 {
+	struct AssetDatabase_Impl
+	{
+		AssetDatabase_Impl()
+		{
+			for (const auto& [extension, type] : {
+					std::make_pair(std::wstring {L".scene"}, Engine::AssetType::Scene),		// TODO
+					std::make_pair(std::wstring {L".fbx"}, Engine::AssetType::StaticMesh),	// TODO
+					std::make_pair(std::wstring {L".png"}, Engine::AssetType::Texture),
+					std::make_pair(std::wstring {L".jpg"}, Engine::AssetType::Texture),
+					// TODO
+				})
+			{
+				assetTypesByExtension.emplace(extension, type);
+			}
+		}
+
+		std::unordered_map<Engine::GUID, std::string> pathsByGuid;
+		std::unordered_map<std::string, Engine::GUID> guidsByPath;
+		std::unordered_map<std::wstring, Engine::AssetType> assetTypesByExtension;
+
+		Engine::Expected<void> RegisterAssetLoader(const std::wstring& extension, AssetLoaderFn loaderFn);
+		Engine::Expected<std::shared_ptr<void>> LoadAsset(const Engine::GUID guid);
+		Engine::Expected<std::shared_ptr<void>> LoadAsset(const std::string_view path);
+
+		bool IsAssetLoaded(const Engine::GUID guid) const;
+		bool ReleaseAsset(const Engine::GUID guid);
+
+	private:
+		std::unordered_map<Engine::GUID, std::weak_ptr<void>> _loadedAssetsByGUID;
+		std::unordered_map<std::wstring, AssetLoaderFn> _loaderFunctionsByExtension;
+
+		Engine::Expected<std::shared_ptr<void>> DoLoadAssetFromPath(const std::string_view path);
+	};
+
+	bool AssetDatabase::IsAssetLoaded(const Engine::GUID guid) const
+	{
+		return _impl->IsAssetLoaded(guid);
+	}
+
+	Expected<std::shared_ptr<void>> AssetDatabase::LoadAssetByGuid(const Engine::GUID guid)
+	{
+		return _impl->LoadAsset(guid);
+	}
+
+	bool AssetDatabase::ReleaseAsset(const Engine::GUID guid)
+	{
+		return _impl->ReleaseAsset(guid);
+	}
+
+	Engine::Expected<void> AssetDatabase::RegisterAssetLoader(const std::wstring& extension,
+		AssetLoaderFn loaderFn)
+	{
+		return _impl->RegisterAssetLoader(extension, loaderFn);
+	}
+
+
 	AssetDatabase::AssetDatabase()
 	{
 		_impl = new AssetDatabase_Impl{};
+
+		LOG_INFO("Asset database initialized.");
 	}
 
 	AssetDatabase::~AssetDatabase()

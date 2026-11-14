@@ -36,28 +36,7 @@ namespace Engine
 			int mesh{ -1 };
 		};
 
-		struct SceneImpl
-		{
-			SceneImpl(IComponentStorage* componentStorage, 
-				std::string_view, 
-				std::size_t expectedNodeCount = 1024,
-				unsigned long long rootGuid = 0);
-
-			std::vector<Node> nodes;
-			TransformStorage storage;
-			std::deque<int> walkHelperQueue;
-			std::string sceneName;
-			// Declared last so it is destroyed first, ensuring components are torn down
-			// (via ~GameObject -> DestroyComponent) before TransformStorage is gone.
-			std::vector<std::unique_ptr<GameObject>> gameObjects;
-
-			GameObject* CreateGameObject(IComponentStorage* componentStorage,
-				std::string_view name,
-				int parentNodeIndex = 0,
-				unsigned long long _guid = 0);
-
-			void Clear();
-		};
+		struct SceneImpl;
 
 		export class ENGINE_CORE_API Scene
 		{
@@ -76,6 +55,7 @@ namespace Engine
 
 			std::string_view GetSceneName() const;
 			std::string_view GetNodeName(std::size_t nodeIndex) const;
+			void SetSceneName(std::string_view newName);
 			
 			void SetLocalTransform(int nodeIndex, const Mat4x4& localTransform);
 			const Mat4x4& GetLocalTransform(int nodeIndex) const;

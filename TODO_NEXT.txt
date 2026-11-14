@@ -1,5 +1,22 @@
 TODO next:
 
+- create a new scene:
+	- create a new scene, std::make_shared.
+	- tell the asset db:
+		- hey, here's a new asset, it has no guid, and no path.
+			- ADB: OK, I have a new asset to add to the map.
+			- I first create a guid for it.
+			- then I get a path where this asset should be saved,
+			  if none was provided.
+			- I use the previously registered method to save the
+			  asset do disk at the given path
+			- I make sure that path and GUID are both entered into
+			  the DB
+			- I return the guid.
+
+--------------------------------------------------------------------------------------
+
+
 P8-01: "Implement project loader: read project folder, discover and index all
 	scenes and assets."
 
@@ -17,6 +34,75 @@ P8-01: "Implement project loader: read project folder, discover and index all
 		o when a project is opened, start the directory watcher thread.
 		o when a project closes, stop the directory watcher thread.
 
+
+= When a project is opened:
+	= look for list of active scenes
+	= load said scenes
+
+		=> This should not be in the project.udf file - that one should be checked
+		   in to project repos. But we could have a separate file, e.g.
+		   projectEditorState.udf, which has:
+		   	= active scenes
+			= window layout
+			= asset load filter - in case you want to open the project
+			  without automatically loading _all_ the assets.
+
+=> OK, understand how "active scene" is managed at the moment
+	= Scene* _activeScene		(EngineInstance_Impl)
+	= EngineInstance_Impl ctor: _activeScene
+	= EngineInstance_Impl::SetActiveScene(Scene&& scene)
+	= EngineInstance::SetActiveScene
+
+= so then, plan.
+	= oh fck. Because scene is an asset, we should probably go with the proper
+	  asset loading flow.
+	  	=> need to register an asset loader that would return a deserialized
+		   Scene. let's try.
+
+	= add a command to show / change the name of the current scene
+	= add a command to save the current scene
+		= write into editorSettings.udf
+
+	= when opening a project, look for editorSettings.udf
+	= if there is one in editorSettings.udf:
+		- populate the adb using the filter found in editorSettings
+		- load the active scene (if any)
+
+[---- Actually doing this on Nov. 14]
+
+o register a scene asset loader when the asset database is set up.
+o add a command to show / change the name of the current scene.
+o make it so that the root gameObject name won't contain the name of the scene
+o add a command to serialize the current scene. here we go.
+
+To continue from here:
+- I think we kinda need to think about the problem of scenes; if they are
+  handled via the asset db, then maybe _writing_ them should also go thru the
+  asset db. So the flow could be:
+  	= when creating a new project, it has no active scene, so create a default scene.
+	= but how should scene creation work?
+		= I mean, yeah, sure, create a new scene, as in EngineInstance_Impl ctor;
+		  that will be pointed to by _activeScene, and that is also the one that
+		  is responsible for its lifetime.
+		= this is how it works right now. But this is not very consistent. Instead,
+		  what we should do is this.
+
+		  - When the engine instance is initialized, it has no _activeScene ptr.
+		  - EngineInstance_Impl is not responsible for the lifetime of _activeScene.
+		  - Instead, EngineInstance_Impl can have a shared_ptr<Scene>.
+		  - CreateScene:
+		  	- dear EngineInstance, create one.
+				-> talks to asset DB: 
+					- create a new scene, assign it a new GUID,
+					  save it somewhere.
+					- but this means that AssetDB can't depend on
+					  engineInstance; it must get its deps injected.
+			-> assign the scene shared ptr.
+
+o Make sure that AssetDatabase doesn't depend on EngineInstance
+o Make sure thate engineInstance_impl doesn't own a scene pointer
+
+[----]
 
 
 Phase 8 - Console Editor MVP

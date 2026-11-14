@@ -29,39 +29,7 @@ namespace Engine
 	/// </summary>
 	export using AssetLoaderFn = std::shared_ptr<void>(*)(const std::string_view path);
 
-	struct AssetDatabase_Impl
-	{
-		AssetDatabase_Impl()
-		{
-			for (const auto& [extension, type] : {
-					std::make_pair(std::wstring {L".scene"}, Engine::AssetType::Scene),		// TODO
-					std::make_pair(std::wstring {L".fbx"}, Engine::AssetType::StaticMesh),	// TODO
-					std::make_pair(std::wstring {L".png"}, Engine::AssetType::Texture),
-					std::make_pair(std::wstring {L".jpg"}, Engine::AssetType::Texture),
-					// TODO
-				})
-			{
-				assetTypesByExtension.emplace(extension, type);
-			}
-		}
-
-		std::unordered_map<Engine::GUID, std::string> pathsByGuid;
-		std::unordered_map<std::string, Engine::GUID> guidsByPath;
-		std::unordered_map<std::wstring, Engine::AssetType> assetTypesByExtension;
-
-		Engine::Expected<void> RegisterAssetLoader(const std::wstring& extension, AssetLoaderFn loaderFn);
-		Engine::Expected<std::shared_ptr<void>> LoadAsset(const Engine::GUID guid);
-		Engine::Expected<std::shared_ptr<void>> LoadAsset(const std::string_view path);
-
-		bool IsAssetLoaded(const Engine::GUID guid) const;
-		bool ReleaseAsset(const Engine::GUID guid);
-
-	private:
-		std::unordered_map<Engine::GUID, std::weak_ptr<void>> _loadedAssetsByGUID;
-		std::unordered_map<std::wstring, AssetLoaderFn> _loaderFunctionsByExtension;
-
-		Engine::Expected<std::shared_ptr<void>> DoLoadAssetFromPath(const std::string_view path);
-	};
+	struct AssetDatabase_Impl;
 
 	export class ENGINE_CORE_API AssetDatabase
 	{
@@ -96,11 +64,17 @@ namespace Engine
 		template <typename T>
 		bool IsAssetLoaded(const AssetRef<T>& assetRef) const;
 
+		bool IsAssetLoaded(const Engine::GUID guid) const;
+
 		template <typename T>
 		Engine::Expected<T*> LoadAsset(AssetRef<T>& assetRef);
 
 		template <typename T>
 		bool ReleaseAsset(AssetRef<T>& assetRef);
+
+		bool ReleaseAsset(const Engine::GUID guid);
+
+		Engine::Expected<void> RegisterAssetLoader(const std::wstring& extension, AssetLoaderFn loaderFn);
 
 	private:
 		bool DoesMatchFilter(const std::filesystem::directory_entry& directoryEntry) const;
@@ -112,19 +86,21 @@ namespace Engine
 			Engine::GUID& _guid, 
 			Engine::AssetType& type) const;
 
+		Expected<std::shared_ptr<void>> LoadAssetByGuid(const Engine::GUID guid);
+
 		std::string AssetTypeToString(Engine::AssetType assetType) const;
 	};
 
 	template <typename T>
 	bool AssetDatabase::IsAssetLoaded(const AssetRef<T>& assetRef) const
 	{
-		return _impl->IsAssetLoaded(assetRef.Guid());
+		return IsAssetLoaded(assetRef.Guid());
 	}
 
 	template <typename T>
 	Engine::Expected<T*> AssetDatabase::LoadAsset(AssetRef<T>& assetRef)
 	{
-		Expected<std::shared_ptr<void>> loadedAssetPtr = _impl->LoadAsset(assetRef.Guid());
+		Expected<std::shared_ptr<void>> loadedAssetPtr = LoadAssetByGuid(assetRef.Guid());
 		if (loadedAssetPtr.has_value())
 		{
 			assetRef.Assign(std::static_pointer_cast<T>(loadedAssetPtr.value()));
@@ -148,7 +124,7 @@ namespace Engine
 		if (assetRef.Ptr())
 		{
 			assetRef.Assign(nullptr);
-			return _impl->ReleaseAsset(assetRef.Guid());
+			return ReleaseAsset(assetRef.Guid());
 		}
 
 		return false;
