@@ -1,9 +1,315 @@
 TODO next:
--P5-05:
+
+P8-01: "Implement project loader: read project folder, discover and index all
+	scenes and assets."
+
+	- Do we _actually_ want this?
+
+	= current state:
+		- look for project settings file
+		- and load it
+		- initialize the engine instance
+		- set the project path.
+			= polling directory changes; this is not super good,
+			  when the project changes, so should the directory watcher.
+
+
+		o when a project is opened, start the directory watcher thread.
+		o when a project closes, stop the directory watcher thread.
+
+
+
+Phase 8 - Console Editor MVP
+
+[[]]
+= continue with OpenProject:
+	o before even doing anything, check that we are not in play mode
+		o if we are, abort
+
+	- after saving the current one, if there's a path and it exists:
+		- if we have a current one (which now is expected to be saved):
+			- set the project path to empty
+			- call EngineInstance shutdown
+	
+	- set the project name
+	- initialize the engine (for now, with a default empty scene)
+
+= add a way to change the project name
+	- set it in settings
+	- mark it dirty
+
+= confirm that we can save it
+[[]]
+
+
+
+P8-01: Implement project loader
+	- read project folder
+		= What do we have right now?
+			= set up editor commands
+			= create editor context
+			= set cmake path
+			= initialize engine instance
+				---- update Initialize call to not have to specify
+				     ComponentStorage
+			= start a directory watcher for asset changes
+			= start editor thread to consume file change evts
+			= start input thread
+			= main thread:
+				while !context.IsQuitRequested()
+					- handle DLL reload
+					- handle play state
+
+		= how does CreateProject work?
+			= creates a project folder
+			= creates a project\src folder, copies onto it
+			  everything from gameTemplateFolder\src. This will be:
+			  	- GameDLL.cpp, and any other pre-made components
+			= copies CMakeLists.txt into the project folder
+			= invokes CMake to generate VS solution
+
+		= sets project path
+
+	- So at the moment we don't have a project, and maybe this should be the
+	  1st thing:
+	  	o while we don't have a project, don't initialize the engine
+
+		o OpenProject, how does it work?
+			- sets project path to project folder path
+			- looks for "project.udf"
+			- creates default one if not available
+
+		= What next?
+			- when you open a project:
+				- if we already have a project open:
+					= check if we need to save it:
+
+		= when the project changes, shut down the previous one, and load the
+		  new one.
+
+	-> add a "did something change in the project?" flag to editorContext
+	-> if opening a project when the current one is dirty:
+		-> create "TrySaveCurrentProject" stub
+
+	- discover and index all scenes and assets
+
+
+
+
+
+Phase 7 - Standalone Game Runner
+
+"A thin launcher executable that runs a shipped game w/o the editor."
+
+So, at the moment, we have the game template target, which generates a .dll, and then
+the editor will launch that.
+
+So this phase is about a standalone project that launches the game DLL and does the
+updates.
+
+
+o Then with p6-04, some more tricky bits; scene state snapshot &c.
+
+OK so next next, an easy bit o.O:
+ o p6-03, fixed-step accumulator inside EngineInstance.
+ 
+o OK, so P6-02: 
+  - Implement a fixed-timestap game loop driven by the editor.
+    Right. How would we do this?
+    	- What are the concerns, if any?
+	  Well, I'm thinking about multithreading; and whether the engine itself
+	  should be in charge of the updates.
+	- I'm also considering whether it would make more sense to
+	  do P6-03 first: a state machine.
+
+	  	= EditorPhase::
+			Undefined
+
+			Initializing
+
+			ProjectOpening
+			Editing
+			StartingPlay
+			Playing
+			Paused
+			StoppingPlay
+
+			Shutdown
+		
+		= part of the context?
+		= or maybe a separate locked thing.
+				EditorState -> has EditorPhase currentPhase
+					    -> has EditorPhase desiredPhase
+
+	- in the - main - editor thread:
+		- check current state, check desiredPhase
+		- initiate transitions as needed.
+
+	- for now, let's leave rendering out of the picture, just worry about
+	  the updates.
+	  	- while editing: don't do shit.
+		- while playing: call update as quick as you can.
+		- call the engine on editor phase transitions.
+
+- Update editor play state:
+	o move I/O to separate thread
+
+	o update
+		undefined => initializing
+		initializing => idle (?)
+		idle => projectOpening
+		projectOpening => Editing
+			...
+
+
+
+This is becoming a kind of a brain dump; I guess this is fine, just a fair warning
+in case this doesn't seem to make much sense. I need to write things down.
+
+So. I started to dabble in phase 8 - console editor MVP -; but let's try to stick
+to the plan with Phase 6.
+
+What is phase 6 about?
+  - exposing GameInitialize, GameUpdate, GameShutdown methods. To be called by...?
+  	- My thinking: if this is about game lifecycle, then I'd rather call it:
+		- OnGameBeforeStart
+		- OnGameStart
+		- OnGameAfterStart
+
+		- OnGameUpdate(dt)
+
+		- OnGameBeforeShutdown
+		- OnGameShutdown
+	
+	=> These could be overridden.
+
+  - "Implement a fixed-timestep game loop driven by the editor" (target Hz
+    configurable, spiral-of-death guard)
+  		- is this when we are in play mode? I'm guessing so.
+
+  - "Implement Play / Pause / Stop state machine in the editor
+  - scene state snapshot on play start
+  - integrate hot reload.
+
+  So what would the flow be?
+    - Open the editor.
+    - Load the game .dll
+    - Load the first scene.
+    - Start the editor state machine.
+    	- while in edit mode:
+		- don't bother the game.
+	- while in play mode:
+		- when starting, invoke lifecycle methods.
+		- when stopping, invoke lifecycle methods.
+		- call update / fixed update on the game.
+			- unless paused
+	- while paused:
+		- maybe have the option to step a single frame.
+
+OK, this is starting to take shape. So, step 1, update the DLL ABI. Step 2, in the engine,
+actualy implement the update loop.
+
+Hmm. So we don't actually have an update loop in the engine just yet.
+What we do have is an EngineInstance, which has a Scene, which contains GameObjects.
+
+This annoys me a bit; we should be able to have multiple scenes.
+
+But.
+I think the normal mode of operation would be:
+	- EngineInstance.Run()
+		=> the actual update loop:
+			=> get input
+			=> update all GOs in all scenes with dt
+			=> render
+				=> repeat
+
+	- ... but, when working with the editor, we probably don't want to call
+	EngineInstance.Run. Instead, we want to expose some method that would advance
+	a single frame.
+
+- the only other problem is that I'm tempted to ditch GameObjects for ECS and systems.
+- have to focus, eyes on the prize.
+
+Phase 6 - In-process Game Loop & Play Mode
+
+The editor loads the game DLL and drives a game loop in the same process.
+
+- P6-01: Extend the game DLL ABI with game lifecycle hooks:
+  e.g. GameInitialize(Scene*), GameUpdate(float dt), GameShutdown() exported
+  as extern "C" alongside component registration.
+
+- P6-02: Implement a fixed-timestap game loop driven by the editor
+- P6-03: Implement Play / Pause / Stop state machine in the editor
+- P6-04: Implement scene state snapshot on Play start; restore original on stop
+	 (so edits made during play are discarded)
+- P6-05: Integrate hot-reload with the play state: if a DLL rebuild is detected
+	 while stopped, reload immediately. If playing - well, this is the rub;
+	 I'm not sure we'll be able to do full hot reload. But we can: stop,
+	 reload, and optionally re-enter play.
+
+A bit of a reminder of what we already have.
+- DllLoader:
+	- wraps around LoadLibraryW.
+	- an RAII type with a simple interface:
+		- Load, Unload, IsLoaded, ResolveFunctionName<FPtr>(name)
+
+	- ResolveFunctionName is a wrapper around GetProcAddress(_moduleName, name);
+
+- HotReloadManager: 
+	- has DllLoader and FileWatcher
+		- IsDllLoaded();
+			= checks _loader.IsLoaded
+
+		- LoadGameDll(dllFolderPath, filename);
+			= if dll already loaded:
+				= serialize active scene
+				= clear active scene (?)
+				= unload DLL
+
+			= tear down watcher, set up again (? not sure if needed)
+			= copy DLL to shadow path
+			= load shadow copy
+			= if we have a previous scene:
+				= deserialize, set it as active.
+
+		- Update()
+			= check if the file has changed
+			= if it has, reload.
+
+= So we'll need to do this even in edit mode, claro, we have to expose serialized
+  things, components and the like.
+
+  	= How does scene serialization / deserialization actually work?
+		= Serialization:
+			== write scene name
+			== write transform storage
+			== go thru all gameObjects
+				=== create a new node (= guid), assign go name
+				=== for each component in go->GetComponents() 
+					==== write component->GetTypeID()
+					==== serialize reflected fields
+					     (code gen by macro)
+	- eg for Transform:
+
+	REGISTER_COMPONENT(Transform)
+	REFLECTED_FIELDS(Transform,
+	    { "_localPosition", Engine::FieldType::Vec3, offsetof(Transform, _localPosition) },
+	    { "_localRotation", Engine::FieldType::Quaternion, offsetof(Transform, _localRotation ) },
+	    { "_localScale", Engine::FieldType::Vec3, offsetof(Transform, _localScale) })
+
+===============================================================================
+FFS.
+Let's try to focus on what the editor needs to do.
+= On startup, make it so that it has no project loaded.
+= Add a command to open a project (in addition to create one anew).
+= Have the editor own a DLLLoader, maybe as part of the context?; and look for reloads.
+
+===============================================================================
+oP5-05:
   - continue with AssetDatabase refresh from asset folder observations.
   	- basically, figure out AssetDatabase::Update, based on FileChangeEvents
 
--P5-05:
+oP5-05:
   o Create FileChangeEventType enum.
   o Create FileChangeEvent struct.
   o Create a FileChangeEvent Q in the editor context.

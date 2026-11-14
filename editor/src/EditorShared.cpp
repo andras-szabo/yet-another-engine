@@ -1,6 +1,7 @@
 module;
 
 #include <Windows.h>
+#include "LoggerMacros.h"
 
 module EditorShared;
 
@@ -11,7 +12,12 @@ module EditorShared;
 #include <unordered_map>
 
 #include "EditorShared.ixx"
+#include "../../engine-core/src/DirectoryWatcher.ixx"
+#include "../../engine-core/src/Logger.ixx"
 #else
+import DirectoryWatcher;
+import FileWatcher;
+import Logger;
 import std;
 #endif
 
@@ -19,6 +25,11 @@ namespace Editor
 {
 	Context::~Context()
 	{
+		if (_directoryWatcherThread.joinable())
+		{
+			_directoryWatcherThread.join();
+		}
+
 		if (_quitRequestedEventHandle)
 		{
 			CloseHandle(_quitRequestedEventHandle);
@@ -59,6 +70,12 @@ namespace Editor
 	{
 		std::lock_guard<std::mutex> guard{ _contextLock };
 		return _quitRequestedEventHandle;
+	}
+
+	HANDLE Context::GetProjectDirectoryWatcherStopEventHandle()
+	{
+		std::lock_guard<std::mutex> guard{ _contextLock };
+		return _projectDirectoryWatcherStopEventHandle;
 	}
 
 	void Context::RequestQuit()
@@ -118,6 +135,8 @@ namespace Editor
 
 	void Context::CloseProject()
 	{
+		StopProjectDirectoryWatcher();
+
 		std::lock_guard<std::mutex> l{ _contextLock };
 		_contextState.projectPath.clear();
 		SetProjectSettings({});
@@ -152,4 +171,94 @@ namespace Editor
 		std::lock_guard<std::mutex> l{ _projectSettingsLock };
 		_projectSettings = settings;
 	}
+
+	void Context::StartProjectDirectoryWatcher()
+	{
+		StopProjectDirectoryWatcher();
+
+		std::lock_guard<std::mutex> l{ _editorStateLock };
+		_directoryWatcherThread = std::thread(PollDirectoryChanges, std::ref(*this));
+	}
+
+	void Context::StopProjectDirectoryWatcher()
+	{
+		SetEvent(_projectDirectoryWatcherStopEventHandle);
+
+		if (_directoryWatcherThread.joinable())
+		{
+			_directoryWatcherThread.join();
+		}
+
+		ResetEvent(_projectDirectoryWatcherStopEventHandle);
+	}
+
+	void Context::PollDirectoryChanges(Context& context)
+	{
+		LOG_INFO("Starting directory watcher thread...");
+
+		// Poll the context to see if a project path has been set; it not, wait for it.
+		bool hasProjectPath = false;
+		while (!hasProjectPath)
+		{
+			const auto state = context.GetContextState();
+			if (!state.projectPath.empty())
+			{
+				hasProjectPath = true;
+			}
+			else
+			{
+				if (state.isQuitRequested)
+				{
+					LOG_INFO("Quit requested; exiting directory watcher thread.");
+					return;
+				}
+
+				std::this_thread::sleep_for(std::chrono::milliseconds(500));
+			}
+		}
+
+		const auto pathAsUtf8 = Engine::WideToUtf8(context.GetContextState().projectPath);
+		LOG_INFO("Project path set; starting directory watcher for {}", pathAsUtf8);
+
+		auto watcher = Engine::DirectoryWatcher{ context.GetContextState().projectPath };
+		std::function<void(const Engine::FileChangeEvent&)> callback = [&context](const Engine::FileChangeEvent& event)
+			{
+				context.CollectFileChangeEvent(event);
+			};
+
+		// The red squiggly line here is Intellisense getting a bit confused about modules.
+		watcher.RegisterCallback(callback);
+
+		bool keepWaiting{ true };
+		while (keepWaiting)
+		{
+			HANDLE handles[3] = {
+				watcher.GetWaitHandle(),
+				context.GetQuitRequestedEventHandle(),
+				context.GetProjectDirectoryWatcherStopEventHandle()
+			};
+
+			DWORD waitForChangesOrQuit = WaitForMultipleObjects(
+				3,
+				handles,
+				FALSE,
+				INFINITE);
+
+			if (waitForChangesOrQuit == WAIT_OBJECT_0)
+			{
+				watcher.Poll();
+			}
+			else
+			{
+				if (waitForChangesOrQuit != WAIT_OBJECT_0 + 1 &&
+					waitForChangesOrQuit != WAIT_OBJECT_0 + 2)
+				{
+					LOG_ERROR("Unexpected result from WaitForMultipleObjects: {}", waitForChangesOrQuit);
+				}
+
+				keepWaiting = false;
+			}
+		}
+	}
+
 } // namespace Editor

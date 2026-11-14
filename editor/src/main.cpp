@@ -30,7 +30,9 @@ import EngineInstance;
 import EditorTests;
 import FileWatcher;
 import HotReloadManager;
+import Logger;
 import EditorTasks;
+
 import std;
 #endif
 
@@ -680,6 +682,7 @@ Editor::CommandReturnType OpenProject(const std::vector<std::string>& commandAnd
 	LOG_INFO("Engine initialized successfully.");
 
 	context.SetProjectPath(projectFolderPath.wstring());
+	context.StartProjectDirectoryWatcher();
 
 	return {};
 }
@@ -1227,11 +1230,6 @@ int main()
 
 	context.SetContextState(contextState);
 
-	//Engine::EngineInstance::Initialize(std::make_unique<Engine::ComponentStorage>());
-
-	// Start a thread to poll for directory changes
-	std::thread directoryWatcherThread(PollDirectoryChanges, std::ref(context));
-
 	// This is here until we move the console IO (std::cin) into another thread
 	std::thread editorThread([&]()
 		{
@@ -1385,7 +1383,6 @@ int main()
 
 	inputThread.join();
 	editorThread.join();
-	directoryWatcherThread.join();
 
 	return 0;
 }

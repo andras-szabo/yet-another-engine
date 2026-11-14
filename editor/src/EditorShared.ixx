@@ -116,6 +116,7 @@ namespace Editor
         bool HasProjectOpen();
 
         HANDLE GetQuitRequestedEventHandle();
+		HANDLE GetProjectDirectoryWatcherStopEventHandle();
         std::mutex& GetContextLock();
 
 		void CollectFileChangeEvent(const Engine::FileChangeEvent& event);
@@ -133,10 +134,14 @@ namespace Editor
 
         void CloseProject();
 
+        void StartProjectDirectoryWatcher();
+        void StopProjectDirectoryWatcher();
+
     private:
         std::mutex _contextLock;
         ContextState _contextState;
 		HANDLE _quitRequestedEventHandle{ CreateEventW(NULL, TRUE, FALSE, NULL) };
+        HANDLE _projectDirectoryWatcherStopEventHandle{ CreateEventW(NULL, TRUE, FALSE, NULL) };
         std::vector<Engine::FileChangeEvent> _fileChangeEventQueue;
 
         std::mutex _projectSettingsLock;
@@ -147,6 +152,10 @@ namespace Editor
 
         std::mutex _hotreloadManagerLock;
         HotReloadManager _hotReloadManager;
+
+        std::thread _directoryWatcherThread;
+
+        static void PollDirectoryChanges(Context& context);
     };
 
     export struct IEditorTask
