@@ -29,6 +29,18 @@ namespace Engine
 	/// </summary>
 	export using AssetLoaderFn = std::shared_ptr<void>(*)(const std::string_view path);
 
+	/// <summary>
+	/// A function that, given a path and a type-erased pointer to an asset, serializes
+	/// the asset and writes it to disk at the given path.
+	/// </summary>
+	export using AssetSaverFn = Engine::Expected<void>(*)(const std::string_view path, const std::shared_ptr<void> assetPtr);
+
+	/// <summary>
+	/// A function that creates a new asset of some type, returning a type-erased pointer
+	/// to the newly created asset.
+	/// </summary>
+	export using AssetCreatorFn = Engine::Expected<std::shared_ptr<void>>(*)();
+
 	struct AssetDatabase_Impl;
 
 	export class ENGINE_CORE_API AssetDatabase
@@ -59,6 +71,10 @@ namespace Engine
 			const std::filesystem::directory_entry& oldEntry,
 			AssetType assetType);
 
+		Engine::Expected<Engine::GUID> CreateNewAsset(const std::filesystem::path& path, 
+			AssetType assetType, 
+			std::optional<Engine::GUID> guid = std::nullopt);
+
 		const std::unordered_map<std::string, Engine::GUID>& GetAssetGUIDsByPath() const;
 
 		template <typename T>
@@ -75,6 +91,8 @@ namespace Engine
 		bool ReleaseAsset(const Engine::GUID guid);
 
 		Engine::Expected<void> RegisterAssetLoader(const std::wstring& extension, AssetLoaderFn loaderFn);
+		Engine::Expected<void> RegisterAssetSaver(const std::wstring& extension, AssetSaverFn saverFn);
+		Engine::Expected<void> RegisterAssetCreator(const std::wstring& extension, AssetCreatorFn creatorFn);
 
 	private:
 		bool DoesMatchFilter(const std::filesystem::directory_entry& directoryEntry) const;

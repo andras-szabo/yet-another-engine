@@ -37,16 +37,23 @@ namespace Engine
 				})
 			{
 				assetTypesByExtension.emplace(extension, type);
+				assetExtensionsByType.emplace(type, extension);
 			}
 		}
 
 		std::unordered_map<Engine::GUID, std::string> pathsByGuid;
 		std::unordered_map<std::string, Engine::GUID> guidsByPath;
 		std::unordered_map<std::wstring, Engine::AssetType> assetTypesByExtension;
+		std::unordered_map<Engine::AssetType, std::wstring> assetExtensionsByType;
 
 		Engine::Expected<void> RegisterAssetLoader(const std::wstring& extension, AssetLoaderFn loaderFn);
+		Engine::Expected<void> RegisterAssetSaver(const std::wstring& extension, AssetSaverFn saverFn);
+		Engine::Expected<void> RegisterAssetCreator(const std::wstring& extension, AssetCreatorFn creatorFn);
+
 		Engine::Expected<std::shared_ptr<void>> LoadAsset(const Engine::GUID guid);
 		Engine::Expected<std::shared_ptr<void>> LoadAsset(const std::string_view path);
+
+		Engine::Expected<void> CreateNewAsset(const std::string_view path, AssetType assetType);
 
 		bool IsAssetLoaded(const Engine::GUID guid) const;
 		bool ReleaseAsset(const Engine::GUID guid);
@@ -54,6 +61,8 @@ namespace Engine
 	private:
 		std::unordered_map<Engine::GUID, std::weak_ptr<void>> _loadedAssetsByGUID;
 		std::unordered_map<std::wstring, AssetLoaderFn> _loaderFunctionsByExtension;
+		std::unordered_map<std::wstring, AssetSaverFn> _saverFunctionsByExtension;
+		std::unordered_map<std::wstring, AssetCreatorFn> _creatorFunctionsByExtension;
 
 		Engine::Expected<std::shared_ptr<void>> DoLoadAssetFromPath(const std::string_view path);
 	};
@@ -79,6 +88,15 @@ namespace Engine
 		return _impl->RegisterAssetLoader(extension, loaderFn);
 	}
 
+	Engine::Expected<void> AssetDatabase::RegisterAssetSaver(const std::wstring& extension, AssetSaverFn saverFn)
+	{
+		return _impl->RegisterAssetSaver(extension, saverFn);
+	}
+
+	Engine::Expected<void> AssetDatabase::RegisterAssetCreator(const std::wstring& extension, AssetCreatorFn creatorFn)
+	{
+		return _impl->RegisterAssetCreator(extension, creatorFn);
+	}
 
 	AssetDatabase::AssetDatabase()
 	{
@@ -302,6 +320,81 @@ namespace Engine
 		_impl->guidsByPath.erase(guidByPath);
 
 		return {};
+	}
+
+	Engine::Expected<Engine::GUID> AssetDatabase::CreateNewAsset(const std::filesystem::path& path,
+		AssetType assetType,
+		std::optional<Engine::GUID> guid)
+	{
+		namespace fs = std::filesystem;
+		assert(assetType != AssetType::Undefined && "Invalid asset type.");
+
+		const std::string assetPath = path.string();
+		const auto guidByPath = _impl->guidsByPath.find(assetPath);
+		if (guidByPath != _impl->guidsByPath.end())
+		{
+			LOG_ERROR("Asset already in database: {} ({}) -> {}", assetPath, AssetTypeToString(assetType), guidByPath->second);
+			return Engine::Unexpected({ Engine::ErrorType::File, "Asset already in database." });
+		}
+
+		// If the guid is provided, let's create one; and make sure that the DB already associates
+		// the new asset with the guid.
+		
+		Engine::GUID newGuid = guid.value_or(Engine::GUID{});
+
+		_impl->pathsByGuid.emplace(newGuid, assetPath);
+		_impl->guidsByPath.emplace(assetPath, newGuid);
+
+		// Now try to create the new asset. If that fails, remove the
+		// added entries from the database.
+
+		const auto assetCreationResult = _impl->CreateNewAsset(assetPath, assetType);
+
+		if (!assetCreationResult.has_value())
+		{
+			_impl->pathsByGuid.erase(newGuid);
+			_impl->guidsByPath.erase(assetPath);
+
+			return Engine::Unexpected(assetCreationResult.error());
+		}
+
+		LOG_INFO("New asset created: {} ({}) -> {}", assetPath, AssetTypeToString(assetType), newGuid);
+
+		return newGuid;
+	}
+
+	Engine::Expected<void> AssetDatabase_Impl::CreateNewAsset(std::string_view assetPath, AssetType assetType)
+	{
+		if (assetType == AssetType::Undefined)
+		{
+			return Engine::Unexpected({ Engine::ErrorType::Undefined, "Invalid asset type." });
+		}
+
+		const auto extension = assetExtensionsByType.find(assetType);
+		if (extension == assetExtensionsByType.end())
+		{
+			return Engine::Unexpected({ Engine::ErrorType::Undefined, "No extension registered for this asset type." });
+		}
+
+		const auto creatorFunction = _creatorFunctionsByExtension.find(extension->second);
+		if (creatorFunction == _creatorFunctionsByExtension.end())
+		{
+			return Engine::Unexpected({ Engine::ErrorType::Undefined, "No creator function registered for this asset type." });
+		}
+
+		const auto newAssetPtr = creatorFunction->second();
+		if (!newAssetPtr.has_value())
+		{
+			return Engine::Unexpected(newAssetPtr.error());
+		}
+
+		const auto saverFunction = _saverFunctionsByExtension.find(extension->second);
+		if (saverFunction == _saverFunctionsByExtension.end())
+		{
+			return Engine::Unexpected({ Engine::ErrorType::Undefined, "No saver function registered for this asset type." });
+		}
+
+		return saverFunction->second(assetPath, newAssetPtr.value());
 	}
 
 	Engine::Expected<void> AssetDatabase::TryAddNewAsset(const std::filesystem::directory_entry& entry, AssetType assetType)
@@ -562,6 +655,27 @@ namespace Engine
 		LOG_INFO(metaFilePath.string());
 
 		return fs::exists(metaFilePath);
+	}
+
+	Engine::Expected<void> AssetDatabase_Impl::RegisterAssetSaver(const std::wstring& extension, AssetSaverFn saverFn)
+	{
+		if (_saverFunctionsByExtension.find(extension) != _saverFunctionsByExtension.end())
+		{
+			return Engine::Unexpected({ Engine::ErrorType::Undefined, "An asset saver is already registered for this extension." });
+		}
+
+		_saverFunctionsByExtension[extension] = saverFn;
+		return {};
+	}
+
+	Engine::Expected<void> AssetDatabase_Impl::RegisterAssetCreator(const std::wstring& extension, AssetCreatorFn creatorFn)
+	{
+		if (_creatorFunctionsByExtension.find(extension) != _creatorFunctionsByExtension.end())
+		{
+			return Engine::Unexpected({ Engine::ErrorType::Undefined, "An asset creator is already registered for this extension." });
+		}
+		_creatorFunctionsByExtension[extension] = creatorFn;
+		return {};
 	}
 
 	Engine::Expected<void> AssetDatabase_Impl::RegisterAssetLoader(const std::wstring& extension,

@@ -797,6 +797,38 @@ Editor::CommandReturnType CreateProject(const std::vector<std::string>& commandA
 	return {};
 }
 
+Editor::CommandReturnType TryCreateNewScene(const std::vector<std::string>& commandAndArguments,
+	Editor::Context& context,
+	Editor::IEditorTask& task)
+{
+	Editor::TaskProgressScope _(task);
+	if (context.HasProjectOpen() == false)
+	{
+		return std::unexpected{ "No project open." };
+	}
+
+	if (commandAndArguments.size() < 2)
+	{
+		return std::unexpected{ "Missing scene name." };
+	}
+
+	const auto sceneName = commandAndArguments[1];
+
+	// TODO sanitize all this
+	std::filesystem::path scenePath{ context.GetContextState().projectPath };
+	scenePath /= std::format("{}.scene", sceneName);
+
+	const auto result = Engine::EngineInstance::GetAssetDatabase()
+		.CreateNewAsset(scenePath, Engine::AssetType::Scene);
+
+	if (!result.has_value())
+	{
+		return std::unexpected{std::format("Failed to create new scene: {}", result.error().message) };
+	}
+
+	return {};
+}
+
 Editor::CommandReturnType TrySaveActiveScene(const std::vector<std::string>& commandAndArguments,
 	Editor::Context& context,
 	Editor::IEditorTask& task)
@@ -1301,6 +1333,7 @@ int main()
 
 	executors_["sceneName"] = { SceneName, "Get / Set active scene name" };
 	executors_["sceneSave"] = { TrySaveActiveScene, "Save active scene if dirty" };
+	executors_["sceneCreate"] = { TryCreateNewScene, "Create a new scene" };
 
 
 	// TODO: Read this from an editor settings file; and make it part of an editorInstance

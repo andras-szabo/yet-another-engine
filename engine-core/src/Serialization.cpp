@@ -324,6 +324,7 @@ namespace Engine
 		}
 	}
 
+	// TODO handle errors
 	void SerializeScene(const Engine::Scene::Scene& scene, Engine::DataFile& out)
 	{
 		// 0th thing: name

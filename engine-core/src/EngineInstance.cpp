@@ -25,8 +25,41 @@ namespace Engine
 {
 	// Nullptr is a compile-time constant, so this counts as constant
 	// initialization that should happen when the .dll is loaded, avoiding
-	// the SOIF.
+	// the SOIF (static order of initialization fiasco).
 	EngineInstance* EngineInstance::_instance = nullptr;
+
+	Engine::Expected<std::shared_ptr<void>> CreateNewScene()
+	{
+		auto newScenePtr = std::make_shared<Engine::Scene::Scene>(&EngineInstance::GetComponentStorage(), "UntitledScene");
+
+		if (!newScenePtr)
+		{
+			return Engine::Unexpected({ Engine::ErrorType::Undefined, "Failed to create new scene." });
+		}
+
+		return newScenePtr;
+	}
+
+	Engine::Expected<void> SaveSceneToFile(const std::string_view path, const std::shared_ptr<void> scenePtr)
+	{
+		if (!scenePtr)
+		{
+			return Engine::Unexpected({ Engine::ErrorType::Undefined, "Scene pointer is null." });
+		}
+
+		const auto scene = std::static_pointer_cast<Engine::Scene::Scene>(scenePtr);
+
+		Engine::DataFile out;
+		Engine::SerializeScene(*scene, out);
+
+		const std::filesystem::path asPath{ path };
+		const auto saveResult = Engine::DataFile::Serialize(out, asPath.string());
+		if (!saveResult)
+		{
+			return Engine::Unexpected({ Engine::ErrorType::File, std::format("Failed to save scene to file: {}", path) });
+		}
+		return {};
+	}
 
 	std::shared_ptr<void> LoadSceneFromFile(const std::string_view path)
 	{
@@ -67,16 +100,36 @@ namespace Engine
 		EngineInstance_Impl(std::unique_ptr<IComponentStorage> componentStorage)
 			: _componentStorage(std::move(componentStorage))
 		{
-			const auto registerResult = _assetDatabase.
-				RegisterAssetLoader(L".scene", LoadSceneFromFile);
+			// Register scene loader, creator, and saver functions with the asset db
+			const auto loaderRegisterResult = _assetDatabase.RegisterAssetLoader(L".scene", LoadSceneFromFile);
+			const auto saverRegisterResult = _assetDatabase.RegisterAssetSaver(L".scene", SaveSceneToFile);
+			const auto creatorRegisterResult = _assetDatabase.RegisterAssetCreator(L".scene", CreateNewScene);
 
-			if (!registerResult.has_value())
+			if (!loaderRegisterResult.has_value())
 			{
-				LOG_ERROR("Failed to register scene asset loader: {}", registerResult.error().message);
+				LOG_ERROR("Failed to register scene asset loader: {}", loaderRegisterResult.error().message);
 			}
 			else
 			{
 				LOG_INFO("Scene asset loader registered successfully.");
+			}
+
+			if (!saverRegisterResult.has_value())
+			{
+				LOG_ERROR("Failed to register scene asset saver: {}", saverRegisterResult.error().message);
+			}
+			else
+			{
+				LOG_INFO("Scene asset saver registered successfully.");
+			}
+
+			if (!creatorRegisterResult.has_value())
+			{
+				LOG_ERROR("Failed to register scene asset creator: {}", creatorRegisterResult.error().message);
+			}
+			else
+			{
+				LOG_INFO("Scene asset creator registered successfully.");
 			}
 
 			//_activeScene = new Engine::Scene::Scene(_componentStorage.get(), "UntitledScene");

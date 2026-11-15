@@ -1,18 +1,9 @@
 TODO next:
 
-- create a new scene:
-	- create a new scene, std::make_shared.
-	- tell the asset db:
-		- hey, here's a new asset, it has no guid, and no path.
-			- ADB: OK, I have a new asset to add to the map.
-			- I first create a guid for it.
-			- then I get a path where this asset should be saved,
-			  if none was provided.
-			- I use the previously registered method to save the
-			  asset do disk at the given path
-			- I make sure that path and GUID are both entered into
-			  the DB
-			- I return the guid.
+- create a command to load a scene and set it active, via the asset db.
+- when opening a project, find "editorSettings.udf"
+- read the active scene ("ActiveSceneAtProjectOpen")
+- if it has one, load it and set it as active.
 
 --------------------------------------------------------------------------------------
 
@@ -101,6 +92,19 @@ To continue from here:
 
 o Make sure that AssetDatabase doesn't depend on EngineInstance
 o Make sure thate engineInstance_impl doesn't own a scene pointer
+o create a new scene:
+	o create a new scene, std::make_shared.
+	o tell the asset db:
+		o hey, here's a new asset, it has no guid, and no path.
+			o ADB: OK, I have a new asset to add to the map.
+			o I first create a guid for it.
+			o then I get a path where this asset should be saved,
+			  if none was provided.
+			o I use the previously registered method to save the
+			  asset do disk at the given path
+			o I make sure that path and GUID are both entered into
+			  the DB
+			o I return the guid.
 
 [----]
 
