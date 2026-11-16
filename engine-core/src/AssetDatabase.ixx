@@ -92,7 +92,7 @@ namespace Engine
 		Engine::Expected<T*> LoadAsset(AssetRef<T>& assetRef);
 
 		template <typename T>
-		std::future<std::shared_ptr<T>> LoadAssetByPath(const std::filesystem::path& path) noexcept;
+		std::future<Expected<std::shared_ptr<T>>> LoadAssetByPath(const std::filesystem::path& path);
 
 		template <typename T>
 		bool ReleaseAsset(AssetRef<T>& assetRef);
@@ -138,20 +138,32 @@ namespace Engine
 		return loadedAssetPtr.error();
 	}
 
-
+	// TODO - a job system, and things to consider about std::future.
+	// - it can technically still throw.
+	// - std::async futures block in their destructor; futures from a std::promise or a packaged task don't do this.
+	// - std::async futures can't be cancelled.
+	// - one workaround, e.g.:
+	//		 struct AsyncOp<T>
+	//		 {
+	//				std::future<Expected<T>> future;
+	//				std::stop_source stop;	// call stop.request_stop() to cancel,
+	//										// and the future should check stop.stop_requested() periodically.
+	//		 };
+	//		
+	//	But other nice things to get with a job system and a custom task:
+	//	- cancellation before starting, continuations, priorities, thread selection
 	template <typename T>
-	std::future<std::shared_ptr<T>> AssetDatabase::LoadAssetByPath(const std::filesystem::path& path) noexcept
+	std::future<Expected<std::shared_ptr<T>>> AssetDatabase::LoadAssetByPath(const std::filesystem::path& path)
 	{
-		return std::async(std::launch::async, [this, path]()
+		return std::async(std::launch::async, [this, path]() -> Expected<std::shared_ptr<T>>
 			{
 				Expected<std::shared_ptr<void>> loadedAssetPtr = LoadAssetByPath(path);
 				if (loadedAssetPtr.has_value())
 				{
-					return std::static_pointer_cast<T>(loadedAssetPtr.value());
+					return Expected<std::shared_ptr<T>>(std::static_pointer_cast<T>(loadedAssetPtr.value()));
 				}
-
-				LOG_ERROR("Failed to load asset at path {}: {}", path.string(), loadedAssetPtr.error().message);
-				return std::shared_ptr<T>(nullptr);
+				
+				return Unexpected{ loadedAssetPtr.error() };
 			});
 	}
 

@@ -864,17 +864,24 @@ Editor::CommandReturnType TryLoadScene(const std::vector<std::string>& commandAn
 	auto sceneFuture = Engine::EngineInstance::GetAssetDatabase()
 		.LoadAssetByPath<Engine::Scene::Scene>(scenePath);
 
-	auto scene = sceneFuture.get();
+	// Technically, a future can still throw on get
+	try
+	{
+		auto scene = sceneFuture.get();
+		if (scene.has_value())
+		{
+			Engine::EngineInstance::SetActiveScene(scene.value());
+		}
+		else
+		{
+			return std::unexpected{ std::format("Failed to load scene: {}", scene.error().message) };
+		}
+	}
+	catch (const std::exception& e)
+	{
+		return std::unexpected{ std::format("Exception while loading scene: {}", e.what()) };
+	}
 
-	if (scene != nullptr)
-	{
-		Engine::EngineInstance::SetActiveScene(scene);
-		LOG_INFO("Scene loaded successfully: {}", scenePath.string());
-	}
-	else
-	{
-		return std::unexpected{ std::format("Failed to load scene: {}", scenePath.string()) };
-	}
 
 	return {};
 }
