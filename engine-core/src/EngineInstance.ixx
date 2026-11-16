@@ -34,7 +34,8 @@ namespace Engine
 		static EngineInstance& Get();
 		static IComponentStorage& GetComponentStorage();
 		static AssetDatabase& GetAssetDatabase();
-		static void SetActiveScene(Scene::Scene&& scene);
+		static void SetActiveScene(Scene::Scene&& scene);		// TODO deprecate this
+		static void SetActiveScene(std::shared_ptr<Scene::Scene> scenePtr);
 		static const Scene::Scene& GetActiveScene();
 		static Scene::Scene& GetActiveSceneRW();
 		static bool HasActiveScene();

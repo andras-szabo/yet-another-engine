@@ -1,22 +1,28 @@
 module;
 
 #include "engine_core_api.h"
+#include "LoggerMacros.h"
 
 export module AssetDatabase;
 
 #if defined ( __INTELLISENSE__ )
 #include <filesystem>
+#include <future>
 #include <span>
 #include <unordered_map>
+
 #include "Asset.ixx"
 #include "EngineError.ixx"
 #include "FileWatcher.ixx"
 #include "Guid.ixx"
+#include "Logger.ixx"
 #else
 import Asset;
 import GUID;
 import Error;
 import FileWatcher;
+import Logger;
+
 import std;
 #endif
 
@@ -86,6 +92,9 @@ namespace Engine
 		Engine::Expected<T*> LoadAsset(AssetRef<T>& assetRef);
 
 		template <typename T>
+		std::future<std::shared_ptr<T>> LoadAssetByPath(const std::filesystem::path& path);
+
+		template <typename T>
 		bool ReleaseAsset(AssetRef<T>& assetRef);
 
 		bool ReleaseAsset(const Engine::GUID guid);
@@ -105,6 +114,7 @@ namespace Engine
 			Engine::AssetType& type) const;
 
 		Expected<std::shared_ptr<void>> LoadAssetByGuid(const Engine::GUID guid);
+		Expected<std::shared_ptr<void>> LoadAssetByPath(const std::filesystem::path& path);
 
 		std::string AssetTypeToString(Engine::AssetType assetType) const;
 	};
@@ -126,6 +136,23 @@ namespace Engine
 		}
 
 		return loadedAssetPtr.error();
+	}
+
+
+	template <typename T>
+	std::future<std::shared_ptr<T>> AssetDatabase::LoadAssetByPath(const std::filesystem::path& path)
+	{
+		return std::async(std::launch::async, [this, path]()
+			{
+				Expected<std::shared_ptr<void>> loadedAssetPtr = LoadAssetByPath(path);
+				if (loadedAssetPtr.has_value())
+				{
+					return std::static_pointer_cast<T>(loadedAssetPtr.value());
+				}
+
+				LOG_ERROR("Failed to load asset at path {}: {}", path.string(), loadedAssetPtr.error().message);
+				return std::shared_ptr<T>(nullptr);
+			});
 	}
 
 	/// <summary>

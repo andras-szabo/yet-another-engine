@@ -1,6 +1,6 @@
 TODO next:
 
-- create a command to load a scene and set it active, via the asset db.
+o create a command to load a scene and set it active, via the asset db.
 - when opening a project, find "editorSettings.udf"
 - read the active scene ("ActiveSceneAtProjectOpen")
 - if it has one, load it and set it as active.

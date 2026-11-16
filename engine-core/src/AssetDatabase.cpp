@@ -58,13 +58,13 @@ namespace Engine
 		bool IsAssetLoaded(const Engine::GUID guid) const;
 		bool ReleaseAsset(const Engine::GUID guid);
 
+		Engine::Expected<std::shared_ptr<void>> DoLoadAssetFromPath(const std::string_view path);
+
 	private:
 		std::unordered_map<Engine::GUID, std::weak_ptr<void>> _loadedAssetsByGUID;
 		std::unordered_map<std::wstring, AssetLoaderFn> _loaderFunctionsByExtension;
 		std::unordered_map<std::wstring, AssetSaverFn> _saverFunctionsByExtension;
 		std::unordered_map<std::wstring, AssetCreatorFn> _creatorFunctionsByExtension;
-
-		Engine::Expected<std::shared_ptr<void>> DoLoadAssetFromPath(const std::string_view path);
 	};
 
 	bool AssetDatabase::IsAssetLoaded(const Engine::GUID guid) const
@@ -96,6 +96,11 @@ namespace Engine
 	Engine::Expected<void> AssetDatabase::RegisterAssetCreator(const std::wstring& extension, AssetCreatorFn creatorFn)
 	{
 		return _impl->RegisterAssetCreator(extension, creatorFn);
+	}
+
+	Expected<std::shared_ptr<void>> AssetDatabase::LoadAssetByPath(const std::filesystem::path& path)
+	{
+		return _impl->DoLoadAssetFromPath(path.string());
 	}
 
 	AssetDatabase::AssetDatabase()

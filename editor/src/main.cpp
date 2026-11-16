@@ -518,12 +518,20 @@ Editor::CommandReturnType DoTryCloseCurrentProject(Editor::Context& context)
 	}
 
 	context.CloseProject();
-	Engine::EngineInstance::Shutdown();
+	const auto shutdownResult = Engine::EngineInstance::Shutdown();
+	if (shutdownResult)
+	{
+		LOG_INFO("Engine shut down successfully.");
+	}
+	else
+	{
+		return std::unexpected{ std::format("Failed to shut down engine: {}", shutdownResult.error().message) };
+	}
 
 	return {};
 }
 
-Editor::CommandReturnType TryCloseProject(const std::vector<std::string>& commandAndArguments,
+Editor::CommandReturnType TryCloseProject([[maybe_unused]]const std::vector<std::string>& commandAndArguments,
 	Editor::Context& context,
 	Editor::IEditorTask& task)
 {
@@ -565,7 +573,7 @@ Editor::CommandReturnType DoTrySaveCurrentProject(Editor::Context& context)
 	return {};
 }
 
-Editor::CommandReturnType TrySaveProject(const std::vector<std::string>& commandAndArguments,
+Editor::CommandReturnType TrySaveProject([[maybe_unused]]const std::vector<std::string>& commandAndArguments,
 	Editor::Context& context,
 	Editor::IEditorTask& task)
 {
@@ -829,7 +837,49 @@ Editor::CommandReturnType TryCreateNewScene(const std::vector<std::string>& comm
 	return {};
 }
 
-Editor::CommandReturnType TrySaveActiveScene(const std::vector<std::string>& commandAndArguments,
+Editor::CommandReturnType TryLoadScene(const std::vector<std::string>& commandAndArguments,
+	Editor::Context& context,
+	Editor::IEditorTask& task)
+{
+	Editor::TaskProgressScope _(task);
+	if (context.HasProjectOpen() == false)
+	{
+		return std::unexpected{ "No project open." };
+	}
+
+	if (Engine::EngineInstance::HasActiveScene())
+	{
+		return std::unexpected{ "A scene is already active. Please close it first. TODO; this _should_ work better." };
+	}
+
+	if (commandAndArguments.size() < 2)
+	{
+		return std::unexpected{ "Missing scene name." };
+	}
+
+	// Establish what the scene path is.
+	std::filesystem::path scenePath{ context.GetContextState().projectPath };
+	scenePath /= std::format("{}.scene", commandAndArguments[1]);
+
+	auto sceneFuture = Engine::EngineInstance::GetAssetDatabase()
+		.LoadAssetByPath<Engine::Scene::Scene>(scenePath);
+
+	try
+	{
+		auto scene = sceneFuture.get();
+		Engine::EngineInstance::SetActiveScene(scene);
+
+		LOG_INFO("Scene loaded successfully: {}", scenePath.string());
+	}
+	catch (const std::exception& e)
+	{
+		return std::unexpected{ std::format("Failed to load scene: {}", e.what()) };
+	}
+
+	return {};
+}
+
+Editor::CommandReturnType TrySaveActiveScene([[maybe_unused]]const std::vector<std::string>& commandAndArguments,
 	Editor::Context& context,
 	Editor::IEditorTask& task)
 {
@@ -1334,6 +1384,7 @@ int main()
 	executors_["sceneName"] = { SceneName, "Get / Set active scene name" };
 	executors_["sceneSave"] = { TrySaveActiveScene, "Save active scene if dirty" };
 	executors_["sceneCreate"] = { TryCreateNewScene, "Create a new scene" };
+	executors_["sceneLoad"] = { TryLoadScene, "Load a scene" };
 
 
 	// TODO: Read this from an editor settings file; and make it part of an editorInstance

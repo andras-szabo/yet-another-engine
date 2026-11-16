@@ -145,6 +145,11 @@ namespace Engine
 			_activeScene = std::make_shared<Engine::Scene::Scene>(std::forward<Scene::Scene&&>(scene));
 		}
 
+		void SetActiveScene(std::shared_ptr<Scene::Scene> scenePtr)
+		{
+			_activeScene = scenePtr;
+		}
+
 		void Run();
 		void Update(double dt);
 		void OnPlayModeStart();
@@ -250,6 +255,13 @@ namespace Engine
 	{
 		assert(_instance != nullptr && "Engine instance is not initialized!");
 		_instance->_impl->SetActiveScene(std::forward<Scene::Scene&&>(scene));
+	}
+
+	// static
+	void EngineInstance::SetActiveScene(std::shared_ptr<Scene::Scene> scenePtr)
+	{
+		assert(_instance != nullptr && "Engine instance is not initialized!");
+		_instance->_impl->SetActiveScene(scenePtr);
 	}
 
 	EngineInstance::~EngineInstance()
