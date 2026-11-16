@@ -92,7 +92,7 @@ namespace Engine
 		Engine::Expected<T*> LoadAsset(AssetRef<T>& assetRef);
 
 		template <typename T>
-		std::future<std::shared_ptr<T>> LoadAssetByPath(const std::filesystem::path& path);
+		std::future<std::shared_ptr<T>> LoadAssetByPath(const std::filesystem::path& path) noexcept;
 
 		template <typename T>
 		bool ReleaseAsset(AssetRef<T>& assetRef);
@@ -140,7 +140,7 @@ namespace Engine
 
 
 	template <typename T>
-	std::future<std::shared_ptr<T>> AssetDatabase::LoadAssetByPath(const std::filesystem::path& path)
+	std::future<std::shared_ptr<T>> AssetDatabase::LoadAssetByPath(const std::filesystem::path& path) noexcept
 	{
 		return std::async(std::launch::async, [this, path]()
 			{

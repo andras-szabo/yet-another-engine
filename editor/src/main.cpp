@@ -385,7 +385,7 @@ Editor::CommandReturnType ListAssets([[maybe_unused]] const std::vector<std::str
 	{
 		return std::unexpected{ "No project open." };
 	}
-	
+
 	const auto& assetDatabase = Engine::EngineInstance::GetAssetDatabase();
 	const auto assets = assetDatabase.GetAssetGUIDsByPath();
 	std::cout << "Assets:\n";
@@ -531,7 +531,7 @@ Editor::CommandReturnType DoTryCloseCurrentProject(Editor::Context& context)
 	return {};
 }
 
-Editor::CommandReturnType TryCloseProject([[maybe_unused]]const std::vector<std::string>& commandAndArguments,
+Editor::CommandReturnType TryCloseProject([[maybe_unused]] const std::vector<std::string>& commandAndArguments,
 	Editor::Context& context,
 	Editor::IEditorTask& task)
 {
@@ -573,7 +573,7 @@ Editor::CommandReturnType DoTrySaveCurrentProject(Editor::Context& context)
 	return {};
 }
 
-Editor::CommandReturnType TrySaveProject([[maybe_unused]]const std::vector<std::string>& commandAndArguments,
+Editor::CommandReturnType TrySaveProject([[maybe_unused]] const std::vector<std::string>& commandAndArguments,
 	Editor::Context& context,
 	Editor::IEditorTask& task)
 {
@@ -831,7 +831,7 @@ Editor::CommandReturnType TryCreateNewScene(const std::vector<std::string>& comm
 
 	if (!result.has_value())
 	{
-		return std::unexpected{std::format("Failed to create new scene: {}", result.error().message) };
+		return std::unexpected{ std::format("Failed to create new scene: {}", result.error().message) };
 	}
 
 	return {};
@@ -864,22 +864,22 @@ Editor::CommandReturnType TryLoadScene(const std::vector<std::string>& commandAn
 	auto sceneFuture = Engine::EngineInstance::GetAssetDatabase()
 		.LoadAssetByPath<Engine::Scene::Scene>(scenePath);
 
-	try
-	{
-		auto scene = sceneFuture.get();
-		Engine::EngineInstance::SetActiveScene(scene);
+	auto scene = sceneFuture.get();
 
+	if (scene != nullptr)
+	{
+		Engine::EngineInstance::SetActiveScene(scene);
 		LOG_INFO("Scene loaded successfully: {}", scenePath.string());
 	}
-	catch (const std::exception& e)
+	else
 	{
-		return std::unexpected{ std::format("Failed to load scene: {}", e.what()) };
+		return std::unexpected{ std::format("Failed to load scene: {}", scenePath.string()) };
 	}
 
 	return {};
 }
 
-Editor::CommandReturnType TrySaveActiveScene([[maybe_unused]]const std::vector<std::string>& commandAndArguments,
+Editor::CommandReturnType TrySaveActiveScene([[maybe_unused]] const std::vector<std::string>& commandAndArguments,
 	Editor::Context& context,
 	Editor::IEditorTask& task)
 {
@@ -888,7 +888,7 @@ Editor::CommandReturnType TrySaveActiveScene([[maybe_unused]]const std::vector<s
 	{
 		return std::unexpected{ "No project open." };
 	}
-	
+
 	if (Engine::EngineInstance::HasActiveScene() == false)
 	{
 		return std::unexpected{ "No scene active." };
@@ -922,7 +922,7 @@ Editor::CommandReturnType TrySaveActiveScene([[maybe_unused]]const std::vector<s
 		return {};
 	}
 
-	
+
 	return std::unexpected{ "Failed to save scene." };
 }
 
@@ -1056,7 +1056,7 @@ Editor::CommandReturnType Echo(const std::vector<std::string>& commandAndArgumen
 	return {};
 }
 
-Editor::CommandReturnType PausePlayMode([[maybe_unused]]const std::vector<std::string>& commandAndArguments,
+Editor::CommandReturnType PausePlayMode([[maybe_unused]] const std::vector<std::string>& commandAndArguments,
 	Editor::Context& context,
 	Editor::IEditorTask& task)
 {
@@ -1081,7 +1081,7 @@ Editor::CommandReturnType PausePlayMode([[maybe_unused]]const std::vector<std::s
 	return {};
 }
 
-Editor::CommandReturnType TogglePlayMode([[maybe_unused]]const std::vector<std::string>& commandAndArguments,
+Editor::CommandReturnType TogglePlayMode([[maybe_unused]] const std::vector<std::string>& commandAndArguments,
 	Editor::Context& context,
 	Editor::IEditorTask& task)
 {
