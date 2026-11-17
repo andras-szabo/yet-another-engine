@@ -581,6 +581,10 @@ Editor::CommandReturnType TrySaveProject([[maybe_unused]] const std::vector<std:
 	return DoTrySaveCurrentProject(context);
 }
 
+Editor::CommandReturnType TryLoadScene(const std::vector<std::string>& commandAndArguments,
+	Editor::Context& context,
+	Editor::IEditorTask& task);
+
 Editor::CommandReturnType OpenProject(const std::vector<std::string>& commandAndArguments,
 	Editor::Context& context,
 	Editor::IEditorTask& task)
@@ -691,6 +695,52 @@ Editor::CommandReturnType OpenProject(const std::vector<std::string>& commandAnd
 
 	context.SetProjectPath(projectFolderPath.wstring());
 	context.StartProjectDirectoryWatcher();
+
+	// 2. Find editorSettings.udf. This shall hold things like: what's the scene we should open;
+	//	  and how to populate the asset database (using which filters).
+
+	fs::path editorSettingsPath { projectFolderPath };
+	editorSettingsPath /= "editorSettings.udf";
+
+	if (!fs::exists(editorSettingsPath))
+	{
+		LOG_INFO("Editor settings file not found, creating default one.");
+		// Create a default project settings file
+		Engine::DataFile editorSettings;
+
+		editorSettings["DefaultActiveScene"] = "";
+		editorSettings["AssetDatabaseFilters"] = "";
+
+		if (!Engine::DataFile::Serialize(editorSettings, editorSettingsPath.string()))
+		{
+			return std::unexpected{ "Failed to create editor settings file." };
+		}
+	}
+
+	LOG_INFO("Editor settings file found, loading settings.");
+	const auto editorSettings = Engine::DataFile::Deserialize(editorSettingsPath.string());
+
+	const auto populateAdb = PopulateAssetDatabase({ "populateAssetDatabase" }, context, task);
+	if (populateAdb.has_value() == false)
+	{
+		return std::unexpected{ std::format("Failed to populate asset database: {}", populateAdb.error()) };
+	}
+	else
+	{
+		LOG_INFO("Asset database populated successfully.");
+	}
+
+	if (editorSettings.value()["DefaultActiveScene"].GetString().empty() == false)
+	{
+		const auto sceneName = editorSettings.value()["DefaultActiveScene"].GetString();
+		LOG_INFO("Default active scene: {}", sceneName);
+
+		const auto loadSceneResult = TryLoadScene({ "loadScene", sceneName }, context, task);
+		if (!loadSceneResult.has_value())
+		{
+			LOG_ERROR("Failed to load default active scene: {}", loadSceneResult.error());
+		}
+	}
 
 	return {};
 }
@@ -834,6 +884,42 @@ Editor::CommandReturnType TryCreateNewScene(const std::vector<std::string>& comm
 		return std::unexpected{ std::format("Failed to create new scene: {}", result.error().message) };
 	}
 
+	return {};
+}
+
+Editor::CommandReturnType SetDefaultActiveScene(const std::vector<std::string>& commandAndArguments,
+	Editor::Context& context,
+	Editor::IEditorTask& task)
+{
+	Editor::TaskProgressScope _(task);
+
+	if (context.HasProjectOpen() == false)
+	{
+		return std::unexpected{ "No project open." };
+	}
+	if (commandAndArguments.size() < 2)
+	{
+		return std::unexpected{ "Missing scene name." };
+	}
+
+	const auto sceneName = commandAndArguments[1];
+	std::filesystem::path editorSettingsPath{ context.GetContextState().projectPath };
+	editorSettingsPath /= "editorSettings.udf";
+
+	auto editorSettingsMaybe = Engine::DataFile::Deserialize(editorSettingsPath.string());
+	if (!editorSettingsMaybe.has_value())
+	{
+		return std::unexpected{ "Failed to load editor settings file." };
+	}
+
+	auto& editorSettings = editorSettingsMaybe.value();
+	editorSettings["DefaultActiveScene"] = sceneName;
+	if (!Engine::DataFile::Serialize(editorSettings, editorSettingsPath.string()))
+	{
+		return std::unexpected{ "Failed to save editor settings file." };
+	}
+
+	LOG_INFO("Default active scene set to: {}", sceneName);
 	return {};
 }
 
@@ -1392,6 +1478,8 @@ int main()
 	executors_["sceneSave"] = { TrySaveActiveScene, "Save active scene if dirty" };
 	executors_["sceneCreate"] = { TryCreateNewScene, "Create a new scene" };
 	executors_["sceneLoad"] = { TryLoadScene, "Load a scene" };
+
+	executors_["edSetDefaultActiveScene"] = { SetDefaultActiveScene, "Set the default active scene in editor settings" };
 
 
 	// TODO: Read this from an editor settings file; and make it part of an editorInstance

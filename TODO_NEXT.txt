@@ -1,9 +1,20 @@
 TODO next:
 
-o create a command to load a scene and set it active, via the asset db.
-- when opening a project, find "editorSettings.udf"
-- read the active scene ("ActiveSceneAtProjectOpen")
-- if it has one, load it and set it as active.
+- implement a command to add a new gameObject to the active scene:
+	goAdd <parent-GUID>
+		= match on partial GUID!
+
+- implement a command to change the name of a gameObject
+	goName <guid> <name>
+
+- oho. then:
+	implement a method to add a component:
+	cAdd <guid> <typeName>
+
+- then:
+	cField <guid> <typeName> <fieldName> <value>
+
+Na ez lesz a nem mindegy.
 
 --------------------------------------------------------------------------------------
 
@@ -105,6 +116,13 @@ o create a new scene:
 			o I make sure that path and GUID are both entered into
 			  the DB
 			o I return the guid.
+
+o create a command to load a scene and set it active, via the asset db.
+o when opening a project, find "editorSettings.udf"
+o read the active scene ("ActiveSceneAtProjectOpen")
+o if it has one, load it and set it as active.
+o add a command to save scene as default active scene
+
 
 [----]
 
