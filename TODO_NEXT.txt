@@ -1,11 +1,9 @@
 TODO next:
 
-- implement a command to add a new gameObject to the active scene:
-	goAdd <parent-GUID>
-		= match on partial GUID!
+- actually list the nodes as a hierarchy
 
 - implement a command to change the name of a gameObject
-	goName <guid> <name>
+	goName <nodeIndex> <name>
 
 - oho. then:
 	implement a method to add a component:
@@ -15,6 +13,12 @@ TODO next:
 	cField <guid> <typeName> <fieldName> <value>
 
 Na ez lesz a nem mindegy.
+
+o implement a command to add a new gameObject to the active scene,
+  by parent index
+	goAdd <name> <parentIndex> <guid(optional)>
+
+o when saving the scene, save where it should actually belong
 
 --------------------------------------------------------------------------------------
 

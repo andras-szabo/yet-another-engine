@@ -887,6 +887,63 @@ Editor::CommandReturnType TryCreateNewScene(const std::vector<std::string>& comm
 	return {};
 }
 
+Editor::CommandReturnType AddGameObject(const std::vector<std::string>& commandAndArguments,
+	Editor::Context& context,
+	Editor::IEditorTask& task)
+{
+	Editor::TaskProgressScope _(task);
+	if (context.HasProjectOpen() == false)
+	{
+		return std::unexpected{ "No project open." };
+	}
+
+	if (Engine::EngineInstance::HasActiveScene() == false)
+	{
+		return std::unexpected{ "No scene active." };
+	}
+
+	// Expected usage addGameObject <name> <parentNodeIndex>
+	int parentNodeIndex = 0;
+	unsigned long long guid = 0;
+	std::string name = "GameObject";
+
+	if (commandAndArguments.size() >= 2)
+	{
+		name = commandAndArguments[1];
+	}
+
+	if (commandAndArguments.size() >= 3)
+	{
+		try
+		{
+			parentNodeIndex = std::stoi(commandAndArguments[2]);
+		}
+		catch (const std::exception& e)
+		{
+			return std::unexpected{ std::format("Invalid parent node index: {}", e.what()) };
+		}
+	}
+
+	if (commandAndArguments.size() >= 4)
+	{
+		try
+		{
+			guid = std::stoull(commandAndArguments[3]);
+		}
+		catch (const std::exception& e)
+		{
+			return std::unexpected{ std::format("Invalid GUID: {}", e.what()) };
+		}
+	}
+
+	const auto* newGO = Engine::EngineInstance::GetActiveSceneRW()
+		.CreateGameObject(&Engine::EngineInstance::GetComponentStorage(), 
+		name, parentNodeIndex, guid);
+
+	LOG_INFO("Created new game object: {} with GUID: {} at parent node index: {}", name, guid, parentNodeIndex);
+}
+
+
 Editor::CommandReturnType SetDefaultActiveScene(const std::vector<std::string>& commandAndArguments,
 	Editor::Context& context,
 	Editor::IEditorTask& task)
@@ -946,6 +1003,8 @@ Editor::CommandReturnType TryLoadScene(const std::vector<std::string>& commandAn
 	// Establish what the scene path is.
 	std::filesystem::path scenePath{ context.GetContextState().projectPath };
 	scenePath /= std::format("{}.scene", commandAndArguments[1]);
+
+	LOG_INFO("Loading scene from path: {}", scenePath.string());
 
 	auto sceneFuture = Engine::EngineInstance::GetAssetDatabase()
 		.LoadAssetByPath<Engine::Scene::Scene>(scenePath);
@@ -1007,7 +1066,9 @@ Editor::CommandReturnType TrySaveActiveScene([[maybe_unused]] const std::vector<
 
 	// OK, for now, just save it as "currentScene.scene" in the project folder.
 	std::filesystem::path scenePath{ context.GetContextState().projectPath };
-	scenePath /= "currentScene.scene";
+	scenePath /= std::format("{}.scene", activeScene.GetSceneName());
+
+	LOG_INFO("Saving scene to {}", scenePath.string());
 
 	if (Engine::DataFile::Serialize(sceneFile, scenePath.string()))
 	{
@@ -1223,7 +1284,7 @@ Editor::CommandReturnType ListSceneNodes([[maybe_unused]] const std::vector<std:
 	float currentNodeIndex = 0.0f;
 	for (std::size_t i = 0; i < nodeCount; ++i)
 	{
-		std::cout << "  " << scene.GetNodeName(i) << "\n";
+		std::println("  {}: {} ({})", i, scene.GetNodeName(i), scene.GetNodeGuid(i));
 		currentNodeIndex += 1.0f;
 		task.SetProgress(currentNodeIndex / static_cast<float>(nodeCount));
 	}
@@ -1480,6 +1541,8 @@ int main()
 	executors_["sceneLoad"] = { TryLoadScene, "Load a scene" };
 
 	executors_["edSetDefaultActiveScene"] = { SetDefaultActiveScene, "Set the default active scene in editor settings" };
+
+	executors_["goAdd"] = { AddGameObject, "Add a new game object to the active scene" };
 
 
 	// TODO: Read this from an editor settings file; and make it part of an editorInstance

@@ -43,7 +43,7 @@ namespace Engine
 			// Declared last so it is destroyed first, ensuring components are torn down
 			// (via ~GameObject -> DestroyComponent) before TransformStorage is gone.
 			std::vector<std::unique_ptr<GameObject>> gameObjects;
-			
+
 
 			GameObject* CreateGameObject(IComponentStorage* componentStorage,
 				std::string_view name,
@@ -162,8 +162,7 @@ namespace Engine
 			std::size_t expectedNodeCount,
 			unsigned long long rootGuid)
 			: _impl{ new SceneImpl(componentStorage, name, expectedNodeCount, rootGuid) }
-		{
-		}
+		{}
 
 		const Engine::TransformStorage* Scene::GetTransformStorage() const
 		{
@@ -189,6 +188,12 @@ namespace Engine
 		{
 			assert(!_impl->storage.names.empty() && "Uninitialized scene!");
 			return _impl->storage.names[nodeIndex];
+		}
+
+		GUID Scene::GetNodeGuid(std::size_t nodeIndex) const
+		{
+			assert(nodeIndex < _impl->gameObjects.size() && "Node index out of bounds.");
+			return _impl->gameObjects[nodeIndex]->GetGUID();
 		}
 
 		void Scene::WalkDepthFirst(std::size_t startingNode,

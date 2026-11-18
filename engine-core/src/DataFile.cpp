@@ -236,8 +236,8 @@ namespace Engine
 			else
 			{
 
-				if (line == "{") { continue; }
-				if (line == "}") { stk.pop(); continue; }
+				if (lineView == "{") { continue; }
+				if (lineView == "}") { if (stk.size() > 1) { stk.pop(); } continue; }
 
 				auto& currentNode = stk.top().get();
 				std::istringstream asStringStream{ line };

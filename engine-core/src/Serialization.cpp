@@ -244,6 +244,7 @@ namespace Engine
 			}
 
 			int index = 1;
+			LOG_INFO("Deserializing scene: {} with {} nodes", name.value(), nodeCount_v);
 			for (int i = 0; i < nodeCount_v; ++i)
 			{
 				const int parent = hierarchy.GetInt(index++);
@@ -271,11 +272,13 @@ namespace Engine
 			for (const std::string& guidStr : nodes.GetChildrenNames())
 			{
 				// The root should already have been saved
+				LOG_INFO(guidStr);
 				if (nodeIndex > 0)
 				{
 					const auto _guid = std::stoull(guidStr);		// The node (gameObject) guid
 					const auto gameObjectName = nodes[guidStr].GetString();
 					const auto parentNodeIndex = hierarchies[nodeIndex].parent;
+					LOG_INFO("Deserializing game object: {} with GUID: {} at parent node index: {}", gameObjectName, _guid, parentNodeIndex);
 					auto* go = scene.CreateGameObject(&componentStorage,
 						gameObjectName,
 						parentNodeIndex,
@@ -337,7 +340,7 @@ namespace Engine
 		// store only parent, firstchild, firstsibling triplets
 		int index = 0;
 
-		hierarchy.SetInt(static_cast<int>(storage->hierarchies.size()), index++);
+		hierarchy.SetInt(static_cast<int>(storage->hierarchies.size()), index++);	// node count
 
 		for (const Engine::Hierarchy& hierarchy_stored : storage->hierarchies)
 		{

@@ -55,6 +55,7 @@ namespace Engine
 
 			std::string_view GetSceneName() const;
 			std::string_view GetNodeName(std::size_t nodeIndex) const;
+			GUID GetNodeGuid(std::size_t nodeIndex) const;
 			void SetSceneName(std::string_view newName);
 			
 			void SetLocalTransform(int nodeIndex, const Mat4x4& localTransform);
