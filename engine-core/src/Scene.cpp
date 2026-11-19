@@ -197,11 +197,12 @@ namespace Engine
 		}
 
 		void Scene::WalkDepthFirst(std::size_t startingNode,
-			std::function<void(Scene& scene, std::size_t currentNodeIndex)> op)
+			std::function<void(Scene& scene, std::size_t currentNodeIndex, int depth)> op)
 		{
-			op(*this, startingNode);
-
 			const auto node = _impl->storage.hierarchies[startingNode];
+
+			op(*this, startingNode, node.depth);
+
 			if (node.firstChild != -1)
 			{
 				WalkDepthFirst(node.firstChild, op);
@@ -215,7 +216,7 @@ namespace Engine
 		}
 
 		void Scene::WalkBreadthFirst(std::size_t startingNode,
-			std::function<void(Scene& scene, std::size_t currentNodeIndex)> op)
+			std::function<void(Scene& scene, std::size_t currentNodeIndex, int depth)> op)
 		{
 			_impl->walkHelperQueue.clear();
 			_impl->walkHelperQueue.push_back(static_cast<int>(startingNode));
@@ -225,14 +226,14 @@ namespace Engine
 
 		void Scene::WalkBFSImpl(std::function<void(
 			Scene& scene,
-			std::size_t currentNodeIndex)> op)
+			std::size_t currentNodeIndex, int depth)> op)
 		{
 			while (!_impl->walkHelperQueue.empty())
 			{
 				const auto nextNode = _impl->walkHelperQueue.front();
 				_impl->walkHelperQueue.pop_front();
 
-				op(*this, nextNode);
+				op(*this, nextNode, _impl->storage.hierarchies[nextNode].depth);
 
 				const auto& node = _impl->storage.hierarchies[nextNode];
 				if (node.firstChild != -1)
@@ -243,7 +244,7 @@ namespace Engine
 				auto nextSibling = node.firstSibling;
 				while (nextSibling != -1)
 				{
-					op(*this, nextSibling);
+					op(*this, nextSibling, _impl->storage.hierarchies[nextSibling].depth);
 
 					const auto siblingsFirstChild = _impl->storage.hierarchies[nextSibling].firstChild;
 					if (siblingsFirstChild != -1)

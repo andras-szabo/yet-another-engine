@@ -1,7 +1,5 @@
 TODO next:
 
-- actually list the nodes as a hierarchy
-
 - implement a command to change the name of a gameObject
 	goName <nodeIndex> <name>
 
@@ -19,6 +17,7 @@ o implement a command to add a new gameObject to the active scene,
 	goAdd <name> <parentIndex> <guid(optional)>
 
 o when saving the scene, save where it should actually belong
+o actually list the nodes as a hierarchy
 
 --------------------------------------------------------------------------------------
 

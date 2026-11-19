@@ -65,10 +65,10 @@ namespace Engine
 
 			void UpdateWorldTransforms();
 			void WalkDepthFirst(std::size_t startingNode,
-				std::function<void(Scene&, std::size_t)> op);
+				std::function<void(Scene&, std::size_t, int)> op);
 
 			void WalkBreadthFirst(std::size_t startingNode,
-				std::function<void(Scene&, std::size_t)> op);
+				std::function<void(Scene&, std::size_t, int)> op);
 
 			GameObject* CreateGameObject(IComponentStorage* storage,
 				std::string_view name,
@@ -88,7 +88,7 @@ namespace Engine
 			// so that would be a problem.)
 			SceneImpl* _impl{ nullptr };
 
-			void WalkBFSImpl(std::function<void(Scene&, std::size_t)> op);
+			void WalkBFSImpl(std::function<void(Scene&, std::size_t, int)> op);
 			void UpdateDepthsBelow(int nodeIndex, int newDepth);
 		};
 	

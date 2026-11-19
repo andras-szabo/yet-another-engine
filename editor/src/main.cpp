@@ -267,7 +267,7 @@ int tests()
 	LOG_INFO("Active scene: {}", Engine::EngineInstance::GetActiveScene().GetSceneName());
 
 	// Let's walk through it...
-	auto logNodes = [](Engine::Scene::Scene& scene, std::size_t currentIndex) {
+	auto logNodes = [](Engine::Scene::Scene& scene, std::size_t currentIndex, int depth) {
 		LOG_INFO("Index: {}, name: {}", currentIndex, scene.GetNodeName(currentIndex));
 		};
 
@@ -1277,17 +1277,22 @@ Editor::CommandReturnType ListSceneNodes([[maybe_unused]] const std::vector<std:
 		return std::unexpected{ "No scene active." };
 	}
 
-	const auto& scene = Engine::EngineInstance::GetActiveScene();
-	std::cout << "Scene: " << scene.GetSceneName() << "\n";
-	std::cout << "Nodes:\n";
+	auto& scene = Engine::EngineInstance::GetActiveSceneRW();
+	std::println("Scene: {}", scene.GetSceneName());
+	std::println("Nodes:");
 	const auto nodeCount = scene.GetTransformStorage()->transformComponents.size();
 	float currentNodeIndex = 0.0f;
-	for (std::size_t i = 0; i < nodeCount; ++i)
-	{
-		std::println("  {}: {} ({})", i, scene.GetNodeName(i), scene.GetNodeGuid(i));
-		currentNodeIndex += 1.0f;
-		task.SetProgress(currentNodeIndex / static_cast<float>(nodeCount));
-	}
+	
+	auto logNodes = [&](const Engine::Scene::Scene& scene, std::size_t currentIndex, int depth)
+		{
+			const std::string indent(depth * 2, ' ');
+			std::println("{}{}: {} ({})", indent, currentIndex, scene.GetNodeName(currentIndex), scene.GetNodeGuid(currentIndex));
+			currentNodeIndex += 1.0f;
+			task.SetProgress(currentNodeIndex / static_cast<float>(nodeCount));
+		};
+
+	scene.WalkDepthFirst(0, logNodes);
+
 	return {};
 }
 
