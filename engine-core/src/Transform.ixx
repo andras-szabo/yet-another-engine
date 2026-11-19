@@ -91,6 +91,7 @@ namespace Engine
 		void OnCreate() override;
 
 		int GetSceneNodeIndex() const { return _sceneNodeIndex; }
+		std::string_view GetName() const { return _storage->names[_sceneNodeIndex]; }
 
 	private:
 		Mat4x4 CalculateLocalToWorldMatrix() const;

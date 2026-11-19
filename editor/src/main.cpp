@@ -699,7 +699,7 @@ Editor::CommandReturnType OpenProject(const std::vector<std::string>& commandAnd
 	// 2. Find editorSettings.udf. This shall hold things like: what's the scene we should open;
 	//	  and how to populate the asset database (using which filters).
 
-	fs::path editorSettingsPath { projectFolderPath };
+	fs::path editorSettingsPath{ projectFolderPath };
 	editorSettingsPath /= "editorSettings.udf";
 
 	if (!fs::exists(editorSettingsPath))
@@ -887,6 +887,55 @@ Editor::CommandReturnType TryCreateNewScene(const std::vector<std::string>& comm
 	return {};
 }
 
+Editor::CommandReturnType GameObjectName(const std::vector<std::string>& commandAndArguments,
+	Editor::Context& context,
+	Editor::IEditorTask& task)
+{
+	Editor::TaskProgressScope _(task);
+
+	if (context.HasProjectOpen() == false)
+	{
+		return std::unexpected{ "No project open." };
+	}
+
+	if (Engine::EngineInstance::HasActiveScene() == false)
+	{
+		return std::unexpected{ "No scene active." };
+	}
+
+	if (commandAndArguments.size() < 2)
+	{
+		return std::unexpected{ "Missing arguments. Usage: goName <nodeIndex> (<newName>)" };
+	}
+
+	int nodeIndex = -1;
+	try
+	{
+		nodeIndex = std::stoi(commandAndArguments[1]);
+	}
+	catch (const std::exception& e)
+	{
+		return std::unexpected{ std::format("Invalid node index: {}", e.what()) };
+	}
+
+	if (commandAndArguments.size() < 3)
+	{
+		const auto& scene = Engine::EngineInstance::GetActiveScene();
+		std::println("{}: {}", nodeIndex, scene.GetNodeName(nodeIndex));
+	}
+	else
+	{
+		const auto result = Engine::EngineInstance::GetActiveSceneRW().SetNodeName(nodeIndex, commandAndArguments[2]);
+		if (!result.has_value())
+		{
+			return std::unexpected{ std::format("Failed to set node name: {}", result.error().message) };
+		}
+	}
+
+	return {};
+}
+
+
 Editor::CommandReturnType AddGameObject(const std::vector<std::string>& commandAndArguments,
 	Editor::Context& context,
 	Editor::IEditorTask& task)
@@ -937,8 +986,8 @@ Editor::CommandReturnType AddGameObject(const std::vector<std::string>& commandA
 	}
 
 	const auto* newGO = Engine::EngineInstance::GetActiveSceneRW()
-		.CreateGameObject(&Engine::EngineInstance::GetComponentStorage(), 
-		name, parentNodeIndex, guid);
+		.CreateGameObject(&Engine::EngineInstance::GetComponentStorage(),
+			name, parentNodeIndex, guid);
 
 	LOG_INFO("Created new game object: {} with GUID: {} at parent node index: {}", name, guid, parentNodeIndex);
 }
@@ -1282,7 +1331,7 @@ Editor::CommandReturnType ListSceneNodes([[maybe_unused]] const std::vector<std:
 	std::println("Nodes:");
 	const auto nodeCount = scene.GetTransformStorage()->transformComponents.size();
 	float currentNodeIndex = 0.0f;
-	
+
 	auto logNodes = [&](const Engine::Scene::Scene& scene, std::size_t currentIndex, int depth)
 		{
 			const std::string indent(depth * 2, ' ');
@@ -1548,6 +1597,7 @@ int main()
 	executors_["edSetDefaultActiveScene"] = { SetDefaultActiveScene, "Set the default active scene in editor settings" };
 
 	executors_["goAdd"] = { AddGameObject, "Add a new game object to the active scene" };
+	executors_["goName"] = { GameObjectName, "Get / Set game object name" };
 
 
 	// TODO: Read this from an editor settings file; and make it part of an editorInstance

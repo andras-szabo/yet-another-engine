@@ -184,6 +184,24 @@ namespace Engine
 			_impl->SetSceneName(newName);
 		}
 
+		Engine::Expected<void> Scene::SetNodeName(std::size_t nodeIndex, std::string_view newName)
+		{
+			assert(!_impl->storage.names.empty() && "Uninitialized scene!");
+
+			if (newName.empty())
+			{
+				return Unexpected({ ErrorType::InvalidArgument, "Node name cannot be empty." });
+			}
+
+			if (nodeIndex < 0 || nodeIndex >= _impl->storage.names.size())
+			{
+				return Unexpected({ ErrorType::OutOfBounds, std::format("Node index {} is out of bounds.", nodeIndex) });
+			}
+
+			_impl->storage.names[nodeIndex] = newName;
+			return {};
+		}
+
 		std::string_view Scene::GetNodeName(std::size_t nodeIndex) const
 		{
 			assert(!_impl->storage.names.empty() && "Uninitialized scene!");

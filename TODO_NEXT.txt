@@ -1,7 +1,5 @@
 TODO next:
 
-- implement a command to change the name of a gameObject
-	goName <nodeIndex> <name>
 
 - oho. then:
 	implement a method to add a component:
@@ -18,6 +16,8 @@ o implement a command to add a new gameObject to the active scene,
 
 o when saving the scene, save where it should actually belong
 o actually list the nodes as a hierarchy
+o implement a command to change the name of a gameObject
+	goName <nodeIndex> <name>
 
 --------------------------------------------------------------------------------------
 

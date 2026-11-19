@@ -8,6 +8,7 @@ export module Scene;
 
 #if defined ( __INTELLISENSE__ )
 #include "Component.ixx"
+#include "EngineError.ixx"
 #include "IComponentStorage.ixx"
 #include "GameObject.ixx"
 #include "GUID.ixx"
@@ -16,6 +17,7 @@ export module Scene;
 #include "Transform.ixx"
 #else
 import Component;
+import Error;
 import IComponentStorage;
 import GameObject;
 import GUID;
@@ -57,6 +59,7 @@ namespace Engine
 			std::string_view GetNodeName(std::size_t nodeIndex) const;
 			GUID GetNodeGuid(std::size_t nodeIndex) const;
 			void SetSceneName(std::string_view newName);
+			Engine::Expected<void> SetNodeName(std::size_t nodeIndex, std::string_view newName);
 			
 			void SetLocalTransform(int nodeIndex, const Mat4x4& localTransform);
 			const Mat4x4& GetLocalTransform(int nodeIndex) const;

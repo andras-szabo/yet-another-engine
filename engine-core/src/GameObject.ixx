@@ -31,7 +31,7 @@ namespace Engine
 		GOImpl() = default;
 
 		GOImpl(std::string_view name);
-		std::string _name{ "GameObject" };
+		//std::string _name{ "GameObject" };
 		std::vector<Component*> _components;		// Non-owning pointers!
 	};
 

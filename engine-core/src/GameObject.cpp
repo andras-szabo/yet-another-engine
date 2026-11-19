@@ -17,7 +17,6 @@ import std;
 namespace Engine
 {
 	GOImpl::GOImpl(std::string_view name)
-	: _name{ name }
 	{
 	}
 
@@ -60,7 +59,7 @@ namespace Engine
 
 	std::string_view GameObject::GetName() const
 	{
-		return _gimpl->_name;
+		return _transform->GetName();
 	}
 
 	GUID GameObject::GetGUID() const

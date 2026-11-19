@@ -19,6 +19,7 @@ namespace Engine
 		Serialization = 5,
 		Deserialization = 6,
 		Dll = 7,
+		InvalidArgument = 8,
 		// ... TODO add more as needed
 	};
 
