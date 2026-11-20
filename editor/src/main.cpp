@@ -655,8 +655,9 @@ Editor::CommandReturnType OpenProject(const std::vector<std::string>& commandAnd
 		// TODO- this should come from the editor instance
 		defaultSettings["EditorVersion"] = "0.0.1";
 
-		defaultSettings["DLLPathDebug"] = "build\\Debug\\Game.dll";
-		defaultSettings["DLLPathRelease"] = "build\\Release\\Game.dll";
+		defaultSettings["DLLPathDebug"] = "build\\bin\\Debug";
+		defaultSettings["DLLPathRelease"] = "build\\bin\\Release";
+		defaultSettings["DLLFileName"] = "game-template.dll";
 
 		if (!Engine::DataFile::Serialize(defaultSettings, projectSettingsFilePath.string()))
 		{
@@ -673,6 +674,7 @@ Editor::CommandReturnType OpenProject(const std::vector<std::string>& commandAnd
 		std::cout << "Editor Version: " << settings["EditorVersion"].GetString() << "\n";
 		std::cout << "DLL Path Debug: " << settings["DLLPathDebug"].GetString() << "\n";
 		std::cout << "DLL Path Release: " << settings["DLLPathRelease"].GetString() << "\n";
+		std::cout << "DLL File name: " << settings["DLLFileName"].GetString() << "\n";
 
 		Editor::ProjectSettings projectSettings;
 
@@ -680,6 +682,7 @@ Editor::CommandReturnType OpenProject(const std::vector<std::string>& commandAnd
 		projectSettings.editorVersion = settings["EditorVersion"].GetString();
 		projectSettings.dllPathDebug = settings["DLLPathDebug"].GetString();
 		projectSettings.dllPathRelease = settings["DLLPathRelease"].GetString();
+		projectSettings.dllFileName = settings["DLLFileName"].GetString();
 
 		context.SetProjectSettings(projectSettings);
 	}
@@ -741,6 +744,9 @@ Editor::CommandReturnType OpenProject(const std::vector<std::string>& commandAnd
 			LOG_ERROR("Failed to load default active scene: {}", loadSceneResult.error());
 		}
 	}
+
+	// And then, shouldn't we actually load the DLL?
+	context.LoadProjectDll();
 
 	return {};
 }

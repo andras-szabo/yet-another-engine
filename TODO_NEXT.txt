@@ -1,9 +1,27 @@
 TODO next:
 
-
 - oho. then:
 	implement a method to add a component:
 	cAdd <guid> <typeName>
+
+	- upon opening the project, load DLL.
+		- upon closing a project, unload DLL.
+			=> BEFORE UNLOADING A DLL, invoke Shutdown, to make sure that the
+			   engine won't hold on to anything that might be allocated by the
+			   game dll, or point to it: factory lambdas, std::functions,
+			   function pointers, component instances; anything game-owned
+			   that the engine might be referencing via base-class ptrs.
+
+			   "A common pattern is to have the game dll export a
+			   Shutdown or UnregisterAll entry point, and call it before
+			   FreeLibrary." I'm not sure I totally like that, b/c that
+			   would put the burden of implementing all unregistrations
+			   on the client code; I'd rather the engine takes care of
+			   that on its own somehow; and maybe offers a callback
+			   such as OnApplicationShutdown or something.
+	
+	- expose a method where the editor can list the components available,
+	  so we can actually do cAdd.
 
 - then:
 	cField <guid> <typeName> <fieldName> <value>

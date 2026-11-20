@@ -154,6 +154,20 @@ namespace Editor
 		return _hotReloadManager.ReloadDll();
 	}
 
+	Engine::Expected<void> Context::LoadProjectDll()
+	{
+		std::lock_guard<std::mutex> l{ _hotreloadManagerLock };
+
+		std::filesystem::path dllFolderPath { _contextState.projectPath };
+		dllFolderPath /= Engine::MultiByteToWide(_projectSettings.DllFolderPath());
+
+		const std::wstring fileName = Engine::MultiByteToWide(_projectSettings.DllFileName());
+
+		std::println("Loading project DLL from folder: {}, file name: {}", dllFolderPath.string(), _projectSettings.DllFileName());
+
+		return _hotReloadManager.LoadGameDll(dllFolderPath.wstring(), fileName);
+	}
+
 	void Context::RequestEditorPlayModeStateChange(EditorPlayState requestedState)
 	{
 		std::lock_guard<std::mutex> l{ _editorStateLock };

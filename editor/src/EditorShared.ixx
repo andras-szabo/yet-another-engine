@@ -93,9 +93,20 @@ namespace Editor
 
     export struct ProjectSettings
     {
+        // TODO cleanup
         std::string projectName{ "Untitled" };
         std::string dllPathDebug{ "" };
         std::string dllPathRelease{ "" };
+
+        std::string dllFileName{ "" };
+
+        std::string DllFolderPath() const
+        {
+            //TODO
+            return dllPathDebug;
+        }
+
+        std::string DllFileName() const { return dllFileName; }
 
         Engine::Version editorVersion{};
     };
@@ -131,6 +142,7 @@ namespace Editor
 
         bool HasProjectDllChanged();
         Engine::Expected<void> ReloadProjectDll();
+        Engine::Expected<void> LoadProjectDll();
 
         void CloseProject();
 
