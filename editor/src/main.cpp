@@ -746,7 +746,11 @@ Editor::CommandReturnType OpenProject(const std::vector<std::string>& commandAnd
 	}
 
 	// And then, shouldn't we actually load the DLL?
-	context.LoadProjectDll();
+	const auto loadDllResult = context.LoadProjectDll();
+	if (!loadDllResult.has_value())
+	{
+		return std::unexpected{ std::format("Failed to load project DLL: {}", loadDllResult.error().message) };
+	}
 
 	return {};
 }
@@ -892,6 +896,32 @@ Editor::CommandReturnType TryCreateNewScene(const std::vector<std::string>& comm
 
 	return {};
 }
+
+Editor::CommandReturnType ListComponents(const std::vector<std::string>& commandAndArguments,
+	Editor::Context& context,
+	Editor::IEditorTask& task)
+{
+	Editor::TaskProgressScope _(task);
+	if (context.HasProjectOpen() == false)
+	{
+		return std::unexpected{ "No project open." };
+	}
+
+	constexpr bool sortComponentsByName = true;
+	const auto components = Engine::GlobalComponentRegistry().GetRegisteredComponents(sortComponentsByName);
+	if (!components.has_value())
+	{
+		return std::unexpected{ std::format("Failed to get registered components: {}", components.error().message) };
+	}
+
+	for (const auto& component : components.value())
+	{
+		std::println("  Component: {} (Type: {})", component.name, component.typeID);
+	}
+
+	return {};
+}
+
 
 Editor::CommandReturnType GameObjectName(const std::vector<std::string>& commandAndArguments,
 	Editor::Context& context,
@@ -1604,6 +1634,8 @@ int main()
 
 	executors_["goAdd"] = { AddGameObject, "Add a new game object to the active scene" };
 	executors_["goName"] = { GameObjectName, "Get / Set game object name" };
+
+	executors_["cList"] = { ListComponents, "List registered components" };
 
 
 	// TODO: Read this from an editor settings file; and make it part of an editorInstance

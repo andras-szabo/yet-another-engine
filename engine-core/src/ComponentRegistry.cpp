@@ -12,6 +12,8 @@ module ComponentRegistry;
 #include "Logger.ixx"
 #include "IComponentStorage.ixx"
 #include "ComponentRegistry.ixx"
+
+#include <algorithm>
 #else
 import Component;
 import Error;
@@ -23,6 +25,25 @@ import std;
 
 namespace Engine
 {
+	Expected<std::vector<ComponentInfo>> ComponentRegistry::GetRegisteredComponents(bool sortedByName) const
+	{
+		std::vector<ComponentInfo> components;
+
+		for (const auto& [typeID, name] : _componentNames)
+		{
+			components.push_back({ typeID, name });
+		}
+
+		if (sortedByName)
+		{
+			std::sort(components.begin(), components.end(), [](const ComponentInfo& a, const ComponentInfo& b) {
+				return a.name < b.name;
+			});
+		}
+
+		return components;
+	}
+
 	Expected<Component*> ComponentRegistry::Create(unsigned int typeID, IComponentStorage& storage)
 	{
 		const auto item = _factories.find(typeID);
@@ -40,14 +61,21 @@ namespace Engine
 		return component;
 	}
 
-	void ComponentRegistry::Register(unsigned int typeID, ComponentFactoryFn fn)
+	void ComponentRegistry::Register(std::string_view name, unsigned int typeID, ComponentFactoryFn fn)
 	{
 		// TODO - optimize away std::format allocation
-		assert(_factories.find(typeID) == _factories.end() && std::format("Double component registration! Type ID: {}", typeID).c_str());
+		const auto existingTypeName = _componentNames.find(typeID);
+		if (existingTypeName != _componentNames.end())
+		{
+			assert(false && std::format("Double component registration! {} and {} share ID: {}", existingTypeName->second, name, typeID).c_str());
+		}
+
+		assert(_factories.find(typeID) == _factories.end());
 
 		_factories.insert({ typeID, fn });
+		_componentNames.insert({ typeID, std::string(name) });
 
-		LOG_TRACE("Registering type ID {}", typeID);
+		LOG_TRACE("Registering component type {} ({})", name, typeID);
 	}
 
 	void ComponentRegistry::Unregister(unsigned int typeID)
@@ -55,8 +83,10 @@ namespace Engine
 		auto item = _factories.find(typeID);
 		if (item != _factories.end())
 		{
-			 _factories.erase(item);
-			LOG_TRACE("Unregistering type ID {}", typeID);
+			_factories.erase(item);
+			_componentNames.erase(typeID);
+
+			LOG_TRACE("Unregistering component type ID {}", typeID);
 		}
 	}
 
@@ -71,9 +101,9 @@ namespace Engine
 		return globalComponentRegistry;
 	}
 
-	void RegisterComponent(unsigned int typeID, ComponentFactoryFn factory)
+	void RegisterComponent(std::string_view name, unsigned int typeID, ComponentFactoryFn factory)
 	{
-		GlobalComponentRegistry().Register(typeID, factory);
+		GlobalComponentRegistry().Register(name, typeID, factory);
 	}
 
 	void UnregisterComponent(unsigned int typeID)

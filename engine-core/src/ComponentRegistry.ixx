@@ -26,6 +26,12 @@ namespace Engine
 {
 	export using ComponentFactoryFn = std::function<std::unique_ptr<Component>()>;
 
+	export struct ComponentInfo
+	{
+		unsigned int typeID;
+		std::string name;
+	};
+
 	export class ComponentRegistry
 	{
 	public:
@@ -38,20 +44,22 @@ namespace Engine
 		ENGINE_CORE_API ComponentRegistry(ComponentRegistry&& other) = default;
 		ENGINE_CORE_API ComponentRegistry& operator=(ComponentRegistry&& other) = default;
 
-		ENGINE_CORE_API void Register(unsigned int typeID, ComponentFactoryFn fn);
+		ENGINE_CORE_API void Register(std::string_view name, unsigned int typeID, ComponentFactoryFn fn);
 		ENGINE_CORE_API void Unregister(unsigned int typeID);
 
 		ENGINE_CORE_API Expected<Component*> Create(unsigned int typeID, IComponentStorage& storage);
 		ENGINE_CORE_API bool Has(unsigned int typeID) const;
+		ENGINE_CORE_API Expected<std::vector<ComponentInfo>> GetRegisteredComponents(bool sortedByName) const;
 
 	private:
 		std::unordered_map<unsigned int, ComponentFactoryFn> _factories;
+		std::unordered_map<unsigned int, std::string> _componentNames;
 	};
 
 	export ENGINE_CORE_API ComponentRegistry& GlobalComponentRegistry();
 
 	export ENGINE_CORE_API 
-	void RegisterComponent(unsigned int typeID, ComponentFactoryFn factory);
+	void RegisterComponent(std::string_view name, unsigned int typeID, ComponentFactoryFn factory);
 
 	export ENGINE_CORE_API void UnregisterComponent(unsigned int typeID);
 

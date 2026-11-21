@@ -73,6 +73,7 @@ namespace Engine
 		}
 
 		_moduleHandle = LoadLibraryW(path.data());
+
 		if (_moduleHandle == nullptr)
 		{
 			LPVOID messageBuffer;

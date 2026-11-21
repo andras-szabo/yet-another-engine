@@ -103,7 +103,7 @@ public:                                                                         
     {                                                                   \
         ClassName##_Registrar()                                         \
         {                                                               \
-            Engine::RegisterComponent(ClassName::StaticTypeID(),        \
+            Engine::RegisterComponent(#ClassName, ClassName::StaticTypeID(),        \
                     []() -> std::unique_ptr<Engine::Component> {        \
                         return std::make_unique<ClassName>();           \
                     });                                                 \
