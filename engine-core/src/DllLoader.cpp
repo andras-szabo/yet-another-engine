@@ -35,13 +35,13 @@ namespace Engine
 					return Expected<void>();
 				}
 
-				return Engine::Unexpected{ Engine::Error { Engine::ErrorType::Dll, "Game Dll version mismatch!" } };
+				return Engine::Unexpected{ Engine::Error{ Engine::ErrorType::Dll, "Game Dll version mismatch!" } };
 			}
 
 			return Unexpected{ getVersion.error() };
 		}
 
-		return Engine::Unexpected{ Engine::Error { Engine::ErrorType::Dll, "Invalid Dll loader!"} };
+		return Engine::Unexpected{ Engine::Error{ Engine::ErrorType::Dll, "Invalid Dll loader!" } };
 	}
 
 	DllLoader::~DllLoader()
@@ -69,7 +69,7 @@ namespace Engine
 
 		if (_moduleHandle != nullptr)
 		{
-			return Engine::Unexpected{ Engine::Error { Engine::ErrorType::Dll, "Trying to reuse active Dll loader" } };
+			return Engine::Unexpected{ Engine::Error{ Engine::ErrorType::Dll, "Trying to reuse active Dll loader" } };
 		}
 
 		_moduleHandle = LoadLibraryW(path.data());
@@ -93,7 +93,7 @@ namespace Engine
 
 			if (errorMsgSuccess == 0)
 			{
-				return Engine::Unexpected{ Engine::Error { Engine::ErrorType::Dll, "Unknown error." } };
+				return Engine::Unexpected{ Engine::Error{ Engine::ErrorType::Dll, "Unknown error." } };
 			}
 
 			const auto errorStringBuffer = (LPCTSTR)messageBuffer;
@@ -101,7 +101,7 @@ namespace Engine
 
 			LocalFree(messageBuffer);
 
-			return Engine::Unexpected{ Engine::Error { Engine::ErrorType::Dll, errorString } };
+			return Engine::Unexpected{ Engine::Error{ Engine::ErrorType::Dll, errorString } };
 		}
 
 		return {};
@@ -113,6 +113,19 @@ namespace Engine
 
 		if (_moduleHandle != nullptr)
 		{
+			// Before freeing the library, advise the DLL that it is about to be unloaded, so it can clean up any resources it has allocated,
+			// and that might now be owned by the engine instance.
+			auto cleanupFn = ResolveFunctionName<void(*)()>("GameDLL_OnAboutToUnload");
+			if (cleanupFn.has_value())
+			{
+				cleanupFn.value()();
+			}
+			else
+			{
+				LOG_WARNING("Couldn't find GameDLL_OnAboutToUnload function in DLL: {}", cleanupFn.error().message);
+			}
+
+
 			didUnload = FreeLibrary(_moduleHandle);
 			_moduleHandle = nullptr;
 		}

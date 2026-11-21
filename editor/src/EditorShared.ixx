@@ -22,6 +22,8 @@ import Error;
 import FileWatcher;
 import HotReloadManager;
 import Utility;
+
+import std;
 #endif
 
 namespace Editor
@@ -143,6 +145,7 @@ namespace Editor
         bool HasProjectDllChanged();
         Engine::Expected<void> ReloadProjectDll();
         Engine::Expected<void> LoadProjectDll();
+        Engine::Expected<void> UnloadProjectDll();
 
         void CloseProject();
 

@@ -135,6 +135,7 @@ namespace Editor
 
 	void Context::CloseProject()
 	{
+		UnloadProjectDll();
 		StopProjectDirectoryWatcher();
 
 		std::lock_guard<std::mutex> l{ _contextLock };
@@ -146,6 +147,12 @@ namespace Editor
 	{
 		std::lock_guard<std::mutex> l{ _hotreloadManagerLock };
 		return _hotReloadManager.HasDllChanged();
+	}
+
+	Engine::Expected<void> Context::UnloadProjectDll()
+	{
+		std::lock_guard<std::mutex> l{ _hotreloadManagerLock };
+		return _hotReloadManager.UnloadGameDll();
 	}
 
 	Engine::Expected<void> Context::ReloadProjectDll()

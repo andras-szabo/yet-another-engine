@@ -80,13 +80,15 @@ namespace Engine
 
 	void ComponentRegistry::Unregister(unsigned int typeID)
 	{
-		auto item = _factories.find(typeID);
+		const auto item = _factories.find(typeID);
 		if (item != _factories.end())
 		{
 			_factories.erase(item);
-			_componentNames.erase(typeID);
 
-			LOG_TRACE("Unregistering component type ID {}", typeID);
+			const auto nameItem = _componentNames.find(typeID);
+			LOG_TRACE("Unregistering component {} ({})", nameItem->second, typeID);
+			_componentNames.erase(nameItem);
+
 		}
 	}
 

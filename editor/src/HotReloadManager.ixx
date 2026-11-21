@@ -43,9 +43,12 @@ namespace Editor
 		Engine::Expected<void> LoadGameDll(const std::wstring& dllFolderPath,
 										   const std::wstring& fileName);
 
+		Engine::Expected<void> UnloadGameDll();
+		Engine::Expected<void> ReloadDll();
+
 		bool IsDllLoaded() const;
 		bool HasDllChanged();
-		Engine::Expected<void> ReloadDll();
+
 		void Update();
 
 	private:
@@ -55,8 +58,8 @@ namespace Editor
 		Engine::DllLoader _loader{};
 		Engine::FileWatcher _watcher{};
 
-		std::wstring _dllFolderPath;
-		std::wstring _fileName;
+		std::wstring _dllFolderPath{};
+		std::wstring _fileName{};
 	};
 } // namespace Editor
 
@@ -113,6 +116,22 @@ namespace Editor
 		return fOut;
 	}
 
+	Engine::Expected<void> HotReloadManager::UnloadGameDll()
+	{
+		if (!_loader.IsLoaded())
+		{
+			return {};
+		}
+
+		const bool didUnload = _loader.Unload();
+		if (!didUnload)
+		{
+			return Engine::Unexpected{ Engine::Error{ Engine::ErrorType::Dll, "Couldn't unload game dll." } };
+		}
+
+		return {};
+	}
+
 	Engine::Expected<void> HotReloadManager::LoadGameDll(const std::wstring& dllFolderPath,
 		const std::wstring& fileName)
 	{
@@ -129,11 +148,11 @@ namespace Editor
 			previousScene = std::move(serializedScene).value();
 
 			Engine::EngineInstance::GetActiveSceneRW().Clear();
-			const bool didUnload = _loader.Unload();
+			const auto unloadResult = UnloadGameDll();
 
-			if (!didUnload)
+			if (!unloadResult.has_value())
 			{
-				return Engine::Unexpected{ Engine::Error { Engine::ErrorType::Dll, "Couldn't unload game dll." } };
+				return Engine::Unexpected{ unloadResult.error() };
 			}
 		}
 
