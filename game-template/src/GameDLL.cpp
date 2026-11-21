@@ -16,3 +16,10 @@ unsigned int GameDLL_GetVersion()
 {
 	return GAME_DLL_ABI_VERSION;
 }
+
+void GameDLL_OnAboutToUnload()
+{
+	LOG_INFO("Game DLL is about to unload.");
+
+	// TODO: Add any necessary cleanup code here.
+}

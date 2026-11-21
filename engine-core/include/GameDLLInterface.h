@@ -7,4 +7,5 @@ extern "C"
 	// Returns GAME_DLL_ABI_VERSION baked into the DLL at compile time.
 	// Editor rejects a DLL whose version doesn't match what it expects.
 	__declspec(dllexport) unsigned int GameDLL_GetVersion();
+	__declspec(dllexport) void GameDLL_OnAboutToUnload();
 }
