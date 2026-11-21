@@ -419,7 +419,7 @@ namespace Engine
 
 			if (seconds > elapsedSeconds)
 			{
-				LOG_INFO("EngineInstance update: {} seconds elapsed, dt = {}", seconds, dt);
+				LOG_TRACE("EngineInstance update: {} seconds elapsed, dt = {}", seconds, dt);
 			}
 		}
 	}
