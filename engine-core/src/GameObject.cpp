@@ -1,14 +1,20 @@
 module;
 
+#include "LoggerMacros.h"
+
 module GameObject;
 
 #if defined ( __INTELLISENSE__ )
 #include <string>
+#include "ComponentRegistry.ixx"
 #include "GameObject.ixx"
+#include "Logger.ixx"
 #else
 import Component;
-import IComponentStorage;
+import ComponentRegistry;
+import Logger;
 import GUID;
+import IComponentStorage;
 import Transform;
 
 import std;
@@ -86,5 +92,29 @@ namespace Engine
 		// to create a placeholder of a component, into which we can then deserialize actual
 		// component data, and call OnCreate when that is done. (Serialization.ixx, 
 		// DeserializeScene.)
+	}
+
+	bool GameObject::TryAddComponent(unsigned int typeID)
+	{
+		if (_storage == nullptr)
+		{
+			LOG_ERROR("IComponentStorage is null pointer. Cannot add component.");
+			return false;
+		}
+
+		const auto result = GlobalComponentRegistry().Create(typeID, *_storage);
+		if (!result.has_value())
+		{
+			LOG_ERROR("Failed to create component with type ID {}: {}", typeID, result.error().message);
+			return false;
+		}
+
+		auto* component = result.value();
+
+		component->_owner = this;
+		_gimpl->_components.push_back(component);
+		component->OnCreate();
+
+		return true;
 	}
 }

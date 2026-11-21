@@ -244,6 +244,13 @@ namespace Engine
 	}
 
 	// static
+	void EngineInstance::UnloadActiveScene()
+	{
+		assert(_instance != nullptr && "Engine instance is not initialized!");
+		_instance->_impl->_activeScene = nullptr;
+	}
+
+	// static
 	bool EngineInstance::HasActiveScene()
 	{
 		return _instance != nullptr && _instance->_impl->_activeScene != nullptr;

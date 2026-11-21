@@ -267,7 +267,7 @@ int tests()
 	LOG_INFO("Active scene: {}", Engine::EngineInstance::GetActiveScene().GetSceneName());
 
 	// Let's walk through it...
-	auto logNodes = [](Engine::Scene::Scene& scene, std::size_t currentIndex, int depth) {
+	auto logNodes = [](Engine::Scene::Scene& scene, std::size_t currentIndex, [[maybe_unused]] int depth) {
 		LOG_INFO("Index: {}, name: {}", currentIndex, scene.GetNodeName(currentIndex));
 		};
 
@@ -517,7 +517,9 @@ Editor::CommandReturnType DoTryCloseCurrentProject(Editor::Context& context)
 		return {};
 	}
 
+	Engine::EngineInstance::UnloadActiveScene();
 	context.CloseProject();
+
 	const auto shutdownResult = Engine::EngineInstance::Shutdown();
 	if (shutdownResult)
 	{
@@ -733,6 +735,13 @@ Editor::CommandReturnType OpenProject(const std::vector<std::string>& commandAnd
 		LOG_INFO("Asset database populated successfully.");
 	}
 
+	// Load the project DLL first, so we can load serialized scenes that contain components defined in the project DLL
+	const auto loadDllResult = context.LoadProjectDll();
+	if (!loadDllResult.has_value())
+	{
+		return std::unexpected{ std::format("Failed to load project DLL: {}", loadDllResult.error().message) };
+	}
+
 	if (editorSettings.value()["DefaultActiveScene"].GetString().empty() == false)
 	{
 		const auto sceneName = editorSettings.value()["DefaultActiveScene"].GetString();
@@ -743,13 +752,6 @@ Editor::CommandReturnType OpenProject(const std::vector<std::string>& commandAnd
 		{
 			LOG_ERROR("Failed to load default active scene: {}", loadSceneResult.error());
 		}
-	}
-
-	// And then, shouldn't we actually load the DLL?
-	const auto loadDllResult = context.LoadProjectDll();
-	if (!loadDllResult.has_value())
-	{
-		return std::unexpected{ std::format("Failed to load project DLL: {}", loadDllResult.error().message) };
 	}
 
 	return {};
@@ -897,6 +899,60 @@ Editor::CommandReturnType TryCreateNewScene(const std::vector<std::string>& comm
 	return {};
 }
 
+Editor::CommandReturnType AddComponent(const std::vector<std::string>& commandAndArguments,
+	Editor::Context& context,
+	Editor::IEditorTask& task)
+{
+	Editor::TaskProgressScope _(task);
+
+	if (context.HasProjectOpen() == false)
+	{
+		return std::unexpected{ "No project open." };
+	}
+
+	if (Engine::EngineInstance::HasActiveScene() == false)
+	{
+		return std::unexpected{ "No scene active." };
+	}
+
+	if (commandAndArguments.size() < 3)
+	{
+		return std::unexpected{ "Missing arguments. Usage: addComponent <nodeIndex> <componentName>" };
+	}
+
+	int nodeIndex = -1;
+	try
+	{
+		nodeIndex = std::stoi(commandAndArguments[1]);
+		if (nodeIndex < 0 || nodeIndex >= Engine::EngineInstance::GetActiveScene().GetNodeCount())
+		{
+			throw std::out_of_range("Node index is out of range.");
+		}
+	}
+	catch (const std::exception& e)
+	{
+		return std::unexpected{ std::format("Invalid node index: {}", e.what()) };
+	}
+
+	unsigned int componentTypeID = 0;
+	if (!GlobalComponentRegistry().TryGetTypeID(commandAndArguments[2], OUT componentTypeID))
+	{
+		return std::unexpected{ std::format("Component type '{}' not found.", commandAndArguments[2]) };
+	}
+
+	auto* gameObject = Engine::EngineInstance::GetActiveSceneRW().GetGameObject(nodeIndex);
+	assert(gameObject != nullptr && "GameObject should not be null.");
+
+	if (!gameObject->TryAddComponent(componentTypeID))
+	{
+		return std::unexpected{ std::format("Failed to add component '{}' to node index {}.", commandAndArguments[2], nodeIndex) };
+	}
+
+	LOG_INFO("Component added successfully: '{}' to node index {}.", commandAndArguments[2], nodeIndex);
+
+	return {};
+}
+
 Editor::CommandReturnType ListComponents(const std::vector<std::string>& commandAndArguments,
 	Editor::Context& context,
 	Editor::IEditorTask& task)
@@ -917,6 +973,51 @@ Editor::CommandReturnType ListComponents(const std::vector<std::string>& command
 	for (const auto& component : components.value())
 	{
 		std::println("  Component: {} (Type: {})", component.name, component.typeID);
+	}
+
+	return {};
+}
+
+Editor::CommandReturnType InspectGameObject(const std::vector<std::string>& commandAndArguments,
+	Editor::Context& context,
+	Editor::IEditorTask& task)
+{
+	Editor::TaskProgressScope _(task);
+
+	if (context.HasProjectOpen() == false)
+	{
+		return std::unexpected{ "No project open." };
+	}
+
+	if (Engine::EngineInstance::HasActiveScene() == false)
+	{
+		return std::unexpected{ "No scene active." };
+	}
+
+	int nodeIndex = -1;
+	try
+	{
+		nodeIndex = std::stoi(commandAndArguments[1]);
+		if (nodeIndex < 0 || nodeIndex >= Engine::EngineInstance::GetActiveScene().GetNodeCount())
+		{
+			throw std::out_of_range("Node index is out of range.");
+		}
+	}
+	catch (const std::exception& e)
+	{
+		return std::unexpected{ std::format("Invalid node index: {}", e.what()) };
+	}
+
+	const Engine::GameObject* gameObject = Engine::EngineInstance::GetActiveScene().GetGameObject(nodeIndex);
+	assert(gameObject != nullptr && "GameObject should not be null.");
+
+	std::println("GameObject at node index {}: {}", nodeIndex, gameObject->GetName());
+	const auto& registry = Engine::GlobalComponentRegistry();
+	for (const auto& component : gameObject->GetComponents())
+	{
+		const auto typeID = component->GetTypeID();
+		const auto typeNameMaybe = registry.GetComponentName(typeID);
+		std::println("  Component: {} (Type ID: {})", typeNameMaybe.value_or("???"), typeID);
 	}
 
 	return {};
@@ -1025,7 +1126,14 @@ Editor::CommandReturnType AddGameObject(const std::vector<std::string>& commandA
 		.CreateGameObject(&Engine::EngineInstance::GetComponentStorage(),
 			name, parentNodeIndex, guid);
 
-	LOG_INFO("Created new game object: {} with GUID: {} at parent node index: {}", name, guid, parentNodeIndex);
+	if (newGO == nullptr)
+	{
+		return std::unexpected{ "Failed to create new game object." };
+	}
+
+	LOG_INFO("Created new game object: {} with GUID: {} at parent node index: {}", name, newGO->GetGUID(), parentNodeIndex);
+
+	return {};
 }
 
 
@@ -1632,10 +1740,12 @@ int main()
 
 	executors_["edSetDefaultActiveScene"] = { SetDefaultActiveScene, "Set the default active scene in editor settings" };
 
+	executors_["go"] = { InspectGameObject, "Inspect a game object" };
 	executors_["goAdd"] = { AddGameObject, "Add a new game object to the active scene" };
 	executors_["goName"] = { GameObjectName, "Get / Set game object name" };
 
 	executors_["cList"] = { ListComponents, "List registered components" };
+	executors_["cAdd"] = { AddComponent, "Add a component to a game object" };
 
 
 	// TODO: Read this from an editor settings file; and make it part of an editorInstance

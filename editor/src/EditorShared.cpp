@@ -135,7 +135,12 @@ namespace Editor
 
 	void Context::CloseProject()
 	{
-		UnloadProjectDll();
+		const auto unloadDllResult = UnloadProjectDll();
+		if (!unloadDllResult.has_value())
+		{
+			LOG_ERROR(unloadDllResult.error().message);
+		}
+
 		StopProjectDirectoryWatcher();
 
 		std::lock_guard<std::mutex> l{ _contextLock };

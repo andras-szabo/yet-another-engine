@@ -49,7 +49,10 @@ namespace Engine
 
 		ENGINE_CORE_API Expected<Component*> Create(unsigned int typeID, IComponentStorage& storage);
 		ENGINE_CORE_API bool Has(unsigned int typeID) const;
+		ENGINE_CORE_API bool TryGetTypeID(std::string_view name, unsigned int& outTypeID) const;
 		ENGINE_CORE_API Expected<std::vector<ComponentInfo>> GetRegisteredComponents(bool sortedByName) const;
+
+		ENGINE_CORE_API Expected<std::string_view> GetComponentName(unsigned int typeID) const;
 
 	private:
 		std::unordered_map<unsigned int, ComponentFactoryFn> _factories;

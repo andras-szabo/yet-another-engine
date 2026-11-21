@@ -92,9 +92,35 @@ namespace Engine
 		}
 	}
 
+	Engine::Expected<std::string_view> ComponentRegistry::GetComponentName(unsigned int typeID) const
+	{
+		const auto item = _componentNames.find(typeID);
+
+		if (item == _componentNames.end())
+		{
+			return Engine::Unexpected({ Engine::ErrorType::NotFound, std::format("No component found with type ID: {}", typeID) });
+		}
+
+		return item->second;
+	}
+
 	bool ComponentRegistry::Has(unsigned int typeID) const
 	{
 		return _factories.find(typeID) != _factories.end();
+	}
+
+	bool ComponentRegistry::TryGetTypeID(std::string_view name, unsigned int& outTypeID) const
+	{
+		const auto item = std::find_if(_componentNames.begin(), _componentNames.end(),
+			[&name](const auto& pair) { return pair.second == name; });
+
+		if (item != _componentNames.end())
+		{
+			outTypeID = item->first;
+			return true;
+		}
+
+		return false;
 	}
 
 	ComponentRegistry& GlobalComponentRegistry()

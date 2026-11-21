@@ -57,7 +57,14 @@ int main(int argc, char* argv[])
 	engineInstance.OnApplicationStart();
 	engineInstance.Run();
 	engineInstance.OnApplicationQuit();
-	engineInstance.Shutdown();
+
+	const auto shutdownResult = engineInstance.Shutdown();
+
+	if (!shutdownResult.has_value())
+	{
+		LOG_ERROR(shutdownResult.error().message);
+		return 1;
+	}
 
 	return 0;
 }

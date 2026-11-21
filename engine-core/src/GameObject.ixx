@@ -53,6 +53,8 @@ namespace Engine
 			requires std::is_base_of_v<Component, T>
 		T* GetComponent();
 
+		bool TryAddComponent(unsigned int typeID);
+		
 		void AddComponentRaw(Component* component);
 		void SetTransform(Transform* trsf);
 		Transform* GetTransform();

@@ -78,7 +78,9 @@ namespace Engine
 				int parentNodeIndex,
 				unsigned long long _guid = 0);
 
+			int GetNodeCount() const;
 			GameObject* GetGameObject(std::size_t nodeIndex);
+			const GameObject* GetGameObject(std::size_t nodeIndex) const;
 			const std::vector<std::unique_ptr<GameObject>>& GetAllGameObjects() const;
 
 			const Engine::TransformStorage* GetTransformStorage() const;

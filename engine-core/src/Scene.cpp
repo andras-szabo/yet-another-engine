@@ -94,7 +94,18 @@ namespace Engine
 			}
 		}
 
+		int Scene::GetNodeCount() const
+		{
+			return static_cast<int>(_impl->nodes.size());
+		}
+
 		Engine::GameObject* Scene::GetGameObject(std::size_t nodeIndex)
+		{
+			assert(nodeIndex < _impl->gameObjects.size() && "Node index out of bounds.");
+			return _impl->gameObjects[nodeIndex].get();
+		}
+
+		const Engine::GameObject* Scene::GetGameObject(std::size_t nodeIndex) const
 		{
 			assert(nodeIndex < _impl->gameObjects.size() && "Node index out of bounds.");
 			return _impl->gameObjects[nodeIndex].get();

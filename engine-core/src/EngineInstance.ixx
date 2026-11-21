@@ -39,6 +39,7 @@ namespace Engine
 		static const Scene::Scene& GetActiveScene();
 		static Scene::Scene& GetActiveSceneRW();
 		static bool HasActiveScene();
+		static void UnloadActiveScene();
 
 		EngineInstance(const EngineInstance& other) = delete;
 		EngineInstance& operator=(const EngineInstance& other) = delete;
