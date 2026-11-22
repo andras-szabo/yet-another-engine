@@ -319,6 +319,7 @@ namespace Engine
 		return at(name);
 	}
 
+	// TODO - use expected
 	const DataFile& DataFile::at(std::string_view name) const // Will throw if key not present.
 	{
 		assert(_impl != nullptr && "DataFile _impl is null; was this moved from?");
@@ -364,13 +365,17 @@ namespace Engine
 		SetString(std::to_string(f), index);
 	}
 
+	// Arguments after ... don't have declared types for the compiler,
+	// so C++ uses "default argument promotions" to determine the types
+	// of the arguments. According to these rules, floats are promoted
+	// to doubles.\_O_/
 	void DataFile::SetFloats(int count, ...)
 	{
 		std::va_list args;
 		va_start(args, count);
 		for (int i = 0; i < count; ++i)
 		{
-			SetFloat(va_arg(args, float), i);
+			SetFloat(static_cast<float>(va_arg(args, double)), i);
 		}
 		va_end(args);
 	}

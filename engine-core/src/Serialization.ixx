@@ -28,6 +28,12 @@ namespace Engine
 			Engine::DataFile& out);
 
 	export ENGINE_CORE_API
+	Engine::Expected<void> SetSerializedFieldFromString(std::string_view fieldName,
+			std::string_view valueAsString,
+			void* base,
+			const FieldSpan fieldSpan);
+
+	export ENGINE_CORE_API
 	void DeserializeFields(void* base, FieldSpan fieldSpan, const DataFile& in);
 
 	export ENGINE_CORE_API

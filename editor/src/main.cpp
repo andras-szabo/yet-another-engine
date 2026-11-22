@@ -900,6 +900,73 @@ Editor::CommandReturnType TryCreateNewScene(const std::vector<std::string>& comm
 	return {};
 }
 
+Editor::CommandReturnType SetComponentField(const std::vector<std::string>& commandAndArguments,
+	Editor::Context& context,
+	Editor::IEditorTask& task)
+{
+	if (context.HasProjectOpen() == false)
+	{
+		return std::unexpected{ "No project open." };
+	}
+
+	if (Engine::EngineInstance::HasActiveScene() == false)
+	{
+		return std::unexpected{ "No scene active." };
+	}
+
+	if (commandAndArguments.size() < 5)
+	{
+		return std::unexpected{ "Missing arguments. Usage: cSet <nodeIndex> <componentType> <fieldName> <value>" };
+	}
+
+	int nodeIndex = -1;
+	try
+	{
+		nodeIndex = std::stoi(commandAndArguments[1]);
+		if (nodeIndex < 0 || nodeIndex >= Engine::EngineInstance::GetActiveScene().GetNodeCount())
+		{
+			throw std::out_of_range("Node index is out of range.");
+		}
+	}
+	catch (const std::exception& e)
+	{
+		return std::unexpected{ std::format("Invalid node index: {}", e.what()) };
+	}
+
+	unsigned int componentTypeID = 0;
+	if (!GlobalComponentRegistry().TryGetTypeID(commandAndArguments[2], OUT componentTypeID))
+	{
+		return std::unexpected{ std::format("Component type '{}' not found.", commandAndArguments[2]) };
+	}
+
+	auto* gameObject = Engine::EngineInstance::GetActiveSceneRW().GetGameObject(nodeIndex);
+
+	auto* component = gameObject->GetComponentRW(componentTypeID);
+
+	if (component == nullptr)
+	{
+		return std::unexpected{ std::format("Component of type '{}' not found on node {}.", commandAndArguments[2], nodeIndex) };
+	}
+
+	const auto reflectedFields = component->GetReflectedFields();
+	Engine::DataFile df;
+	Engine::SerializeFields(component, reflectedFields, OUT df);
+
+	const auto fieldName = commandAndArguments[3];
+	const auto fieldValue = commandAndArguments[4];
+
+	const auto result = Engine::SetSerializedFieldFromString(fieldName, fieldValue, component, reflectedFields);
+
+	if (result.has_value() == false)
+	{
+		return std::unexpected{ std::format("Failed to set field '{}': {}", fieldName, result.error().message) };
+	}
+
+	LOG_INFO("Field '{}' set to '{}' on component '{}' of node {}.\n", fieldName, fieldValue, commandAndArguments[2], nodeIndex);
+
+	return {};
+}
+
 Editor::CommandReturnType InspectComponent(const std::vector<std::string>& commandAndArguments,
 	Editor::Context& context,
 	Editor::IEditorTask& task)
@@ -1807,7 +1874,7 @@ int main()
 	executors_["cList"] = { ListComponents, "List registered components" };
 	executors_["cAdd"] = { AddComponent, "Add a component to a game object" };
 	executors_["cView"] = { InspectComponent, "Inspect a component on a game object. Usage: cView <nodeIndex> <componentTypeName>" };
-
+	executors_["cSF"] = { SetComponentField, "Set a field on a component. Usage: cSF <nodeIndex> <componentTypeName> <fieldName> <newValue>" };
 
 	// TODO: Read this from an editor settings file; and make it part of an editorInstance
 	Editor::Context context;

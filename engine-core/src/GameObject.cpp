@@ -96,6 +96,18 @@ namespace Engine
 		return nullptr;
 	}
 
+	Component* GameObject::GetComponentRW(unsigned int typeID)
+	{
+		const auto* component = GetComponent(typeID);
+
+		if (component != nullptr)
+		{
+			return const_cast<Component*>(component);
+		}
+
+		return nullptr;
+	}
+
 	void GameObject::AddComponentRaw(Component* component)
 	{
 		component->_owner = this;

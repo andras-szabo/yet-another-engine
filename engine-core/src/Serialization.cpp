@@ -38,6 +38,67 @@ import std;
 
 namespace Engine
 {
+	Engine::Expected<void> SetSerializedFieldFromString(std::string_view fieldName, 
+		std::string_view valueAsString, 
+		void* base, 
+		const FieldSpan fieldSpan)
+	{
+		std::span<const FieldDescriptor> fields(fieldSpan.data, fieldSpan.size);
+		char* baseAsCharPtr = reinterpret_cast<char*>(base);
+		for (const auto& field : fields)
+		{
+			if (field.name == fieldName)
+			{
+				switch (field.type)
+				{
+				case FieldType::Bool:
+				{
+					bool value = (valueAsString == "true" || valueAsString == "1");
+					*reinterpret_cast<bool*>(baseAsCharPtr + field.offset) = value;
+					return {};
+				}
+				case FieldType::Float:
+				{
+					float value = std::stof(std::string{ valueAsString });
+					*reinterpret_cast<float*>(baseAsCharPtr + field.offset) = value;
+					return {};
+				}
+				case FieldType::Int:
+				{
+					int value = std::stoi(std::string{ valueAsString });
+					*reinterpret_cast<int*>(baseAsCharPtr + field.offset) = value;
+					return {};
+				}
+				case FieldType::String:
+				{
+					std::string value{ valueAsString };
+					*reinterpret_cast<std::string*>(baseAsCharPtr + field.offset) = std::move(value);
+					return {};
+				}
+				case FieldType::Vec3:
+				{
+					Vec3 value;
+					if (!Vec3::Parse(valueAsString, value))
+					{
+						return Engine::Unexpected({ Engine::ErrorType::Serialization, std::format("Failed to parse Vec3 for field {}", fieldName) });
+					}
+					*reinterpret_cast<Vec3*>(baseAsCharPtr + field.offset) = value;
+					return {};
+				}
+				default:
+					return Engine::Unexpected({ Engine::ErrorType::Serialization, std::format("Unsupported field type for field {}", fieldName) });
+				}
+			}
+			else if (field.type == FieldType::Composite && field.getChildren != nullptr)
+			{
+				void* newBase = baseAsCharPtr + field.offset;
+				return SetSerializedFieldFromString(fieldName, valueAsString, newBase, field.getChildren());
+			}
+		}
+
+		return Engine::Unexpected({ Engine::ErrorType::Serialization, std::format("Field '{}' not found", fieldName) });
+	}
+
 	void SerializeFields(const void* base,
 		const FieldSpan fieldSpan,
 		Engine::DataFile& out)

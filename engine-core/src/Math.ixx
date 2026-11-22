@@ -86,6 +86,8 @@ export struct ENGINE_CORE_API Vec3
 	constexpr Vec3& operator*=(float scalar);
 	constexpr Vec3& operator/=(float scalar);
 
+	constexpr Vec3& operator=(const Vec3& other);
+
 	constexpr float Dot(const Vec3 other) const;
 	constexpr Vec3 Cross(const Vec3 other) const;
 	constexpr float SqrMagnitude() const;
@@ -104,6 +106,8 @@ export struct ENGINE_CORE_API Vec3
 	static constexpr Vec3 Left();
 	static constexpr Vec3 Forward();
 	static constexpr Vec3 Back();
+
+	static constexpr bool Parse(const std::string_view str, Vec3& result);
 };
 
 export struct ENGINE_CORE_API Vec4

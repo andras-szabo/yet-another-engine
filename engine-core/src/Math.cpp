@@ -9,6 +9,47 @@ import std;
 
 namespace Engine
 {
+	constexpr bool Vec3::Parse(const std::string_view str, Vec3& result)
+	{
+		std::string_view s = str;
+
+		s.remove_prefix(s.find_first_not_of(" \t\n\r"));
+		s.remove_suffix(s.size() - s.find_last_not_of(" \t\n\r") - 1);
+		if (s.empty())
+		{
+			return false;
+		}
+
+		if (s.front() == '(' && s.back() == ')')
+		{
+			s.remove_prefix(1);
+			s.remove_suffix(1);
+		}
+
+		std::vector<std::string> parts;
+		size_t start = 0;
+		size_t end = s.find(';');
+
+		while (end != std::string_view::npos)
+		{
+			parts.push_back(std::string(s.substr(start, end - start)));
+			start = end + 1;
+			end = s.find(';', start);
+		}
+		parts.push_back(std::string(s.substr(start)));
+
+		if (parts.size() != 3)
+		{
+			return false;
+		}
+
+		result.x = std::stof(parts[0]);
+		result.y = std::stof(parts[1]);
+		result.z = std::stof(parts[2]);
+
+		return true;
+	}
+
 	constexpr Mat4x4 Mat4x4::operator*(const Mat4x4& other) const
 	{
 		Mat4x4 result;
@@ -441,6 +482,15 @@ namespace Engine
 		x /= scalar;
 		y /= scalar;
 		z /= scalar;
+		return *this;
+	}
+
+	constexpr Vec3& Vec3::operator=(const Vec3& other)
+	{
+		x = other.x;
+		y = other.y;
+		z = other.z;
+
 		return *this;
 	}
 
