@@ -25,7 +25,7 @@ namespace Engine
         GUID,
     };
 
-    struct FieldDescriptor;
+    export struct FieldDescriptor;
 
     export struct FieldSpan
     {

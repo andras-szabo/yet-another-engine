@@ -83,6 +83,19 @@ namespace Engine
 		return _gimpl->_components;
 	}
 
+	const Component* GameObject::GetComponent(unsigned int typeID) const
+	{
+		for (const auto* component : _gimpl->_components)
+		{
+			if (component->GetTypeID() == typeID)
+			{
+				return component;
+			}
+		}
+
+		return nullptr;
+	}
+
 	void GameObject::AddComponentRaw(Component* component)
 	{
 		component->_owner = this;

@@ -54,6 +54,7 @@ namespace Engine
 		T* GetComponent();
 
 		bool TryAddComponent(unsigned int typeID);
+		const Component* GetComponent(unsigned int typeID) const;
 		
 		void AddComponentRaw(Component* component);
 		void SetTransform(Transform* trsf);

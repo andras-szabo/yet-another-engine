@@ -32,6 +32,7 @@ import FileWatcher;
 import HotReloadManager;
 import Logger;
 import EditorTasks;
+import Reflection;
 
 import std;
 #endif
@@ -899,6 +900,65 @@ Editor::CommandReturnType TryCreateNewScene(const std::vector<std::string>& comm
 	return {};
 }
 
+Editor::CommandReturnType InspectComponent(const std::vector<std::string>& commandAndArguments,
+	Editor::Context& context,
+	Editor::IEditorTask& task)
+{
+	Editor::TaskProgressScope _(task);
+
+	if (context.HasProjectOpen() == false)
+	{
+		return std::unexpected{ "No project open." };
+	}
+
+	if (Engine::EngineInstance::HasActiveScene() == false)
+	{
+		return std::unexpected{ "No scene active." };
+	}
+
+	if (commandAndArguments.size() < 3)
+	{
+		return std::unexpected{ "Missing arguments. Usage: cView <nodeIndex> <componentType>" };
+	}
+
+	int nodeIndex = -1;
+	try
+	{
+		nodeIndex = std::stoi(commandAndArguments[1]);
+		if (nodeIndex < 0 || nodeIndex >= Engine::EngineInstance::GetActiveScene().GetNodeCount())
+		{
+			throw std::out_of_range("Node index is out of range.");
+		}
+	}
+	catch (const std::exception& e)
+	{
+		return std::unexpected{ std::format("Invalid node index: {}", e.what()) };
+	}
+
+	unsigned int componentTypeID = 0;
+	if (!GlobalComponentRegistry().TryGetTypeID(commandAndArguments[2], OUT componentTypeID))
+	{
+		return std::unexpected{ std::format("Component type '{}' not found.", commandAndArguments[2]) };
+	}
+
+	const auto* gameObject = Engine::EngineInstance::GetActiveScene().GetGameObject(nodeIndex);
+
+	const auto* component = gameObject->GetComponent(componentTypeID);
+
+	if (component == nullptr)
+	{
+		return std::unexpected{ std::format("Component of type '{}' not found on node {}.", commandAndArguments[2], nodeIndex) };
+	}
+
+	Engine::DataFile df;
+	Engine::SerializeFields(component, component->GetReflectedFields(), OUT df);
+
+	std::println("{}", df.ToString());
+
+	return {};
+}
+
+
 Editor::CommandReturnType AddComponent(const std::vector<std::string>& commandAndArguments,
 	Editor::Context& context,
 	Editor::IEditorTask& task)
@@ -1746,6 +1806,7 @@ int main()
 
 	executors_["cList"] = { ListComponents, "List registered components" };
 	executors_["cAdd"] = { AddComponent, "Add a component to a game object" };
+	executors_["cView"] = { InspectComponent, "Inspect a component on a game object. Usage: cView <nodeIndex> <componentTypeName>" };
 
 
 	// TODO: Read this from an editor settings file; and make it part of an editorInstance
