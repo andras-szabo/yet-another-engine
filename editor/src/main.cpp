@@ -1253,6 +1253,46 @@ Editor::CommandReturnType GameObjectName(const std::vector<std::string>& command
 	return {};
 }
 
+Editor::CommandReturnType RemoveGameObject(const std::vector<std::string>& commandAndArguments,
+	Editor::Context& context,
+	Editor::IEditorTask& task)
+{
+	Editor::TaskProgressScope _(task);
+	if (context.HasProjectOpen() == false)
+	{
+		return std::unexpected{ "No project open." };
+	}
+
+	if (Engine::EngineInstance::HasActiveScene() == false)
+	{
+		return std::unexpected{ "No scene active." };
+	}
+
+	if (commandAndArguments.size() < 2)
+	{
+		return std::unexpected{ "Missing arguments. Usage: goRemove <nodeIndex>" };
+	}
+
+	int nodeIndex = -1;
+	try
+	{
+		nodeIndex = std::stoi(commandAndArguments[1]);
+	}
+	catch (const std::exception& e)
+	{
+		return std::unexpected{ std::format("Invalid node index: {}", e.what()) };
+	}
+
+	if (Engine::EngineInstance::GetActiveSceneRW().TryRemoveGameObject(nodeIndex) == false)
+	{
+		return std::unexpected{ std::format("Failed to remove game object at node index {}", nodeIndex) };
+	}
+
+	LOG_INFO("Game object at node index {} removed successfully.", nodeIndex);
+
+	return {};
+
+}
 
 Editor::CommandReturnType AddGameObject(const std::vector<std::string>& commandAndArguments,
 	Editor::Context& context,

@@ -78,6 +78,8 @@ namespace Engine
 				int parentNodeIndex,
 				unsigned long long _guid = 0);
 
+			bool TryRemoveGameObject(std::size_t nodeIndex);
+
 			int GetNodeCount() const;
 			GameObject* GetGameObject(std::size_t nodeIndex);
 			const GameObject* GetGameObject(std::size_t nodeIndex) const;

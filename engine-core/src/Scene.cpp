@@ -1,6 +1,7 @@
 module;
 
 #include <cassert>
+#include "LoggerMacros.h"
 
 module Scene;
 
@@ -10,6 +11,7 @@ module Scene;
 #include "GameObject.ixx"
 #include "GUID.ixx"
 #include "Interfaces.ixx"
+#include "Logger.ixx"
 #include "Math.ixx"
 #include "Scene.ixx"
 #include "Transform.ixx"
@@ -19,6 +21,7 @@ import IComponentStorage;
 import GameObject;
 import GUID;
 import Interfaces;
+import Logger;
 import Math;
 import Transform;
 
@@ -137,6 +140,40 @@ namespace Engine
 		void SceneImpl::SetSceneName(std::string_view newName)
 		{
 			sceneName = newName;
+		}
+
+		bool Scene::TryRemoveGameObject(std::size_t nodeIndex)
+		{
+			if (nodeIndex == 0)
+			{
+				LOG_ERROR("Cannot remove the root node of the scene.");
+				return false;
+			}
+			if (nodeIndex >= _impl->gameObjects.size())
+			{
+				LOG_ERROR("Node index {} is out of bounds. Cannot remove GameObject.", nodeIndex);
+				return false;
+			}
+
+			std::vector<std::size_t> gameObjectsToRemove;
+			auto collectObjectsToRemove = [&gameObjectsToRemove](Engine::Scene::Scene& scene, std::size_t nodeIndex, int depth) {
+				gameObjectsToRemove.push_back(static_cast<unsigned int>(nodeIndex));
+			};
+
+			WalkBreadthFirst(nodeIndex, collectObjectsToRemove);
+
+			// Having walked breadth first, we have a list of nodes to remove, but we need to remove them in 
+			// reverse order (from leaves to root) to avoid invalidating indices.
+
+			for (auto it = gameObjectsToRemove.rbegin(); it != gameObjectsToRemove.rend(); ++it)
+			{
+				// TODO.
+				// Invalidate the gameObject pointer, and mark the node as removed.
+				// Update the hierarchy.
+			}
+
+
+			return true;
 		}
 
 		GameObject* Scene::CreateGameObject(IComponentStorage* componentStorage,
