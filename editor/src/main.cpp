@@ -1025,6 +1025,60 @@ Editor::CommandReturnType InspectComponent(const std::vector<std::string>& comma
 	return {};
 }
 
+Editor::CommandReturnType RemoveComponent(const std::vector<std::string>& commandAndArguments,
+	Editor::Context& context,
+	Editor::IEditorTask& task)
+{
+	Editor::TaskProgressScope _(task);
+
+	if (context.HasProjectOpen() == false)
+	{
+		return std::unexpected{ "No project open." };
+	}
+
+	if (Engine::EngineInstance::HasActiveScene() == false)
+	{
+		return std::unexpected{ "No scene active." };
+	}
+
+	if (commandAndArguments.size() < 3)
+	{
+		return std::unexpected{ "Missing arguments. Usage: cRemove <nodeIndex> <componentName>" };
+	}
+
+	int nodeIndex = -1;
+	try
+	{
+		nodeIndex = std::stoi(commandAndArguments[1]);
+		if (nodeIndex < 0 || nodeIndex >= Engine::EngineInstance::GetActiveScene().GetNodeCount())
+		{
+			throw std::out_of_range("Node index is out of range.");
+		}
+	}
+	catch (const std::exception& e)
+	{
+		return std::unexpected{ std::format("Invalid node index: {}", e.what()) };
+	}
+
+	unsigned int componentTypeID = 0;
+	if (!GlobalComponentRegistry().TryGetTypeID(commandAndArguments[2], OUT componentTypeID))
+	{
+		return std::unexpected{ std::format("Component type '{}' not found.", commandAndArguments[2]) };
+	}
+
+	auto* gameObject = Engine::EngineInstance::GetActiveSceneRW().GetGameObject(nodeIndex);
+	assert(gameObject != nullptr && "GameObject should not be null.");
+	
+	if (!gameObject->TryRemoveComponent(componentTypeID))
+	{
+		return std::unexpected{ std::format("Failed to remove component '{}' from node index {}.", commandAndArguments[2], nodeIndex) };
+	}
+
+	LOG_INFO("Component removed successfully: '{}' from node index {}.", commandAndArguments[2], nodeIndex);
+
+	return {};
+}
+
 
 Editor::CommandReturnType AddComponent(const std::vector<std::string>& commandAndArguments,
 	Editor::Context& context,
@@ -1044,7 +1098,7 @@ Editor::CommandReturnType AddComponent(const std::vector<std::string>& commandAn
 
 	if (commandAndArguments.size() < 3)
 	{
-		return std::unexpected{ "Missing arguments. Usage: addComponent <nodeIndex> <componentName>" };
+		return std::unexpected{ "Missing arguments. Usage: cAdd <nodeIndex> <componentName>" };
 	}
 
 	int nodeIndex = -1;
@@ -1875,6 +1929,7 @@ int main()
 	executors_["cAdd"] = { AddComponent, "Add a component to a game object" };
 	executors_["cView"] = { InspectComponent, "Inspect a component on a game object. Usage: cView <nodeIndex> <componentTypeName>" };
 	executors_["cSF"] = { SetComponentField, "Set a field on a component. Usage: cSF <nodeIndex> <componentTypeName> <fieldName> <newValue>" };
+	executors_["cRemove"] = { RemoveComponent, "Remove a component from a game object. Usage: cRemove <nodeIndex> <componentTypeName>" };
 
 	// TODO: Read this from an editor settings file; and make it part of an editorInstance
 	Editor::Context context;

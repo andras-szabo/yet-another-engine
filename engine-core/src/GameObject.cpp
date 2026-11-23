@@ -119,6 +119,32 @@ namespace Engine
 		// DeserializeScene.)
 	}
 
+	bool GameObject::TryRemoveComponent(unsigned int typeID)
+	{
+		if (_storage == nullptr)
+		{
+			LOG_ERROR("IComponentStorage is null pointer. Cannot remove compnent.");
+			return false;
+		}
+
+		if (typeID == Transform::StaticTypeID())
+		{
+			LOG_ERROR("Cannot remove Transform component from GameObject.");
+			return false;
+		}
+
+		for (auto it = _gimpl->_components.begin(); it != _gimpl->_components.end(); ++it)
+		{
+			if ((*it)->GetTypeID() == typeID)
+			{
+				_storage->DestroyComponent(*it);
+				_gimpl->_components.erase(it);
+				return true;
+			}
+		}
+		return false;
+	}
+
 	bool GameObject::TryAddComponent(unsigned int typeID)
 	{
 		if (_storage == nullptr)

@@ -54,6 +54,7 @@ namespace Engine
 		T* GetComponent();
 
 		bool TryAddComponent(unsigned int typeID);
+		bool TryRemoveComponent(unsigned int typeID);
 		const Component* GetComponent(unsigned int typeID) const;
 		Component* GetComponentRW(unsigned int typeID);
 		
