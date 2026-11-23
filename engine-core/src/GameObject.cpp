@@ -145,11 +145,30 @@ namespace Engine
 		return false;
 	}
 
+	bool GameObject::HasComponent(unsigned int typeID) const
+	{
+		for (const auto* component : _gimpl->_components)
+		{
+			if (component->GetTypeID() == typeID)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	bool GameObject::TryAddComponent(unsigned int typeID)
 	{
 		if (_storage == nullptr)
 		{
 			LOG_ERROR("IComponentStorage is null pointer. Cannot add component.");
+			return false;
+		}
+
+		if (HasComponent(typeID))
+		{
+			LOG_ERROR("GameObject already has a component of type ID {}. Cannot add another.", typeID);
 			return false;
 		}
 

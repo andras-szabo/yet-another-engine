@@ -53,6 +53,7 @@ namespace Engine
 			requires std::is_base_of_v<Component, T>
 		T* GetComponent();
 
+		bool HasComponent(unsigned int typeID) const;
 		bool TryAddComponent(unsigned int typeID);
 		bool TryRemoveComponent(unsigned int typeID);
 		const Component* GetComponent(unsigned int typeID) const;
