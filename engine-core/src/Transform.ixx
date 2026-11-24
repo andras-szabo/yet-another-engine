@@ -28,16 +28,17 @@ namespace Engine
 		Hierarchy() = default;
 
 		Hierarchy(int parent_, int depth_) : parent{ parent_ }, depth{ depth_ } {}
-		Hierarchy(int parent_, int firstChild_, int firstSibling_) :
+		Hierarchy(int parent_, int firstChild_, int nextSibling_) :
 			parent{ parent_ },
 			firstChild{ firstChild_ },
-			firstSibling{ firstSibling_ }
+			nextSibling{ nextSibling_ }
 		{
 		}
 
-		int parent{ -1 };
+		int parent{ -1 };		// Direct parent
 		int firstChild{ -1 };
-		int firstSibling{ -1 };
+		int nextSibling{ -1 };	// Immediate right sibling
+		int prevSibling{ -1 };	// Immediate left sibling (-1 if this is the first child)
 		int depth{ -1 };
 		bool isDirty{ false };
 	};
@@ -57,11 +58,32 @@ namespace Engine
 		ENGINE_CORE_API void WalkDepthFirst(std::size_t startingNode, std::function<void(std::size_t currentNodeIndex)> op);
 		ENGINE_CORE_API void Clear();
 
+		// Detaches nodeIndex from its parent and sibling chain in O(1). Does not touch depth.
+		ENGINE_CORE_API void Unlink(int nodeIndex);
+
+		// Removes a node and its whole subtree. The scene root (0) cannot be removed.
+		// Freed slots are filled by moving the last node into them (swap-and-pop), so node
+		// indices are NOT stable, and parent index < child index is not preserved.
+		// onSlotReused(dst, src) is invoked once per removed node, before the storage's own
+		// pop_back: the owner should move its parallel element src -> dst (overwriting the
+		// removed one; if dst == src, nothing to move) and then pop_back its own vector.
+		// Returns false (and changes nothing) if nodeIndex is invalid or the root.
+		ENGINE_CORE_API bool RemoveSubtree(int nodeIndex,
+			const std::function<void(int dst, int src)>& onSlotReused = {});
+
+		// Checks that all links (parent / firstChild / nextSibling / prevSibling / depth)
+		// are mutually consistent and that the parallel vectors are in sync.
+		// Returns true if valid; otherwise false and, if outError != nullptr, a description.
+		ENGINE_CORE_API bool ValidateHierarchy(std::string* outError = nullptr) const;
+
 		std::vector<Hierarchy> hierarchies;
 		std::vector<Mat4x4> globalTransforms;
 		std::vector<Mat4x4> localTransforms;
 		std::vector<std::string> names;
 		std::vector<Transform*> transformComponents;
+
+	private:
+		void MoveNode(int dst, int src);
 	};
 
 	export class ENGINE_CORE_API Transform : public Component,

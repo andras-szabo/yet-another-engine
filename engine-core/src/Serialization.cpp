@@ -310,9 +310,10 @@ namespace Engine
 			{
 				const int parent = hierarchy.GetInt(index++);
 				const int firstChild = hierarchy.GetInt(index++);
-				const int firstSibling = hierarchy.GetInt(index++);
+				const int nextSibling = hierarchy.GetInt(index++);
 
-				hierarchies.emplace_back(Engine::Hierarchy{ parent, firstChild, firstSibling });
+				// prevSibling isn't stored; the links are rebuilt by AddTransform on load.
+				hierarchies.emplace_back(Engine::Hierarchy{ parent, firstChild, nextSibling });
 			}
 
 			if (!in.HasChild(KEY_NODES))
@@ -398,24 +399,61 @@ namespace Engine
 		auto& hierarchy = out[KEY_HIERARCHY];
 		const Engine::TransformStorage* storage = scene.GetTransformStorage();
 
-		// store only parent, firstchild, firstsibling triplets
+		// Node indices in memory are not stable (removal is swap-and-pop), and a parent may have a
+		// higher index than its child. The file format, however, requires parents to come before
+		// their children, so we write the nodes in depth-first preorder and remap the indices.
+		const int nodeCount = static_cast<int>(storage->hierarchies.size());
+		std::vector<int> fileOrder;		// file position -> in-memory index
+		fileOrder.reserve(nodeCount);
+		std::vector<int> fileIndexOf(nodeCount, -1);	// in-memory index -> file position
+
+		{
+			const auto& hs = storage->hierarchies;
+			int node = nodeCount > 0 ? 0 : -1;
+			while (node != -1)
+			{
+				fileIndexOf[node] = static_cast<int>(fileOrder.size());
+				fileOrder.push_back(node);
+
+				if (hs[node].firstChild != -1)
+				{
+					node = hs[node].firstChild;
+				}
+				else
+				{
+					while (node != -1 && hs[node].nextSibling == -1)
+					{
+						node = hs[node].parent;
+					}
+					if (node != -1)
+					{
+						node = hs[node].nextSibling;
+					}
+				}
+			}
+		}
+
+		auto remap = [&](int i) { return i == -1 ? -1 : fileIndexOf[i]; };
+
+		// store only parent, firstchild, nextsibling triplets
 		int index = 0;
 
-		hierarchy.SetInt(static_cast<int>(storage->hierarchies.size()), index++);	// node count
+		hierarchy.SetInt(nodeCount, index++);	// node count
 
-		for (const Engine::Hierarchy& hierarchy_stored : storage->hierarchies)
+		for (const int memIndex : fileOrder)
 		{
-			hierarchy.SetInt(hierarchy_stored.parent, index++);
-			hierarchy.SetInt(hierarchy_stored.firstChild, index++);
-			hierarchy.SetInt(hierarchy_stored.firstSibling, index++);
+			const Engine::Hierarchy& hierarchy_stored = storage->hierarchies[memIndex];
+			hierarchy.SetInt(remap(hierarchy_stored.parent), index++);
+			hierarchy.SetInt(remap(hierarchy_stored.firstChild), index++);
+			hierarchy.SetInt(remap(hierarchy_stored.nextSibling), index++);
 		}
 
 		auto& nodes = out[KEY_NODES];
 
 		const std::vector<std::unique_ptr<GameObject>>& nodePtrs = scene.GetAllGameObjects();
-		for (const auto& goPtr : nodePtrs)
+		for (const int memIndex : fileOrder)
 		{
-			const GameObject* go = goPtr.get();
+			const GameObject* go = nodePtrs[memIndex].get();
 			const unsigned long long _guid = go->GetGUID().id;
 			const std::string guidAsString = std::to_string(_guid);
 			const std::string goName = std::string{ go->GetName() };

@@ -149,31 +149,38 @@ namespace Engine
 				LOG_ERROR("Cannot remove the root node of the scene.");
 				return false;
 			}
+
 			if (nodeIndex >= _impl->gameObjects.size())
 			{
 				LOG_ERROR("Node index {} is out of bounds. Cannot remove GameObject.", nodeIndex);
 				return false;
 			}
 
-			std::vector<std::size_t> gameObjectsToRemove;
-			auto collectObjectsToRemove = [&gameObjectsToRemove](Engine::Scene::Scene& scene, std::size_t nodeIndex, int depth) {
-				gameObjectsToRemove.push_back(static_cast<unsigned int>(nodeIndex));
-			};
+			// NOTE: WalkBreadthFirst/WalkDepthFirst also visit the start node's *siblings*,
+			// so they must not be used to collect a subtree. RemoveSubtree does it correctly.
+			//
+			// Removal is swap-and-pop: for every removed node, the last element takes its slot.
+			// The storage tells us about each such move so we can mirror it in our own
+			// parallel vectors. Assigning over gameObjects[dst] destroys the removed GameObject
+			// (and thereby its components).
+			const bool removed = _impl->storage.RemoveSubtree(static_cast<int>(nodeIndex),
+				[this](int dst, int src)
+				{
+					if (dst != src)
+					{
+						_impl->gameObjects[dst] = std::move(_impl->gameObjects[src]);
+						_impl->nodes[dst] = _impl->nodes[src];
+					}
+					_impl->gameObjects.pop_back();
+					_impl->nodes.pop_back();
+				});
 
-			WalkBreadthFirst(nodeIndex, collectObjectsToRemove);
+			assert(_impl->storage.ValidateHierarchy() && "Hierarchy corrupted by RemoveSubtree");
+			assert(_impl->gameObjects.size() == _impl->storage.hierarchies.size() &&
+				_impl->nodes.size() == _impl->storage.hierarchies.size() &&
+				"Scene vectors out of sync after removal");
 
-			// Having walked breadth first, we have a list of nodes to remove, but we need to remove them in 
-			// reverse order (from leaves to root) to avoid invalidating indices.
-
-			for (auto it = gameObjectsToRemove.rbegin(); it != gameObjectsToRemove.rend(); ++it)
-			{
-				// TODO.
-				// Invalidate the gameObject pointer, and mark the node as removed.
-				// Update the hierarchy.
-			}
-
-
-			return true;
+			return removed;
 		}
 
 		GameObject* Scene::CreateGameObject(IComponentStorage* componentStorage,
@@ -265,19 +272,29 @@ namespace Engine
 		void Scene::WalkDepthFirst(std::size_t startingNode,
 			std::function<void(Scene& scene, std::size_t currentNodeIndex, int depth)> op)
 		{
-			const auto node = _impl->storage.hierarchies[startingNode];
+			// Do NOT walk the starting node's siblings, only its subtree.
+			WalkDFSImpl(startingNode, op, false);
+		}
 
+		void Scene::WalkDFSImpl(std::size_t startingNode,
+			std::function<void(Scene& scene, std::size_t currentNodeIndex, int depth)> op,
+			bool walkSiblings)
+		{
+			const auto node = _impl->storage.hierarchies[startingNode];
 			op(*this, startingNode, node.depth);
 
 			if (node.firstChild != -1)
 			{
-				WalkDepthFirst(node.firstChild, op);
+				WalkDFSImpl(node.firstChild, op, true);
 			}
 
-			int nextSibling = node.firstSibling;
-			if (nextSibling != -1)
+			if (walkSiblings)
 			{
-				WalkDepthFirst(nextSibling, op);
+				int nextSibling = node.nextSibling;
+				if (nextSibling != -1)
+				{
+					WalkDFSImpl(nextSibling, op, true);
+				}
 			}
 		}
 
@@ -294,6 +311,7 @@ namespace Engine
 			Scene& scene,
 			std::size_t currentNodeIndex, int depth)> op)
 		{
+			bool isFirstIteration = true;
 			while (!_impl->walkHelperQueue.empty())
 			{
 				const auto nextNode = _impl->walkHelperQueue.front();
@@ -307,19 +325,24 @@ namespace Engine
 					_impl->walkHelperQueue.push_back(node.firstChild);
 				}
 
-				auto nextSibling = node.firstSibling;
-				while (nextSibling != -1)
+				if (!isFirstIteration)
 				{
-					op(*this, nextSibling, _impl->storage.hierarchies[nextSibling].depth);
-
-					const auto siblingsFirstChild = _impl->storage.hierarchies[nextSibling].firstChild;
-					if (siblingsFirstChild != -1)
+					auto nextSibling = node.nextSibling;
+					while (nextSibling != -1)
 					{
-						_impl->walkHelperQueue.push_back(siblingsFirstChild);
-					}
+						op(*this, nextSibling, _impl->storage.hierarchies[nextSibling].depth);
 
-					nextSibling = _impl->storage.hierarchies[nextSibling].firstSibling;
+						const auto siblingsFirstChild = _impl->storage.hierarchies[nextSibling].firstChild;
+						if (siblingsFirstChild != -1)
+						{
+							_impl->walkHelperQueue.push_back(siblingsFirstChild);
+						}
+
+						nextSibling = _impl->storage.hierarchies[nextSibling].nextSibling;
+					}
 				}
+
+				isFirstIteration = false;
 			}
 		}
 
@@ -339,6 +362,7 @@ namespace Engine
 			return _impl->storage.localTransforms[nodeIndex];
 		}
 
+		// TODO- consider cleanup. It's now not used.
 		void Scene::UpdateNodeIndex(int oldIndex, int newIndex)
 		{
 			assert(oldIndex >= 0 && oldIndex < (int)_impl->storage.transformComponents.size() && "Old node index out of range");
@@ -360,48 +384,41 @@ namespace Engine
 			assert(nodeIndex != newParentIndex && "Cannot set a node as its own parent");
 			assert(newParentIndex >= 0 && newParentIndex < (int)_impl->nodes.size() && "New parent index is out of range");
 
-			const int currentParent = _impl->storage.hierarchies[nodeIndex].parent;
-
-			// Unlink from current parent's child/sibling chain
-			if (_impl->storage.hierarchies[currentParent].firstChild == nodeIndex)
+#ifndef NDEBUG
+			// The new parent must not be inside the subtree being moved (would create a cycle).
+			for (int ancestor = newParentIndex; ancestor != -1; ancestor = _impl->storage.hierarchies[ancestor].parent)
 			{
-				_impl->storage.hierarchies[currentParent].firstChild =
-					_impl->storage.hierarchies[nodeIndex].firstSibling;
+				assert(ancestor != nodeIndex && "Cannot reparent a node under one of its own descendants");
 			}
-			else
-			{
-				int prev = _impl->storage.hierarchies[currentParent].firstChild;
-				while (_impl->storage.hierarchies[prev].firstSibling != nodeIndex)
-				{
-					prev = _impl->storage.hierarchies[prev].firstSibling;
-					assert(prev != -1 && "Node not found in parent's sibling chain");
-				}
+#endif
 
-				_impl->storage.hierarchies[prev].firstSibling =
-					_impl->storage.hierarchies[nodeIndex].firstSibling;
-			}
+			auto& hierarchies = _impl->storage.hierarchies;
 
-			// Clear old sibling link before re-linking
-			_impl->storage.hierarchies[nodeIndex].firstSibling = -1;
+			// O(1) unlink from the current parent's child/sibling chain
+			_impl->storage.Unlink(nodeIndex);
 
 			// Append as last child of the new parent
-			if (_impl->storage.hierarchies[newParentIndex].firstChild == -1)
+			int prevSibling = -1;
+			if (hierarchies[newParentIndex].firstChild == -1)
 			{
-				_impl->storage.hierarchies[newParentIndex].firstChild = nodeIndex;
+				hierarchies[newParentIndex].firstChild = nodeIndex;
 			}
 			else
 			{
-				int lastChild = _impl->storage.hierarchies[newParentIndex].firstChild;
-				while (_impl->storage.hierarchies[lastChild].firstSibling != -1)
+				prevSibling = hierarchies[newParentIndex].firstChild;
+				while (hierarchies[prevSibling].nextSibling != -1)
 				{
-					lastChild = _impl->storage.hierarchies[lastChild].firstSibling;
+					prevSibling = hierarchies[prevSibling].nextSibling;
 				}
-				_impl->storage.hierarchies[lastChild].firstSibling = nodeIndex;
+				hierarchies[prevSibling].nextSibling = nodeIndex;
 			}
 
-			_impl->storage.hierarchies[nodeIndex].parent = newParentIndex;
-			UpdateDepthsBelow(nodeIndex, _impl->storage.hierarchies[newParentIndex].depth + 1);
-			_impl->storage.hierarchies[nodeIndex].isDirty = true;
+			hierarchies[nodeIndex].parent = newParentIndex;
+			hierarchies[nodeIndex].prevSibling = prevSibling;
+			UpdateDepthsBelow(nodeIndex, hierarchies[newParentIndex].depth + 1);
+			hierarchies[nodeIndex].isDirty = true;
+
+			assert(_impl->storage.ValidateHierarchy() && "Hierarchy corrupted by SetParent");
 		}
 
 		void Scene::UpdateDepthsBelow(int nodeIndex, int newDepth)
@@ -411,7 +428,7 @@ namespace Engine
 			while (child != -1)
 			{
 				UpdateDepthsBelow(child, newDepth + 1);
-				child = _impl->storage.hierarchies[child].firstSibling;
+				child = _impl->storage.hierarchies[child].nextSibling;
 			}
 		}
 	} // namespace Scene

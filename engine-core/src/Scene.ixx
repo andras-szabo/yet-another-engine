@@ -95,7 +95,11 @@ namespace Engine
 			// so that would be a problem.)
 			SceneImpl* _impl{ nullptr };
 
+			void WalkDFSImpl(std::size_t startingNode, std::function<void(Scene&, std::size_t, int)> op,
+				bool walkSiblings);
+
 			void WalkBFSImpl(std::function<void(Scene&, std::size_t, int)> op);
+
 			void UpdateDepthsBelow(int nodeIndex, int newDepth);
 		};
 	

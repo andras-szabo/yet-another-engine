@@ -194,7 +194,7 @@ void TestSrsly()
 
 void RunTests()
 {
-	EditorTests::RunSceneTest();
+	EditorTests::RunAllTests();
 }
 
 void RunFileWatcherTest()
@@ -1175,6 +1175,11 @@ Editor::CommandReturnType InspectGameObject(const std::vector<std::string>& comm
 		return std::unexpected{ "No scene active." };
 	}
 
+	if (commandAndArguments.size() < 2)
+	{
+		return std::unexpected{ "Missing arguments. Usage: go <nodeIndex>" };
+	}
+
 	int nodeIndex = -1;
 	try
 	{
@@ -1710,6 +1715,57 @@ Editor::CommandReturnType ListSceneNodes([[maybe_unused]] const std::vector<std:
 	return {};
 }
 
+Editor::CommandReturnType RunEditorTests(const std::vector<std::string>& commandAndArguments,
+	Editor::Context& context,
+	Editor::IEditorTask& task)
+{
+	Editor::TaskProgressScope _(task);
+
+	// "test list" prints the registered tests; "test [filter]" runs all tests whose name contains the filter.
+	if (commandAndArguments.size() >= 2 && commandAndArguments[1] == "list")
+	{
+		for (const auto& name : EditorTests::ListTests())
+		{
+			std::println("{}", name);
+		}
+		return {};
+	}
+
+	const std::string filter = commandAndArguments.size() >= 2 ? commandAndArguments[1] : std::string{};
+
+	// The engine instance normally only exists while a project is open. The tests use private
+	// scenes, so they can run without a project, as long as we bring the engine up for them.
+	const bool bringUpEngine = !context.HasProjectOpen();
+	if (bringUpEngine)
+	{
+		Engine::EngineInstance::Initialize();
+	}
+
+	const auto summary = EditorTests::RunAllTests(filter);
+
+	if (bringUpEngine)
+	{
+		const auto shutdownResult = Engine::EngineInstance::Shutdown();
+		if (!shutdownResult.has_value())
+		{
+			LOG_WARNING("Engine shutdown after tests failed: {}", shutdownResult.error().message);
+		}
+	}
+
+	if (summary.testsRun == 0)
+	{
+		return std::unexpected{ std::format("No tests match '{}'. Use 'test list' to see all tests.", filter) };
+	}
+
+	if (summary.testsFailed > 0)
+	{
+		return std::unexpected{ std::format("{} of {} test(s) failed.", summary.testsFailed, summary.testsRun) };
+	}
+
+	std::println("All {} test(s) passed.", summary.testsRun);
+	return {};
+}
+
 
 void TryExecute(const std::vector<std::string>& tokens,
 	std::unordered_map<std::string, Editor::EditorCommand>& executors,
@@ -1954,7 +2010,9 @@ int main()
 
 	executors_["ls"] = { ListSceneNodes, "List scene hierarchy" };
 
-	executors_["sceneName"] = { SceneName, "Get / Set active scene name" };
+	executors_["test"] = { RunEditorTests, "Run editor tests. Usage: test [nameFilter] | test list" };
+
+	executors_["sceneName"] ={ SceneName, "Get / Set active scene name" };
 	executors_["sceneSave"] = { TrySaveActiveScene, "Save active scene if dirty" };
 	executors_["sceneCreate"] = { TryCreateNewScene, "Create a new scene" };
 	executors_["sceneLoad"] = { TryLoadScene, "Load a scene" };
@@ -1964,6 +2022,7 @@ int main()
 	executors_["go"] = { InspectGameObject, "Inspect a game object" };
 	executors_["goAdd"] = { AddGameObject, "Add a new game object to the active scene" };
 	executors_["goName"] = { GameObjectName, "Get / Set game object name" };
+	executors_["goRemove"] = { RemoveGameObject, "Remove a game object from the active scene" };
 
 	executors_["cList"] = { ListComponents, "List registered components" };
 	executors_["cAdd"] = { AddComponent, "Add a component to a game object" };

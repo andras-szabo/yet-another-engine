@@ -77,22 +77,25 @@ namespace Engine
 			newNodeIndex == (int)transformComponents.size() &&
 			"Scene graph vectors out of sync!");
 
-		auto& parent = hierarchies[parentIndex];
-		if (parent.firstChild == -1)
+		int prevSibling = -1;
+		if (hierarchies[parentIndex].firstChild == -1)
 		{
-			parent.firstChild = newNodeIndex;
+			hierarchies[parentIndex].firstChild = newNodeIndex;
 		}
 		else
 		{
-			int nextNodeToCheck = parent.firstChild;
-			while (hierarchies[nextNodeToCheck].firstSibling != -1)
+			prevSibling = hierarchies[parentIndex].firstChild;
+			while (hierarchies[prevSibling].nextSibling != -1)
 			{
-				nextNodeToCheck = hierarchies[nextNodeToCheck].firstSibling;
+				prevSibling = hierarchies[prevSibling].nextSibling;
 			}
-			hierarchies[nextNodeToCheck].firstSibling = newNodeIndex;
+			hierarchies[prevSibling].nextSibling = newNodeIndex;
 		}
 
-		hierarchies.emplace_back(parentIndex, parent.depth + 1);
+		// (Must not hold a reference into 'hierarchies' across emplace_back.)
+		const int newDepth = hierarchies[parentIndex].depth + 1;
+		hierarchies.emplace_back(parentIndex, newDepth);
+		hierarchies.back().prevSibling = prevSibling;
 		globalTransforms.emplace_back(globalTransforms[parentIndex] * localTransform);
 		localTransforms.emplace_back(localTransform);
 		names.emplace_back(name);
@@ -132,11 +135,253 @@ namespace Engine
 			WalkDepthFirst(node.firstChild, op);
 		}
 
-		int nextSibling = node.firstSibling;
+		int nextSibling = node.nextSibling;
 		if (nextSibling != -1)
 		{
 			WalkDepthFirst(nextSibling, op);
 		}
+	}
+
+	void TransformStorage::Unlink(int nodeIndex)
+	{
+		assert(0 <= nodeIndex && nodeIndex < (int)hierarchies.size());
+
+		Hierarchy& h = hierarchies[nodeIndex];
+
+		if (h.prevSibling != -1)
+		{
+			hierarchies[h.prevSibling].nextSibling = h.nextSibling;
+		}
+		else if (h.parent != -1)
+		{
+			hierarchies[h.parent].firstChild = h.nextSibling;
+		}
+
+		if (h.nextSibling != -1)
+		{
+			hierarchies[h.nextSibling].prevSibling = h.prevSibling;
+		}
+
+		h.prevSibling = -1;
+		h.nextSibling = -1;
+	}
+
+	void TransformStorage::MoveNode(int dst, int src)
+	{
+		hierarchies[dst] = hierarchies[src];
+		globalTransforms[dst] = globalTransforms[src];
+		localTransforms[dst] = localTransforms[src];
+		names[dst] = std::move(names[src]);
+		transformComponents[dst] = transformComponents[src];
+
+		// Repair everything that referred to 'src' so that it refers to 'dst'.
+		const Hierarchy& h = hierarchies[dst];
+		if (h.prevSibling != -1)
+		{
+			hierarchies[h.prevSibling].nextSibling = dst;
+		}
+		else if (h.parent != -1)
+		{
+			hierarchies[h.parent].firstChild = dst;
+		}
+
+		if (h.nextSibling != -1)
+		{
+			hierarchies[h.nextSibling].prevSibling = dst;
+		}
+
+		for (int child = h.firstChild; child != -1; child = hierarchies[child].nextSibling)
+		{
+			hierarchies[child].parent = dst;
+		}
+
+		if (transformComponents[dst] != nullptr)
+		{
+			transformComponents[dst]->OnSceneNodeIndexChanged(dst);
+		}
+	}
+
+	bool TransformStorage::RemoveSubtree(int nodeIndex,
+		const std::function<void(int dst, int src)>& onSlotReused)
+	{
+		if (nodeIndex <= 0 || nodeIndex >= static_cast<int>(hierarchies.size()))
+		{
+			return false;
+		}
+
+		// Detach the subtree root first; after this, nothing outside the subtree
+		// refers to anything inside it, and the root's siblings are out of reach.
+		Unlink(nodeIndex);
+
+		std::vector<int> doomed;
+		std::vector<int> pending{ nodeIndex };
+
+		while (!pending.empty())
+		{
+			const int current = pending.back();
+			pending.pop_back();
+			doomed.push_back(current);
+
+			for (int child = hierarchies[current].firstChild; 
+				child != -1; 
+				child = hierarchies[child].nextSibling)
+			{
+				pending.push_back(child);
+			}
+		}
+
+		// Highest index first: this guarantees that the last slot is always a survivor,
+		// since every doomed index still to be processed is lower than it.
+		std::ranges::sort(doomed, std::greater<>{});
+
+		for (const int idx : doomed)
+		{
+			const int last = static_cast<int>(hierarchies.size()) - 1;
+			if (idx != last)
+			{
+				MoveNode(idx, last);
+			}
+
+			if (onSlotReused)
+			{
+				onSlotReused(idx, last);
+			}
+
+			hierarchies.pop_back();
+			globalTransforms.pop_back();
+			localTransforms.pop_back();
+			names.pop_back();
+			transformComponents.pop_back();
+		}
+
+		return true;
+	}
+
+	bool TransformStorage::ValidateHierarchy(std::string* outError) const
+	{
+		auto fail = [&](std::string message)
+			{
+				if (outError != nullptr)
+				{
+					*outError = std::move(message);
+				}
+				return false;
+			};
+
+		const int count = static_cast<int>(hierarchies.size());
+		if (count != (int)globalTransforms.size() ||
+			count != (int)localTransforms.size() ||
+			count != (int)names.size() ||
+			count != (int)transformComponents.size())
+		{
+			return fail("Parallel vectors out of sync.");
+		}
+
+		if (count == 0)
+		{
+			return true;
+		}
+
+		auto inRange = [&](int i) { return i == -1 || (0 <= i && i < count); };
+
+		const Hierarchy& root = hierarchies[0];
+		if (root.parent != -1 || root.prevSibling != -1 || root.nextSibling != -1 || root.depth != 0)
+		{
+			return fail("Root (0) must have no parent/siblings and depth 0.");
+		}
+
+		int reachable = 0;
+		for (int i = 0; i < count; ++i)
+		{
+			const Hierarchy& h = hierarchies[i];
+			if (!inRange(h.parent) || !inRange(h.firstChild) || !inRange(h.nextSibling) || !inRange(h.prevSibling))
+			{
+				return fail(std::format("Node {}: link index out of range.", i));
+			}
+
+			if (i != 0 && h.parent == -1)
+			{
+				return fail(std::format("Node {}: non-root node without a parent.", i));
+			}
+
+			if (h.nextSibling != -1)
+			{
+				if (hierarchies[h.nextSibling].prevSibling != i)
+				{
+					return fail(std::format("Node {}: nextSibling {} does not point back via prevSibling.", i, h.nextSibling));
+				}
+				if (hierarchies[h.nextSibling].parent != h.parent)
+				{
+					return fail(std::format("Node {}: sibling {} has a different parent.", i, h.nextSibling));
+				}
+			}
+
+			if (h.prevSibling != -1)
+			{
+				if (hierarchies[h.prevSibling].nextSibling != i)
+				{
+					return fail(std::format("Node {}: prevSibling {} does not point back via nextSibling.", i, h.prevSibling));
+				}
+			}
+			else if (h.parent != -1 && hierarchies[h.parent].firstChild != i)
+			{
+				return fail(std::format("Node {}: has no prevSibling but is not firstChild of parent {}.", i, h.parent));
+			}
+
+			if (h.firstChild != -1)
+			{
+				const Hierarchy& child = hierarchies[h.firstChild];
+				if (child.parent != i || child.prevSibling != -1)
+				{
+					return fail(std::format("Node {}: firstChild {} has wrong parent or a prevSibling.", i, h.firstChild));
+				}
+			}
+
+			if (h.parent != -1 && h.depth != hierarchies[h.parent].depth + 1)
+			{
+				return fail(std::format("Node {}: depth {} is not parent's depth + 1.", i, h.depth));
+			}
+
+			if (transformComponents[i] != nullptr && transformComponents[i]->GetSceneNodeIndex() != i)
+			{
+				return fail(std::format("Node {}: Transform component has stale scene node index {}.",
+					i, transformComponents[i]->GetSceneNodeIndex()));
+			}
+		}
+
+		// Everything must be reachable from the root exactly once (no cycles, no orphans).
+		// Iterative preorder walk; bounded by 'count' steps to guard against cycles.
+		int node = 0;
+		while (node != -1)
+		{
+			if (++reachable > count)
+			{
+				return fail("Cycle detected in hierarchy.");
+			}
+
+			if (hierarchies[node].firstChild != -1)
+			{
+				node = hierarchies[node].firstChild;
+			}
+			else
+			{
+				while (node != -1 && hierarchies[node].nextSibling == -1)
+				{
+					node = hierarchies[node].parent;
+				}
+				if (node != -1)
+				{
+					node = hierarchies[node].nextSibling;
+				}
+			}
+		}
+
+		if (reachable != count)
+		{
+			return fail(std::format("{} node(s) unreachable from the root.", count - reachable));
+		}
+
+		return true;
 	}
 
 	Transform::Transform(TransformStorage* storage,
