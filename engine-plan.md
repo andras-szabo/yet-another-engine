@@ -5,8 +5,8 @@
 | Decision | Choice |
 |---|---|
 | Language | C++23, Windows-only |
-| Build system | CMake 3.28+ (use VS-bundled cmake at `C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe` — system cmake in PATH is outdated at 3.11) |
-| IDE | Visual Studio 2022 Community 17.14 |
+| Build system | CMake 3.28+ (use VS-bundled cmake at `C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe` — system cmake in PATH is outdated at 3.11) |
+| IDE | Visual Studio 2026 Community 18 |
 | Process model | Single editor process; game runs in-process via a loaded game DLL |
 | Object model | GameObject / Component (no ECS) |
 | Custom components | C++ DLL, loaded and hot-reloaded by the editor |
@@ -66,6 +66,15 @@
 | P7-02 — Runner command-line arguments | ⚠️ Partial | The runner accepts one positional game-DLL path (`<path_to_game_dll>`). Project path, scene selection, window configuration, and general argument parsing are not implemented; it does not load a project or scene. |
 | P7-03 — Standalone game loop | ⚠️ Partial | `EngineInstance::Run()` measures elapsed time and calls `Update(dt)`, which reuses the engine's fixed-update accumulator. **Blocking issue:** `EngineInstance_Impl::IsQuitting()` currently always returns `false`, so `Run()` cannot complete normally. The fixed-update catch-up loop also still lacks the P6-03 clamp noted above. |
 | P7-04 — Clean shutdown | ⚠️ Partial | `OnApplicationQuit()` is called after `Run()`, but is unreachable while `IsQuitting()` always returns false. The runner does not call `EngineInstance::Shutdown()` or explicitly tear down the active scene before DLL unload, so the planned component-destruction/unload sequence is not implemented. |
+| P8-01 — Project loader | ✅ Done | `editor/src/main.cpp`: `OpenProject`/`CreateProject` read/create `project.udf` (project name, editor version, DLL paths), initialize `EngineInstance`, start the asset `DirectoryWatcher` + consuming thread, and populate the `AssetDatabase` from the project folder. `editorSettings.udf` stores the default active scene and is loaded on project open (`DefaultActiveScene` → `TryLoadScene`). |
+| P8-02 — Console command parser | ✅ Done | Tokenizes stdin input on a dedicated input thread; dispatches via an `executors_` map (`std::string → {fn, description}`) keyed by command name, with short aliases (e.g. `oproj`/`openProject`, `sproj`/`saveProject`). |
+| P8-03 — list-scenes / load-scene / list-objects / inspect | ✅ Done | `sceneLoad`, `ls` (list scene hierarchy), `go <nodeIndex>` (inspect GameObject), `cView` (inspect a component's reflected fields). |
+| P8-04 — set-field / add-component / remove-component | ✅ Done | `cSF <nodeIndex> <typeName> <fieldName> <value>` (set field via `GetReflectedFields` + offset), `cAdd`/`cList` (add/list registered component types), `cRemove`. GameObject-level equivalents also implemented: `goAdd`, `goName`, `goRemove`. |
+| P8-05 — save-scene | ✅ Done | `sceneSave` serializes the active scene back to disk (dirty-checked); `sceneCreate` creates a new scene via the asset-DB-backed flow (GUID assignment, save path, registration). |
+| P8-06 — play / pause / stop | ✅ Done | `play` toggles `EditorPlayState` (`Editing ⇄ StartingPlay ⇄ Playing/Paused ⇄ StoppingPlay`) in the main loop in `main.cpp`; scene is snapshotted via `SerializeScene` before `OnPlayModeStart()` and restored on stop, per P6-04. |
+| P8-07 — Hot-reload response | ✅ Done | Main loop checks `context.HasProjectDllChanged()` every iteration; on a change it logs detection, exits play mode if needed, calls `context.ReloadProjectDll()` (serialize → unload → reload → deserialize, P6-05), logs success/failure to console, and re-enters play mode if it was active before the reload. |
+
+**Phase 8 status: MVP complete.** All seven tasks above are implemented and the full solution (`engine-core`, `editor`, `game-runner`) builds cleanly. Known rough edges are tracked in [Up next](#up-next) below rather than blocking phase completion.
 
 ## MVP Goal
 
@@ -76,6 +85,38 @@ A **console-based editor** that can:
 - Save changes back to disk
 - Load the game DLL, run game logic in-process with Play / Pause / Stop controls
 - Detect and react to game DLL recompilation (hot-reload)
+
+---
+
+## Up next
+
+Phase 8 (Console Editor MVP) is done. Before starting Phase 9 (rendering abstraction
+layer), clear the following leftover/cleanup items first. Grouped by source; check
+`REVIEW_TODO.txt` and `TODO_NEXT.txt` for the original, more detailed write-ups.
+
+### Build / CMake bugs
+- [ ] `cmake/CompilerOptions.cmake:34` — `$<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN NOMINMAX>` is a single space-separated string, not two definitions. Either separate with `;` inside the generator expression, or switch to a plain `if(WIN32) target_compile_definitions(...)`.
+- [ ] `game-runner/CMakeLists.txt` — remove the empty `PUBLIC FILE_SET CXX_MODULES FILES` block (target has no modules); fix inconsistent tabs/spaces indentation.
+
+### Encoding / path handling
+- [ ] Rename `Utility::MultiByteToWide` → `Utf8ToWide` (it hard-codes `CP_UTF8`; name currently implies ANSI). Update call sites (`DllLoader.cpp`, `main.cpp`).
+- [ ] `game-runner`'s `main(int argc, char* argv[])` receives `argv` in the ANSI code page, not UTF-8 — feeding it to a UTF-8 converter garbles non-ASCII paths. Switch to `wmain(int, wchar_t*[])` and keep paths as `std::wstring`/`std::filesystem::path` throughout.
+- [ ] Add error handling to the UTF-8/wide conversion helpers (e.g. `MB_ERR_INVALID_CHARS`) instead of silently returning an empty string on invalid input.
+
+### Known partial/stubbed behavior (tracked as ⚠️ Partial in Progress table)
+- [ ] P5-02 `AssetDatabase::PopulateFromFolder` — no rollback of `guidsByPath`/`pathsByGuid` if a scan aborts partway; `DoesMatchFilter` partial-import filtering is a stub that always returns `true`.
+- [ ] P5-04 `DirectoryWatcher` — fix the two known bugs: (a) `Poll(true)` is called after `WaitForMultipleObjects` already consumed the overlapped event, causing changes to be reported one event late and dropping the final pre-quit change — call `Poll(false)` instead; (b) `Context::~Context()` doesn't `CloseHandle` the quit-request event before nulling it (handle leak). Also still needs to return a `(relative path, change kind)` list rather than just logging, so `AssetDatabase` can consume it directly.
+- [ ] P5-05 `AssetDatabase::Update` — `Modified` file events are currently a no-op (no asset reload); no pub/sub broadcast exists yet to invalidate live `AssetRef<T>` holders when their asset changes or is removed.
+- [ ] P6-03 fixed-timestep accumulator — add a spiral-of-death clamp on the catch-up loop in `EngineInstance_Impl::Update` (an unusually large `dt`, e.g. after a slow hot-reload, can currently trigger an unbounded number of fixed steps in one call).
+- [ ] P7-02/03/04 `game-runner` — `EngineInstance_Impl::IsQuitting()` (`EngineInstance.cpp`) is still a stub returning `false`, so `Run()` can never exit normally; implement real quit signaling. Also implement CLI argument parsing beyond the single positional DLL path (project path, scene, window config), and explicit `Shutdown()`/scene teardown before DLL unload.
+- [ ] P3-09 scene round-trip test (`RunSceneTest`) — only asserts GameObject count/names/GUIDs; extend to assert component field *values* survive the round trip too.
+
+### Code style / repo hygiene
+- [ ] `DataFile.ixx` — condense the long C4251-justification comment (currently column-0, unclosed parenthesis) to ~4 lines; fix trailing whitespace on the `#pragma warning(disable: 4251)` line.
+- [ ] `DataFile.cpp` — minor style nits: inconsistent spacing in `DataFile_Impl(const DataFile_Impl & other)`; use `const auto&` instead of a copy for `nameAsString` in `operator[]`.
+- [ ] Add `EngineLog.txt` to `.gitignore` (currently shows up as untracked in `git status`).
+- [ ] `.bat` scripts: `echo "cmake ..."` prints literal quotes — use `@echo cmake ...`. Hardcoded `Debug` config / SDK path assumptions should be called out in `docs/project-setup.txt`.
+- [ ] Decide and document the policy for `DataFile::at()` throwing `std::out_of_range` on a missing key at serialization/load boundaries (Scene load, hot-reload snapshot restore) — confirm every load-path call site guards with `HasChild()` first or deliberately wants the throw.
 
 ---
 
