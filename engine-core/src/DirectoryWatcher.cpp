@@ -155,12 +155,12 @@ namespace Engine
 		return _isValid;
 	}
 
-	bool DirectoryWatcher::Poll()
+	bool DirectoryWatcher::Poll(bool waitForCompletion)
 	{
 		assert(_isValid && "Trying to poll invalid DirectoryWatcher");
 
 		DWORD numberOfBytesTransferred{ 0 };
-		BOOL bWait{ FALSE };
+		BOOL bWait{ waitForCompletion };
 		std::wstring oldName{};
 
 		const auto getResultSuccess = GetOverlappedResult(

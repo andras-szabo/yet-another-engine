@@ -1933,7 +1933,7 @@ void PollDirectoryChanges(Editor::Context& context)
 
 		if (waitForChangesOrQuit == WAIT_OBJECT_0)
 		{
-			watcher.Poll();
+			watcher.Poll(false);
 		}
 		else
 		{

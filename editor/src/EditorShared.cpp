@@ -25,6 +25,10 @@ namespace Editor
 {
 	Context::~Context()
 	{
+		// Joining the thread manually, because it waits on _quitRequestedEventHandle, 
+		// which is closed in here; so not-joining the thread would mean that it would
+		// try to use a closed handle, which is undefined behaviour.
+
 		if (_directoryWatcherThread.joinable())
 		{
 			_directoryWatcherThread.join();
@@ -203,7 +207,7 @@ namespace Editor
 		StopProjectDirectoryWatcher();
 
 		std::lock_guard<std::mutex> l{ _editorStateLock };
-		_directoryWatcherThread = std::thread(PollDirectoryChanges, std::ref(*this));
+		_directoryWatcherThread = std::jthread(PollDirectoryChanges, std::ref(*this));
 	}
 
 	void Context::StopProjectDirectoryWatcher()
@@ -271,7 +275,7 @@ namespace Editor
 
 			if (waitForChangesOrQuit == WAIT_OBJECT_0)
 			{
-				watcher.Poll();
+				watcher.Poll(false);
 			}
 			else
 			{

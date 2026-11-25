@@ -168,7 +168,7 @@ namespace Editor
         std::mutex _hotreloadManagerLock;
         HotReloadManager _hotReloadManager;
 
-        std::thread _directoryWatcherThread;
+        std::jthread _directoryWatcherThread;
 
         static void PollDirectoryChanges(Context& context);
     };
