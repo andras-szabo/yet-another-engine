@@ -502,8 +502,23 @@ namespace Engine
 		std::unordered_map<GUID, std::string> pathsByGuid;
 		std::unordered_map<std::string, GUID> guidsByPath;
 
-		for (const auto& entry : fs::recursive_directory_iterator(path))
+		std::error_code errorCode;
+
+		// Range-based for would also work here, but that would not be able to catch
+		// errors while iterating the directory, hence the manual for, and it.increment(errorCode),
+		// instead of ++it.
+
+		for (auto it = fs::recursive_directory_iterator(path, errorCode); 
+			it != fs::recursive_directory_iterator();
+			it.increment(errorCode))
 		{
+			if (errorCode)
+			{
+				return Engine::Unexpected{ Engine::Error{ Engine::ErrorType::File, std::format("Error while iterating directory: {}", errorCode.message()) } };
+			}
+
+			const auto& entry = *it;
+
 			LOG_TRACE("Path: {}", entry.path().string());
 
 			if (DoesMatchFilter(entry))
