@@ -199,7 +199,7 @@ void RunTests()
 
 void RunFileWatcherTest()
 {
-	Engine::FileWatcher watcher(L"C:\\Users\\andra", L"todo.txt");
+	Engine::FileWatcher watcher("C:\\Users\\andra", "todo.txt");
 
 	if (watcher.IsValid())
 	{
@@ -494,7 +494,7 @@ Editor::CommandReturnType Status([[maybe_unused]] const std::vector<std::string>
 	std::wcout << "  Game template path: " << contextState.gameTemplatePath << "\n";
 	std::wcout << "  SDK path: " << contextState.sdkPath << "\n";
 	std::wcout << "  CMake path: " << contextState.cmakePath << "\n";
-	std::wcout << "  Project path: " << contextState.projectPath << "\n";
+	std::println("  Project path: {}", contextState.projectPath);
 
 	const auto projectSettings = context.GetProjectSettings();
 	std::cout << "  Project settings:\n";
@@ -613,7 +613,7 @@ Editor::CommandReturnType OpenProject(const std::vector<std::string>& commandAnd
 			return std::unexpected{ "Cannot open project while in play mode." };
 		}
 
-		if (context.GetContextState().projectPath == projectFolderPath.wstring())
+		if (context.GetContextState().projectPath == projectFolderPath.string())
 		{
 			LOG_INFO("Project already open, nothing to do.");
 			return {};
@@ -699,7 +699,7 @@ Editor::CommandReturnType OpenProject(const std::vector<std::string>& commandAnd
 	Engine::EngineInstance::Initialize();
 	LOG_INFO("Engine initialized successfully.");
 
-	context.SetProjectPath(projectFolderPath.wstring());
+	context.SetProjectPath(projectFolderPath.string());
 	context.StartProjectDirectoryWatcher();
 
 	// 2. Find editorSettings.udf. This shall hold things like: what's the scene we should open;
@@ -863,7 +863,7 @@ Editor::CommandReturnType CreateProject(const std::vector<std::string>& commandA
 	// that this has happened
 
 	Engine::EngineInstance::Initialize();
-	context.SetProjectPath(projectFolderPath.wstring());
+	context.SetProjectPath(projectFolderPath.string());
 
 	return {};
 }
@@ -904,6 +904,8 @@ Editor::CommandReturnType SetComponentField(const std::vector<std::string>& comm
 	Editor::Context& context,
 	Editor::IEditorTask& task)
 {
+	Editor::TaskProgressScope _(task);
+
 	if (context.HasProjectOpen() == false)
 	{
 		return std::unexpected{ "No project open." };
@@ -1134,7 +1136,7 @@ Editor::CommandReturnType AddComponent(const std::vector<std::string>& commandAn
 	return {};
 }
 
-Editor::CommandReturnType ListComponents(const std::vector<std::string>& commandAndArguments,
+Editor::CommandReturnType ListComponents([[maybe_unused]]const std::vector<std::string>& commandAndArguments,
 	Editor::Context& context,
 	Editor::IEditorTask& task)
 {
@@ -1906,8 +1908,7 @@ void PollDirectoryChanges(Editor::Context& context)
 		}
 	}
 
-	const auto pathAsUtf8 = Engine::WideToUtf8(context.GetContextState().projectPath);
-	LOG_INFO("Project path set; starting directory watcher for {}", pathAsUtf8);
+	LOG_INFO("Project path set; starting directory watcher for {}", context.GetContextState().projectPath);
 
 	auto watcher = Engine::DirectoryWatcher{ context.GetContextState().projectPath };
 
@@ -2038,7 +2039,7 @@ int main()
 	contextState.sdkPath = L"C:\\Dev\\EngineSdk\\sdk";
 
 	//contextState.projectPath = L"C:\\Users\\andra\\source\\Foo";
-	contextState.projectPath = L"";
+	contextState.projectPath = "";
 
 	context.CollectExecutorInfo(executors_);
 

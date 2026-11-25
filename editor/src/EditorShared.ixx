@@ -89,7 +89,7 @@ namespace Editor
         std::wstring gameTemplatePath{ L"" };
         std::wstring sdkPath{ L"" };
         std::wstring cmakePath{ L"" };
-        std::wstring projectPath{ L"" };
+        std::string projectPath{ "" };
         bool isQuitRequested{ false };
     };
 
@@ -119,7 +119,7 @@ namespace Editor
 
         std::unordered_map<std::string, std::string> editorCommands;
         void CollectExecutorInfo(const std::unordered_map<std::string, Editor::EditorCommand>& executors);
-        void SetProjectPath(std::wstring_view projectPath);
+        void SetProjectPath(std::string_view projectPath);
 
         ContextState GetContextState();
         void SetContextState(const ContextState& state);

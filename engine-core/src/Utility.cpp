@@ -61,20 +61,20 @@ namespace Engine
 		return std::format("{}.{}.{}", major, minor, patch);
 	}
 
-	std::wstring MultiByteToWide(std::string_view multiByte)
+	std::wstring Utf8ToWide(std::string_view utf8string)
 	{
-		if (multiByte.empty())
+		if (utf8string.empty())
 		{
 			return {};
 		}
 		
 		const int sizeNeeded = MultiByteToWideChar(
-			CP_UTF8, 0, multiByte.data(), static_cast<int>(multiByte.size()),
+			CP_UTF8, 0, utf8string.data(), static_cast<int>(utf8string.size()),
 			nullptr, 0);
 
 		std::wstring result(sizeNeeded, L'\0');
 		MultiByteToWideChar(
-			CP_UTF8, 0, multiByte.data(), static_cast<int>(multiByte.size()),
+			CP_UTF8, 0, utf8string.data(), static_cast<int>(utf8string.size()),
 			result.data(), sizeNeeded);
 
 		return result;

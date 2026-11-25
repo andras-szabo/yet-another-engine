@@ -36,5 +36,5 @@ namespace Engine
 	// which silently corrupt any non-ASCII characters.
 	export ENGINE_CORE_API std::string WideToUtf8(std::wstring_view wide);
 
-	export ENGINE_CORE_API std::wstring MultiByteToWide(std::string_view multiByte);
+	export ENGINE_CORE_API std::wstring Utf8ToWide(std::string_view multiByte);
 } // namespace Engine

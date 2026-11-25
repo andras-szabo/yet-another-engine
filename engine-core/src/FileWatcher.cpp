@@ -9,8 +9,13 @@ module FileWatcher;
 
 #if defined ( __INTELLISENSE__ )
 #include <filesystem>
+#include <string>
+#include <string_view>
+#include "Utility.ixx";
 #else
 import Logger;
+import Utility;
+
 import std;
 #endif
 
@@ -20,20 +25,22 @@ namespace Engine
 	{
 	}
 
-	FileWatcher::FileWatcher(const std::wstring& directoryPath,
-		std::wstring_view targetFileName)
-		: _watchedDirectoryPath{ directoryPath }, _watchedFileName{ targetFileName }
+	FileWatcher::FileWatcher(const std::string_view directoryPath,
+		const std::string_view targetFileName) : _watchedDirectoryPath{ directoryPath },
+		  _watchedFileName{ targetFileName }
 	{
 		Setup(directoryPath, targetFileName);
 	}
 
-	void FileWatcher::Setup(const std::wstring& directoryPath,
-		std::wstring_view targetFileName)
+	void FileWatcher::Setup(const std::string_view directoryPath,
+		const std::string_view targetFileName)
 	{
 		_watchedDirectoryPath = directoryPath;
 		_watchedFileName = targetFileName;
 
-		LPCWSTR lpFileName{ directoryPath.c_str() };
+		const std::wstring directoryAsWide = Engine::Utf8ToWide(directoryPath);
+
+		LPCWSTR lpFileName{ directoryAsWide.c_str() };
 		DWORD dwDesiredAccess{ FILE_LIST_DIRECTORY };
 		DWORD dwShareMode{ FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE };
 		LPSECURITY_ATTRIBUTES lpSecurityAttributes{ NULL };
@@ -217,11 +224,15 @@ namespace Engine
 				case FILE_ACTION_REMOVED:
 				case FILE_ACTION_RENAMED_OLD_NAME:
 				case FILE_ACTION_MODIFIED:
-					if (std::wstring_view(evt->FileName, name_len) == _watchedFileName)
+				{
+					const std::wstring_view fileNameAsWide{ evt->FileName, name_len };
+					const std::string fileNameAsUtf8 = Engine::WideToUtf8(fileNameAsWide);
+					if (fileNameAsUtf8 == _watchedFileName)
 					{
 						fileDidChange = true;
 					}
 					break;
+				}
 
 				default:
 					// TODO?

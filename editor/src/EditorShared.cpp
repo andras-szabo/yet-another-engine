@@ -115,10 +115,10 @@ namespace Editor
 		_contextState = state;
 	}
 
-	void Context::SetProjectPath(std::wstring_view projectPath)
+	void Context::SetProjectPath(std::string_view projectPath)
 	{
 		std::lock_guard<std::mutex> l{ _contextLock };
-		_contextState.projectPath = std::wstring(projectPath);
+		_contextState.projectPath = std::string(projectPath);
 	}
 
 	ProjectSettings Context::GetProjectSettings()
@@ -171,13 +171,13 @@ namespace Editor
 		std::lock_guard<std::mutex> l{ _hotreloadManagerLock };
 
 		std::filesystem::path dllFolderPath { _contextState.projectPath };
-		dllFolderPath /= Engine::MultiByteToWide(_projectSettings.DllFolderPath());
+		dllFolderPath /= _projectSettings.DllFolderPath();
 
-		const std::wstring fileName = Engine::MultiByteToWide(_projectSettings.DllFileName());
+		//const std::wstring fileName = Engine::MultiByteToWide(_projectSettings.DllFileName());
 
 		std::println("Loading project DLL from folder: {}, file name: {}", dllFolderPath.string(), _projectSettings.DllFileName());
 
-		return _hotReloadManager.LoadGameDll(dllFolderPath.wstring(), fileName);
+		return _hotReloadManager.LoadGameDll(dllFolderPath.string(), _projectSettings.DllFileName());
 	}
 
 	void Context::RequestEditorPlayModeStateChange(EditorPlayState requestedState)
@@ -243,8 +243,7 @@ namespace Editor
 			}
 		}
 
-		const auto pathAsUtf8 = Engine::WideToUtf8(context.GetContextState().projectPath);
-		LOG_INFO("Project path set; starting directory watcher for {}", pathAsUtf8);
+		LOG_INFO("Project path set; starting directory watcher for {}", context.GetContextState().projectPath);
 
 		auto watcher = Engine::DirectoryWatcher{ context.GetContextState().projectPath };
 		std::function<void(const Engine::FileChangeEvent&)> callback = [&context](const Engine::FileChangeEvent& event)

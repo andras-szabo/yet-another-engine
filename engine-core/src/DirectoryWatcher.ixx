@@ -28,7 +28,7 @@ namespace Engine
 		/// </summary>
 		/// <param name="directoryPath">The directory path; don't forget to escape backslashes.</param>
 		/// <returns></returns>
-		ENGINE_CORE_API DirectoryWatcher(const std::wstring& directoryPath);
+		ENGINE_CORE_API DirectoryWatcher(const std::string_view directoryPath);
 
 		DirectoryWatcher(const DirectoryWatcher& other) = delete;
 		DirectoryWatcher& operator=(const DirectoryWatcher& other) = delete;
@@ -37,7 +37,7 @@ namespace Engine
 		DirectoryWatcher& operator=(DirectoryWatcher&& other) = delete;
 
 		ENGINE_CORE_API ~DirectoryWatcher();
-		ENGINE_CORE_API void Setup(const std::wstring& directoryPath);
+		ENGINE_CORE_API void Setup(const std::string_view directoryPath);
 		ENGINE_CORE_API void Teardown();
 
 		ENGINE_CORE_API bool IsValid() const;
@@ -53,7 +53,7 @@ namespace Engine
 		OVERLAPPED _overlappedIO{};
 		DWORD* _changeBuffer{ nullptr };
 		bool _isValid{ false };
-		std::wstring _watchedDirectoryPath;
+		std::string _watchedDirectoryPath;
 		std::vector<std::function<void(const FileChangeEvent&)>> _callbacks;
 
 		void StartWatching();

@@ -45,8 +45,8 @@ namespace Engine
 		/// </summary>
 		/// <param name="directoryPath">The directory path; don't forget to escape backslashes.</param>
 		/// <param name="targetFileName">The target file name.</param>
-		ENGINE_CORE_API FileWatcher(const std::wstring& directoryPath,
-									std::wstring_view targetFileName);
+		ENGINE_CORE_API FileWatcher(const std::string_view directoryPath,
+									const std::string_view targetFileName);
 
 		FileWatcher(const FileWatcher& other) = delete;
 		FileWatcher& operator=(const FileWatcher& other) = delete;
@@ -56,7 +56,7 @@ namespace Engine
 
 		ENGINE_CORE_API ~FileWatcher();
 
-		ENGINE_CORE_API void Setup(const std::wstring& directoryPath, std::wstring_view targetFileName);
+		ENGINE_CORE_API void Setup(const std::string_view directoryPath, const std::string_view targetFileName);
 		ENGINE_CORE_API void Teardown();
 
 		ENGINE_CORE_API bool Poll();
@@ -68,8 +68,8 @@ namespace Engine
 		OVERLAPPED _overlappedIO {};
 		DWORD* _changeBuffer { nullptr };
 		bool _isValid{ false };
-		std::wstring _watchedDirectoryPath;
-		std::wstring _watchedFileName;
+		std::string _watchedDirectoryPath;
+		std::string _watchedFileName;
 
 		void StartWatching();
 		constexpr int GetChangeBufferSize() const;

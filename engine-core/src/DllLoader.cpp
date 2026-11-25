@@ -56,7 +56,7 @@ namespace Engine
 
 	Expected<void> DllLoader::Load(const std::string& path)
 	{
-		return Load(MultiByteToWide(path));
+		return Load(Utf8ToWide(path));
 	}
 
 	// "When specifying a path, be sure to use backslashes,

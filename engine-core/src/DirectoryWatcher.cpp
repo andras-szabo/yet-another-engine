@@ -30,7 +30,7 @@ namespace Engine
 	{
 	}
 
-	DirectoryWatcher::DirectoryWatcher(const std::wstring& directoryPath)
+	DirectoryWatcher::DirectoryWatcher(const std::string_view directoryPath)
 		: _watchedDirectoryPath { directoryPath }
 	{
 		Setup(directoryPath);
@@ -46,10 +46,11 @@ namespace Engine
 		return _overlappedIO.hEvent;
 	}
 
-	void DirectoryWatcher::Setup(const std::wstring& directoryPath)
+	void DirectoryWatcher::Setup(const std::string_view directoryPath)
 	{
 		_watchedDirectoryPath = directoryPath;
-		LPCWSTR lpFileName{ directoryPath.c_str() };
+		const std::wstring asWstring = Engine::Utf8ToWide(directoryPath);
+		LPCWSTR lpFileName{ asWstring.c_str() };
 		DWORD dwDesiredAccess{ FILE_LIST_DIRECTORY };
 		DWORD dwShareMode{ FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE };
 		LPSECURITY_ATTRIBUTES lpSecurityAttributes{ NULL };

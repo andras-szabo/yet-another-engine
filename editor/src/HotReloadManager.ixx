@@ -40,8 +40,8 @@ namespace Editor
 	export class HotReloadManager
 	{
 	public:
-		Engine::Expected<void> LoadGameDll(const std::wstring& dllFolderPath,
-										   const std::wstring& fileName);
+		Engine::Expected<void> LoadGameDll(const std::string_view dllFolderPath,
+										   const std::string_view fileName);
 
 		Engine::Expected<void> UnloadGameDll();
 		Engine::Expected<void> ReloadDll();
@@ -52,14 +52,14 @@ namespace Editor
 		void Update();
 
 	private:
-		Engine::Expected<std::filesystem::path> CopyDllToShadow(const std::wstring& dllFolderPath, const std::wstring& fileName) const;
+		Engine::Expected<std::filesystem::path> CopyDllToShadow(const std::string_view dllFolderPath, const std::string_view fileName) const;
 		Engine::Expected<Engine::DataFile> SerializeCurrentScene() const;
 
 		Engine::DllLoader _loader{};
 		Engine::FileWatcher _watcher{};
 
-		std::wstring _dllFolderPath{};
-		std::wstring _fileName{};
+		std::string _dllFolderPath{};
+		std::string _fileName{};
 	};
 } // namespace Editor
 
@@ -132,8 +132,8 @@ namespace Editor
 		return {};
 	}
 
-	Engine::Expected<void> HotReloadManager::LoadGameDll(const std::wstring& dllFolderPath,
-		const std::wstring& fileName)
+	Engine::Expected<void> HotReloadManager::LoadGameDll(const std::string_view dllFolderPath,
+		const std::string_view fileName)
 	{
 		Engine::DataFile previousScene;
 
@@ -210,8 +210,8 @@ namespace Editor
 		return {};
 	}
 
-	Engine::Expected<fs::path> HotReloadManager::CopyDllToShadow(const std::wstring& dllFolderPath,
-		const std::wstring& fileName) const
+	Engine::Expected<fs::path> HotReloadManager::CopyDllToShadow(const std::string_view dllFolderPath,
+		const std::string_view fileName) const
 	{
 		fs::path sourcePath{ dllFolderPath };
 		sourcePath /= fileName;
@@ -222,7 +222,7 @@ namespace Editor
 		}
 
 		fs::path tempPath{ fs::temp_directory_path() };
-		const auto shadowDllName = std::format(L"shadow_{}", fileName);
+		const auto shadowDllName = std::format("shadow_{}", fileName);
 		tempPath /= shadowDllName;
 
 		const auto copyOptions = fs::copy_options::overwrite_existing;
