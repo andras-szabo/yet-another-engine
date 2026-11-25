@@ -95,8 +95,8 @@ layer), clear the following leftover/cleanup items first. Grouped by source; che
 `REVIEW_TODO.txt` and `TODO_NEXT.txt` for the original, more detailed write-ups.
 
 ### Build / CMake bugs
-- [ ] `cmake/CompilerOptions.cmake:34` — `$<$<PLATFORM_ID:Windows>:WIN32_LEAN_AND_MEAN NOMINMAX>` is a single space-separated string, not two definitions. Either separate with `;` inside the generator expression, or switch to a plain `if(WIN32) target_compile_definitions(...)`.
-- [ ] `game-runner/CMakeLists.txt` — remove the empty `PUBLIC FILE_SET CXX_MODULES FILES` block (target has no modules); fix inconsistent tabs/spaces indentation.
+- [x] `cmake/CompilerOptions.cmake:34` — fixed: `WIN32_LEAN_AND_MEAN;NOMINMAX` (semicolon-separated) now expands to two separate definitions. Verified via reconfigure + Debug build.
+- [x] `game-runner/CMakeLists.txt` — removed the empty `PUBLIC FILE_SET CXX_MODULES FILES` block; fixed tab/space indentation to consistent 4-space. Verified with a reconfigure + build of `game-runner`.
 
 ### Encoding / path handling
 - [ ] Rename `Utility::MultiByteToWide` → `Utf8ToWide` (it hard-codes `CP_UTF8`; name currently implies ANSI). Update call sites (`DllLoader.cpp`, `main.cpp`).

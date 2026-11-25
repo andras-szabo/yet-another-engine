@@ -2,10 +2,7 @@ add_executable(game-runner)
 
 target_sources(game-runner
     PRIVATE
-	  src/main.cpp
-
-	PUBLIC
-	  FILE_SET CXX_MODULES FILES)
+    src/main.cpp)
 
 target_link_libraries(game-runner PRIVATE engine-core)
 
