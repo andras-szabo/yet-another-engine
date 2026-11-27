@@ -86,9 +86,9 @@ namespace Editor
 
     export struct ContextState
     {
-        std::wstring gameTemplatePath{ L"" };
-        std::wstring sdkPath{ L"" };
-        std::wstring cmakePath{ L"" };
+        std::string gameTemplatePath{ "" };
+        std::string sdkPath{ "" };
+        std::string cmakePath{ "" };
         std::string projectPath{ "" };
         bool isQuitRequested{ false };
     };

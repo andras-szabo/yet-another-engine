@@ -491,9 +491,9 @@ Editor::CommandReturnType Status([[maybe_unused]] const std::vector<std::string>
 	std::cout << "  Has project open? " << (context.HasProjectOpen() ? "Yes" : "No") << "\n";
 	std::cout << "  Quit requested? " << (contextState.isQuitRequested ? "Yes" : "No") << "\n";
 	std::cout << "  Editor play state: " << editorState.ToString() << "\n";
-	std::wcout << "  Game template path: " << contextState.gameTemplatePath << "\n";
-	std::wcout << "  SDK path: " << contextState.sdkPath << "\n";
-	std::wcout << "  CMake path: " << contextState.cmakePath << "\n";
+	std::println("  Game template path: {}", contextState.gameTemplatePath);
+	std::println("  SDK path: {}", contextState.sdkPath);
+	std::println("  CMake path: {}", contextState.cmakePath);
 	std::println("  Project path: {}", contextState.projectPath);
 
 	const auto projectSettings = context.GetProjectSettings();
@@ -821,19 +821,20 @@ Editor::CommandReturnType CreateProject(const std::vector<std::string>& commandA
 	std::cout << "...done!\n";
 	std::cout << "Now generating project...\n";
 
-	const std::wstring cmakePathWithSpaces = std::format(L"\"{}\"", contextState.cmakePath);
-	std::wstring cmdLine{ cmakePathWithSpaces + L" -B build -G \"Visual Studio 18 2026\" -DENGINE_CORE_SDK_DIR=" + contextState.sdkPath };
+	const std::string cmakePathWithSpaces = std::format("\"{}\"", contextState.cmakePath);
+	std::string cmdLine{ cmakePathWithSpaces + " -B build -G \"Visual Studio 18 2026\" -DENGINE_CORE_SDK_DIR=" + contextState.sdkPath };
 
 	STARTUPINFOW startupInfo{};
 	startupInfo.cb = sizeof(startupInfo);
 
 	PROCESS_INFORMATION processInfo{};
 
-	const auto workingPath = projectFolderPath.wstring();
+	const auto cmakePath = Utf8ToWide(contextState.cmakePath);
+	auto cmdLineWide = Utf8ToWide(cmdLine);
 
 	if (!CreateProcessW(
-		contextState.cmakePath.data(),
-		cmdLine.data(),
+		cmakePath.data(),
+		cmdLineWide.data(),
 		nullptr,
 		nullptr,
 		FALSE,
@@ -1801,7 +1802,7 @@ void TryExecute(const std::vector<std::string>& tokens,
 	}
 }
 
-std::expected<std::wstring, std::wstring> GetVSBundledCmakePath()
+std::expected<std::string, std::string> GetVSBundledCmakePath()
 {
 	// Since VS 2017+, every VS installer places vswhere.exe at a fixed, edition-independent
 	// path: C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe.
@@ -1817,7 +1818,7 @@ std::expected<std::wstring, std::wstring> GetVSBundledCmakePath()
 	HANDLE writePipe{ nullptr };
 	if (!CreatePipe(&readPipe, &writePipe, &sa, 0))
 	{
-		return std::unexpected{ L"Couldn't create pipe." };
+		return std::unexpected{ "Couldn't create pipe." };
 	}
 
 	SetHandleInformation(readPipe, HANDLE_FLAG_INHERIT, 0);
@@ -1849,7 +1850,7 @@ std::expected<std::wstring, std::wstring> GetVSBundledCmakePath()
 	{
 		CloseHandle(readPipe);
 		const auto errorCode = GetLastError();
-		return std::unexpected{ std::format(L"Process invocation error: {}", errorCode) };
+		return std::unexpected{ std::format("Process invocation error: {}", errorCode) };
 	}
 
 	std::wstring output;
@@ -1880,7 +1881,7 @@ std::expected<std::wstring, std::wstring> GetVSBundledCmakePath()
 
 	output += L"\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe";
 
-	return output;
+	return WideToUtf8(output);
 }
 
 void PollDirectoryChanges(Editor::Context& context)
@@ -2035,10 +2036,8 @@ int main()
 	Editor::Context context;
 
 	Editor::ContextState contextState;
-	contextState.gameTemplatePath = L"C:\\Users\\andra\\source\\repos\\Engine\\game-template";
-	contextState.sdkPath = L"C:\\Dev\\EngineSdk\\sdk";
-
-	//contextState.projectPath = L"C:\\Users\\andra\\source\\Foo";
+	contextState.gameTemplatePath = "C:\\Users\\andra\\source\\repos\\Engine\\game-template";
+	contextState.sdkPath = "C:\\Dev\\EngineSdk\\sdk";
 	contextState.projectPath = "";
 
 	context.CollectExecutorInfo(executors_);
@@ -2046,12 +2045,12 @@ int main()
 	const auto vsBundledCMakePath = GetVSBundledCmakePath();
 	if (vsBundledCMakePath.has_value())
 	{
-		std::wcout << "Awesome!; cmake path: " << vsBundledCMakePath.value() << "\n";
+		std::println("  Awesome!; cmake path: {}", vsBundledCMakePath.value());
 		contextState.cmakePath = vsBundledCMakePath.value();
 	}
 	else
 	{
-		std::wcout << "Failed to get VS-bundled cmake path. Error: " << vsBundledCMakePath.error() << "\n";
+		std::println("Failed to get VS-bundled cmake path. Error: {}", vsBundledCMakePath.error());
 	}
 
 	context.SetContextState(contextState);
