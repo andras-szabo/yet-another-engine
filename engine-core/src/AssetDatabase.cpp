@@ -53,6 +53,8 @@ namespace Engine
 		Engine::Expected<std::shared_ptr<void>> LoadAsset(const Engine::GUID guid);
 		Engine::Expected<std::shared_ptr<void>> LoadAsset(const std::string_view path);
 
+		Engine::Expected<void> SaveAsset(const Engine::GUID guid);
+
 		Engine::Expected<void> CreateNewAsset(const std::string_view path, AssetType assetType);
 
 		bool IsAssetLoaded(const Engine::GUID guid) const;
@@ -80,6 +82,18 @@ namespace Engine
 	bool AssetDatabase::ReleaseAsset(const Engine::GUID guid)
 	{
 		return _impl->ReleaseAsset(guid);
+	}
+
+	Engine::Expected<Engine::GUID> AssetDatabase::GetGuidByPath(std::string_view path) const
+	{
+		//TODO can we improve this? do lookup w/o string construction?
+		const std::string pathAsString{ path };
+		const auto guidByPath = _impl->guidsByPath.find(pathAsString);
+		if (guidByPath != _impl->guidsByPath.end())
+		{
+			return guidByPath->second;
+		}
+		return Engine::Unexpected({ Engine::ErrorType::NotFound, "Asset not found." });
 	}
 
 	Engine::Expected<void> AssetDatabase::RegisterAssetLoader(const std::string& extension,
@@ -220,6 +234,11 @@ namespace Engine
 	const std::unordered_map<std::string, Engine::GUID>& AssetDatabase::GetAssetGUIDsByPath() const
 	{
 		return _impl->guidsByPath;
+	}
+
+	Engine::Expected<void> AssetDatabase::SaveAsset(Engine::GUID guid)
+	{
+		return _impl->SaveAsset(guid);
 	}
 
 	Engine::Expected<void> AssetDatabase::TryRenameAsset(const std::filesystem::directory_entry& entry,
@@ -604,6 +623,7 @@ namespace Engine
 		return true;
 	}
 
+
 	Engine::GUID AssetDatabase::CreateAssetMetaFile(Engine::AssetType assetType,
 		const std::filesystem::path& metaFilePath,
 		std::optional<Engine::GUID> guid) const
@@ -710,6 +730,28 @@ namespace Engine
 		return {};
 	}
 
+	Engine::Expected<void> AssetDatabase_Impl::SaveAsset(const Engine::GUID guid)
+	{
+		const auto pathIt = pathsByGuid.find(guid);
+		if (pathIt == pathsByGuid.end())
+		{
+			return Engine::Unexpected({ Engine::ErrorType::File, "No path found for the given asset GUID." });
+		}
+		const auto loadedAssetIt = _loadedAssetsByGUID.find(guid);
+		if (loadedAssetIt == _loadedAssetsByGUID.end() || loadedAssetIt->second.expired())
+		{
+			return Engine::Unexpected({ Engine::ErrorType::File, "No loaded asset found for the given asset GUID." });
+		}
+		const auto extension = std::filesystem::path(pathIt->second).extension().string();
+		const auto saverIt = _saverFunctionsByExtension.find(extension);
+		if (saverIt == _saverFunctionsByExtension.end())
+		{
+			return Engine::Unexpected({ Engine::ErrorType::Undefined, "No saver function registered for this file extension." });
+		}
+		const auto& saverFn = saverIt->second;
+		return saverFn(pathIt->second, loadedAssetIt->second.lock());
+	}
+
 	Engine::Expected<std::shared_ptr<void>> AssetDatabase_Impl::LoadAsset(const Engine::GUID guid)
 	{
 		// If the asset is already loaded, jolly good, let's return it.
@@ -765,8 +807,6 @@ namespace Engine
 			return loadedAssetPtr;
 		}
 
-		// ... and cache it before returning
-		_loadedAssetsByGUID.insert_or_assign(guid, loadedAssetPtr.value());
 		return loadedAssetPtr;
 	}
 
@@ -786,6 +826,15 @@ namespace Engine
 		{
 			return Engine::Unexpected({ Engine::ErrorType::Undefined, "Failed to load asset." });
 		}
+
+		const auto guidIt = guidsByPath.find(std::string(path));
+		if (guidIt == guidsByPath.end())
+		{
+			return Engine::Unexpected({ Engine::ErrorType::File, "No GUID found for the given asset path." });
+		}
+
+		const Engine::GUID guid = guidIt->second;
+		_loadedAssetsByGUID.insert_or_assign(guid, loadedAssetPtr);
 
 		return loadedAssetPtr;
 	}

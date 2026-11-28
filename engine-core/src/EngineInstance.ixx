@@ -5,11 +5,13 @@ module;
 export module EngineInstance;
 
 #if defined ( __INTELLISENSE__ )
+#include "Asset.ixx"
 #include "AssetDatabase.ixx"
 #include "IComponentStorage.ixx"
 #include "EngineError.ixx"
 #include "Scene.ixx"
 #else
+import Asset;
 import AssetDatabase;
 import ComponentStorage;
 import IComponentStorage;
@@ -34,9 +36,14 @@ namespace Engine
 		static EngineInstance& Get();
 		static IComponentStorage& GetComponentStorage();
 		static AssetDatabase& GetAssetDatabase();
+
 		static void SetActiveScene(Scene::Scene&& scene);		// TODO deprecate this
 		static void SetActiveScene(std::shared_ptr<Scene::Scene> scenePtr);
+		static void SetActiveScene(AssetRef<Scene::Scene>& sceneRef);
+
 		static const Scene::Scene& GetActiveScene();
+		static AssetRef<Scene::Scene> GetActiveSceneRef();
+
 		static Scene::Scene& GetActiveSceneRW();
 		static bool HasActiveScene();
 		static void UnloadActiveScene();

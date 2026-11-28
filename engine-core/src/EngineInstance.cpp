@@ -7,6 +7,7 @@ module;
 module EngineInstance;
 
 #if defined ( __INTELLISENSE__ )
+#include "Asset.ixx"
 #include "IComponentStorage.ixx"
 #include "EngineInstance.ixx"
 #include "Logger.ixx"
@@ -14,6 +15,7 @@ module EngineInstance;
 #include "Scene.ixx"
 #include "Serialization.ixx"
 #else
+import Asset;
 import DataFile;
 import Serialization;
 import Logger;
@@ -131,8 +133,6 @@ namespace Engine
 			{
 				LOG_INFO("Scene asset creator registered successfully.");
 			}
-
-			//_activeScene = new Engine::Scene::Scene(_componentStorage.get(), "UntitledScene");
 		}
 
 		~EngineInstance_Impl()
@@ -140,7 +140,7 @@ namespace Engine
 			_activeScene = nullptr;
 		}
 
-		void SetActiveScene(Scene::Scene && scene)
+		void SetActiveScene(Scene::Scene&& scene)
 		{
 			_activeScene = std::make_shared<Engine::Scene::Scene>(std::forward<Scene::Scene&&>(scene));
 		}
@@ -148,6 +148,11 @@ namespace Engine
 		void SetActiveScene(std::shared_ptr<Scene::Scene> scenePtr)
 		{
 			_activeScene = scenePtr;
+		}
+
+		void SetActiveScene(const Engine::AssetRef<Engine::Scene::Scene>& other)
+		{
+			_activeScene = other;
 		}
 
 		void Run();
@@ -161,7 +166,10 @@ namespace Engine
 		float CalculateDeltaTime() const;
 
 		std::unique_ptr<IComponentStorage> _componentStorage;
-		std::shared_ptr<Scene::Scene> _activeScene{ nullptr };
+
+		//std::shared_ptr<Scene::Scene> _activeScene{ nullptr };
+		Engine::AssetRef<Engine::Scene::Scene> _activeScene;
+		
 		Engine::AssetDatabase _assetDatabase;
 
 		double _elapsedSecondsSinceStarup{ 0.0 };
@@ -229,18 +237,27 @@ namespace Engine
 	const Scene::Scene& EngineInstance::GetActiveScene()
 	{
 		assert(_instance != nullptr && "Engine instance not initialized?");
-		assert(_instance->_impl->_activeScene != nullptr && "Active scene is not set.");
+		assert(_instance->_impl->_activeScene.Ptr() != nullptr && "Active scene is not set.");
 
-		return *(_instance->_impl->_activeScene);
+		return *(_instance->_impl->_activeScene.Ptr());
+	}
+
+	// static
+	AssetRef<Scene::Scene> EngineInstance::GetActiveSceneRef()
+	{
+		assert(_instance != nullptr && "Engine instance not initialized?");
+		assert(_instance->_impl->_activeScene.Ptr() != nullptr && "Active scene is not set.");
+
+		return _instance->_impl->_activeScene;
 	}
 
 	// static
 	Scene::Scene& EngineInstance::GetActiveSceneRW()
 	{
 		assert(_instance != nullptr && "Engine instance not initialized?");
-		assert(_instance->_impl->_activeScene != nullptr && "Active scene is not set.");
+		assert(_instance->_impl->_activeScene.Ptr() != nullptr && "Active scene is not set.");
 
-		return *(_instance->_impl->_activeScene);
+		return *(_instance->_impl->_activeScene.Ptr());
 	}
 
 	// static
@@ -253,7 +270,7 @@ namespace Engine
 	// static
 	bool EngineInstance::HasActiveScene()
 	{
-		return _instance != nullptr && _instance->_impl->_activeScene != nullptr;
+		return _instance != nullptr && _instance->_impl->_activeScene.Ptr() != nullptr;
 	}
 
 
@@ -269,6 +286,13 @@ namespace Engine
 	{
 		assert(_instance != nullptr && "Engine instance is not initialized!");
 		_instance->_impl->SetActiveScene(scenePtr);
+	}
+
+	// static
+	void EngineInstance::SetActiveScene(AssetRef<Scene::Scene>& sceneRef)
+	{
+		assert(_instance != nullptr && "Engine instance is not initialized!");
+		_instance->_impl->SetActiveScene(sceneRef);
 	}
 
 	EngineInstance::~EngineInstance()
@@ -381,10 +405,11 @@ namespace Engine
 		while (_elapsedSinceLastFixedUpdate >= _fixedUpdateStep)
 		{
 			_elapsedSinceLastFixedUpdate -= _fixedUpdateStep;
-			if (_activeScene != nullptr)
+			auto activeScenePtr = _activeScene.Ptr();
+			if (activeScenePtr != nullptr)
 			{
-				_activeScene->UpdateWorldTransforms();
-				for (auto& gameObject : _activeScene->GetAllGameObjects())
+				activeScenePtr->UpdateWorldTransforms();
+				for (auto& gameObject : activeScenePtr->GetAllGameObjects())
 				{
 					for (auto* component : gameObject->GetComponents())
 					{
@@ -398,11 +423,12 @@ namespace Engine
 		}
 
 		// Variable rate update step
-		if (_activeScene != nullptr)
+		if (_activeScene.Ptr() != nullptr)
 		{
-			_activeScene->UpdateWorldTransforms();
+			auto activeScenePtr = _activeScene.Ptr();
+			activeScenePtr->UpdateWorldTransforms();
 
-			for (auto& gameObject : _activeScene->GetAllGameObjects())
+			for (auto& gameObject : activeScenePtr->GetAllGameObjects())
 			{
 				for (auto* component : gameObject->GetComponents())
 				{

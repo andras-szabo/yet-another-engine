@@ -29,6 +29,17 @@ namespace Engine
 		AssetRef(GUID guid) : _guid(guid)
 		{}
 
+		AssetRef(GUID guid, std::shared_ptr<T> ptr) : _guid(guid), _ptr(ptr)
+		{}
+
+		AssetRef() = default;
+
+		AssetRef& operator=(std::shared_ptr<T> ptr) noexcept
+		{
+			Assign(ptr);
+			return *this;
+		}
+
 		GUID Guid() const;
 		T* Ptr();
 

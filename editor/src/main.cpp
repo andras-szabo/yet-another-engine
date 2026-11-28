@@ -1429,7 +1429,7 @@ Editor::CommandReturnType TryLoadScene(const std::vector<std::string>& commandAn
 	LOG_INFO("Loading scene from path: {}", scenePath.string());
 
 	auto sceneFuture = Engine::EngineInstance::GetAssetDatabase()
-		.LoadAssetByPath<Engine::Scene::Scene>(scenePath);
+		.LoadAssetRefByPath<Engine::Scene::Scene>(scenePath);
 
 	// Technically, a future can still throw on get
 	try
@@ -1449,7 +1449,6 @@ Editor::CommandReturnType TryLoadScene(const std::vector<std::string>& commandAn
 		return std::unexpected{ std::format("Exception while loading scene: {}", e.what()) };
 	}
 
-
 	return {};
 }
 
@@ -1468,16 +1467,31 @@ Editor::CommandReturnType TrySaveActiveScene([[maybe_unused]] const std::vector<
 		return std::unexpected{ "No scene active." };
 	}
 
-	const auto& activeScene = Engine::EngineInstance::GetActiveScene();
+	const auto activeSceneRef = Engine::EngineInstance::GetActiveSceneRef();
+	const auto saveResult = Engine::EngineInstance::GetAssetDatabase()
+		.SaveAsset(activeSceneRef.Guid());
+
+	if (!saveResult.has_value())
+	{
+		return std::unexpected{ std::format("Failed to save scene: {}", saveResult.error().message) };
+	}
+
+	return {};
+
+	//const auto& activeScene = Engine::EngineInstance::GetActiveScene();
 	// TODO: check if dirty. Dirty flag should probably not be a property of
 	// the scene itself; rather, the editor should keep track in a separate place
 	// whether the scene has been modified since last save. This is an editor feature;
 	// I don't want to litter the scene's runtime code with isDirty checks any time a 
 	// gameObject property is modified.
 
+
+	//std::println("Saving scene: {}; guid: {}", activeScene.GetSceneName(), activeScene.GetGUID());
+
+
 	// 1. Deserialize into a datafile
-	Engine::DataFile sceneFile;
-	Engine::SerializeScene(activeScene, sceneFile);
+	// Engine::DataFile sceneFile;
+    // Engine::SerializeScene(activeScene, sceneFile);
 
 	// 2. Save the datafile to disk
 	// Where to get the scenePath from?
@@ -1487,6 +1501,8 @@ Editor::CommandReturnType TrySaveActiveScene([[maybe_unused]] const std::vector<
 	//			- the editor should know where the scene was loaded from, and it should keep track of it.
 
 	// OK, for now, just save it as "currentScene.scene" in the project folder.
+
+	/*
 	std::filesystem::path scenePath{ context.GetContextState().projectPath };
 	scenePath /= std::format("{}.scene", activeScene.GetSceneName());
 
@@ -1500,6 +1516,7 @@ Editor::CommandReturnType TrySaveActiveScene([[maybe_unused]] const std::vector<
 
 
 	return std::unexpected{ "Failed to save scene." };
+	*/
 }
 
 Editor::CommandReturnType SceneName(const std::vector<std::string>& commandAndArguments,

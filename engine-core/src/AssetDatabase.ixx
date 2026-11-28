@@ -95,9 +95,16 @@ namespace Engine
 		std::future<Expected<std::shared_ptr<T>>> LoadAssetByPath(const std::filesystem::path& path);
 
 		template <typename T>
+		std::future<Expected<AssetRef<T>>> LoadAssetRefByPath(const std::filesystem::path& path);
+
+		Engine::Expected<void> SaveAsset(const Engine::GUID guid);
+
+		template <typename T>
 		bool ReleaseAsset(AssetRef<T>& assetRef);
 
 		bool ReleaseAsset(const Engine::GUID guid);
+
+		Engine::Expected<Engine::GUID> GetGuidByPath(std::string_view path) const;
 
 		Engine::Expected<void> RegisterAssetLoader(const std::string& extension, AssetLoaderFn loaderFn);
 		Engine::Expected<void> RegisterAssetSaver(const std::string& extension, AssetSaverFn saverFn);
@@ -163,6 +170,27 @@ namespace Engine
 					return Expected<std::shared_ptr<T>>(std::static_pointer_cast<T>(loadedAssetPtr.value()));
 				}
 				
+				return Unexpected{ loadedAssetPtr.error() };
+			});
+	}
+
+	template <typename T>
+	std::future<Expected<AssetRef<T>>> AssetDatabase::LoadAssetRefByPath(const std::filesystem::path& path)
+	{
+		return std::async(std::launch::async, [this, path]() -> Expected<AssetRef<T>>
+			{
+				Expected<std::shared_ptr<void>> loadedAssetPtr = LoadAssetByPath(path);
+				if (loadedAssetPtr.has_value())
+				{
+					const auto guid = GetGuidByPath(path.string());
+					if (!guid.has_value())
+					{
+						return Unexpected{ guid.error() };
+					}
+
+					return Expected<AssetRef<T>>({ guid.value(), std::static_pointer_cast<T>(loadedAssetPtr.value()) });
+				}
+
 				return Unexpected{ loadedAssetPtr.error() };
 			});
 	}
