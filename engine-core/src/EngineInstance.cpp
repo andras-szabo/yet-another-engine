@@ -101,9 +101,9 @@ namespace Engine
 			: _componentStorage(std::move(componentStorage))
 		{
 			// Register scene loader, creator, and saver functions with the asset db
-			const auto loaderRegisterResult = _assetDatabase.RegisterAssetLoader(L".scene", LoadSceneFromFile);
-			const auto saverRegisterResult = _assetDatabase.RegisterAssetSaver(L".scene", SaveSceneToFile);
-			const auto creatorRegisterResult = _assetDatabase.RegisterAssetCreator(L".scene", CreateNewScene);
+			const auto loaderRegisterResult = _assetDatabase.RegisterAssetLoader(".scene", LoadSceneFromFile);
+			const auto saverRegisterResult = _assetDatabase.RegisterAssetSaver(".scene", SaveSceneToFile);
+			const auto creatorRegisterResult = _assetDatabase.RegisterAssetCreator(".scene", CreateNewScene);
 
 			if (!loaderRegisterResult.has_value())
 			{

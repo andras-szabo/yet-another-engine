@@ -99,9 +99,9 @@ namespace Engine
 
 		bool ReleaseAsset(const Engine::GUID guid);
 
-		Engine::Expected<void> RegisterAssetLoader(const std::wstring& extension, AssetLoaderFn loaderFn);
-		Engine::Expected<void> RegisterAssetSaver(const std::wstring& extension, AssetSaverFn saverFn);
-		Engine::Expected<void> RegisterAssetCreator(const std::wstring& extension, AssetCreatorFn creatorFn);
+		Engine::Expected<void> RegisterAssetLoader(const std::string& extension, AssetLoaderFn loaderFn);
+		Engine::Expected<void> RegisterAssetSaver(const std::string& extension, AssetSaverFn saverFn);
+		Engine::Expected<void> RegisterAssetCreator(const std::string& extension, AssetCreatorFn creatorFn);
 
 	private:
 		bool DoesMatchFilter(const std::filesystem::directory_entry& directoryEntry) const;

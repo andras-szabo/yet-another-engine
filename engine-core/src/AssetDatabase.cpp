@@ -29,10 +29,10 @@ namespace Engine
 		AssetDatabase_Impl()
 		{
 			for (const auto& [extension, type] : {
-					std::make_pair(std::wstring {L".scene"}, Engine::AssetType::Scene),		// TODO
-					std::make_pair(std::wstring {L".fbx"}, Engine::AssetType::StaticMesh),	// TODO
-					std::make_pair(std::wstring {L".png"}, Engine::AssetType::Texture),
-					std::make_pair(std::wstring {L".jpg"}, Engine::AssetType::Texture),
+					std::make_pair(std::string {".scene"}, Engine::AssetType::Scene),		// TODO
+					std::make_pair(std::string {".fbx"}, Engine::AssetType::StaticMesh),	// TODO
+					std::make_pair(std::string {".png"}, Engine::AssetType::Texture),
+					std::make_pair(std::string {".jpg"}, Engine::AssetType::Texture),
 					// TODO
 				})
 			{
@@ -43,12 +43,12 @@ namespace Engine
 
 		std::unordered_map<Engine::GUID, std::string> pathsByGuid;
 		std::unordered_map<std::string, Engine::GUID> guidsByPath;
-		std::unordered_map<std::wstring, Engine::AssetType> assetTypesByExtension;
-		std::unordered_map<Engine::AssetType, std::wstring> assetExtensionsByType;
+		std::unordered_map<std::string, Engine::AssetType> assetTypesByExtension;
+		std::unordered_map<Engine::AssetType, std::string> assetExtensionsByType;
 
-		Engine::Expected<void> RegisterAssetLoader(const std::wstring& extension, AssetLoaderFn loaderFn);
-		Engine::Expected<void> RegisterAssetSaver(const std::wstring& extension, AssetSaverFn saverFn);
-		Engine::Expected<void> RegisterAssetCreator(const std::wstring& extension, AssetCreatorFn creatorFn);
+		Engine::Expected<void> RegisterAssetLoader(const std::string& extension, AssetLoaderFn loaderFn);
+		Engine::Expected<void> RegisterAssetSaver(const std::string& extension, AssetSaverFn saverFn);
+		Engine::Expected<void> RegisterAssetCreator(const std::string& extension, AssetCreatorFn creatorFn);
 
 		Engine::Expected<std::shared_ptr<void>> LoadAsset(const Engine::GUID guid);
 		Engine::Expected<std::shared_ptr<void>> LoadAsset(const std::string_view path);
@@ -62,9 +62,9 @@ namespace Engine
 
 	private:
 		std::unordered_map<Engine::GUID, std::weak_ptr<void>> _loadedAssetsByGUID;
-		std::unordered_map<std::wstring, AssetLoaderFn> _loaderFunctionsByExtension;
-		std::unordered_map<std::wstring, AssetSaverFn> _saverFunctionsByExtension;
-		std::unordered_map<std::wstring, AssetCreatorFn> _creatorFunctionsByExtension;
+		std::unordered_map<std::string, AssetLoaderFn> _loaderFunctionsByExtension;
+		std::unordered_map<std::string, AssetSaverFn> _saverFunctionsByExtension;
+		std::unordered_map<std::string, AssetCreatorFn> _creatorFunctionsByExtension;
 	};
 
 	bool AssetDatabase::IsAssetLoaded(const Engine::GUID guid) const
@@ -82,18 +82,18 @@ namespace Engine
 		return _impl->ReleaseAsset(guid);
 	}
 
-	Engine::Expected<void> AssetDatabase::RegisterAssetLoader(const std::wstring& extension,
+	Engine::Expected<void> AssetDatabase::RegisterAssetLoader(const std::string& extension,
 		AssetLoaderFn loaderFn)
 	{
 		return _impl->RegisterAssetLoader(extension, loaderFn);
 	}
 
-	Engine::Expected<void> AssetDatabase::RegisterAssetSaver(const std::wstring& extension, AssetSaverFn saverFn)
+	Engine::Expected<void> AssetDatabase::RegisterAssetSaver(const std::string& extension, AssetSaverFn saverFn)
 	{
 		return _impl->RegisterAssetSaver(extension, saverFn);
 	}
 
-	Engine::Expected<void> AssetDatabase::RegisterAssetCreator(const std::wstring& extension, AssetCreatorFn creatorFn)
+	Engine::Expected<void> AssetDatabase::RegisterAssetCreator(const std::string& extension, AssetCreatorFn creatorFn)
 	{
 		return _impl->RegisterAssetCreator(extension, creatorFn);
 	}
@@ -651,7 +651,7 @@ namespace Engine
 
 		if (!directoryEntry.is_directory())
 		{
-			const std::wstring extensionAsString{ directoryEntry.path().extension() };
+			const std::string extensionAsString{ directoryEntry.path().extension().string() };
 			const auto typeByExtensionPair = _impl->assetTypesByExtension.find(extensionAsString);
 			if (typeByExtensionPair != _impl->assetTypesByExtension.end())
 			{
@@ -677,7 +677,7 @@ namespace Engine
 		return fs::exists(metaFilePath);
 	}
 
-	Engine::Expected<void> AssetDatabase_Impl::RegisterAssetSaver(const std::wstring& extension, AssetSaverFn saverFn)
+	Engine::Expected<void> AssetDatabase_Impl::RegisterAssetSaver(const std::string& extension, AssetSaverFn saverFn)
 	{
 		if (_saverFunctionsByExtension.find(extension) != _saverFunctionsByExtension.end())
 		{
@@ -688,7 +688,7 @@ namespace Engine
 		return {};
 	}
 
-	Engine::Expected<void> AssetDatabase_Impl::RegisterAssetCreator(const std::wstring& extension, AssetCreatorFn creatorFn)
+	Engine::Expected<void> AssetDatabase_Impl::RegisterAssetCreator(const std::string& extension, AssetCreatorFn creatorFn)
 	{
 		if (_creatorFunctionsByExtension.find(extension) != _creatorFunctionsByExtension.end())
 		{
@@ -698,7 +698,7 @@ namespace Engine
 		return {};
 	}
 
-	Engine::Expected<void> AssetDatabase_Impl::RegisterAssetLoader(const std::wstring& extension,
+	Engine::Expected<void> AssetDatabase_Impl::RegisterAssetLoader(const std::string& extension,
 		AssetLoaderFn loaderFn)
 	{
 		if (_loaderFunctionsByExtension.find(extension) != _loaderFunctionsByExtension.end())
@@ -772,7 +772,7 @@ namespace Engine
 
 	Engine::Expected<std::shared_ptr<void>> AssetDatabase_Impl::DoLoadAssetFromPath(const std::string_view path)
 	{
-		const auto extension = std::filesystem::path(path).extension();
+		const auto extension = std::filesystem::path(path).extension().string();
 		const auto loaderIt = _loaderFunctionsByExtension.find(extension);
 
 		if (loaderIt == _loaderFunctionsByExtension.end())
