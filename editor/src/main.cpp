@@ -1467,7 +1467,13 @@ Editor::CommandReturnType TrySaveActiveScene([[maybe_unused]] const std::vector<
 		return std::unexpected{ "No scene active." };
 	}
 
-	const auto activeSceneRef = Engine::EngineInstance::GetActiveSceneRef();
+	// TODO: check if dirty. Dirty flag should probably not be a property of
+	// the scene itself; rather, the editor should keep track in a separate place
+	// whether the scene has been modified since last save. This is an editor feature;
+	// I don't want to litter the scene's runtime code with isDirty checks any time a 
+	// gameObject property is modified.
+
+	auto activeSceneRef = Engine::EngineInstance::GetActiveSceneRef();
 	const auto saveResult = Engine::EngineInstance::GetAssetDatabase()
 		.SaveAsset(activeSceneRef.Guid());
 
@@ -1476,47 +1482,10 @@ Editor::CommandReturnType TrySaveActiveScene([[maybe_unused]] const std::vector<
 		return std::unexpected{ std::format("Failed to save scene: {}", saveResult.error().message) };
 	}
 
+	const std::string sceneName (activeSceneRef.Ptr()->GetSceneName());
+	std::println("Saving scene: {}; guid: {}",  sceneName , activeSceneRef.Guid());
+
 	return {};
-
-	//const auto& activeScene = Engine::EngineInstance::GetActiveScene();
-	// TODO: check if dirty. Dirty flag should probably not be a property of
-	// the scene itself; rather, the editor should keep track in a separate place
-	// whether the scene has been modified since last save. This is an editor feature;
-	// I don't want to litter the scene's runtime code with isDirty checks any time a 
-	// gameObject property is modified.
-
-
-	//std::println("Saving scene: {}; guid: {}", activeScene.GetSceneName(), activeScene.GetGUID());
-
-
-	// 1. Deserialize into a datafile
-	// Engine::DataFile sceneFile;
-    // Engine::SerializeScene(activeScene, sceneFile);
-
-	// 2. Save the datafile to disk
-	// Where to get the scenePath from?
-	//			- the scene itself does not know it, and arguably it shouldn't either.
-	//			- the asset db should know where the scene was loaded from. But what if it
-	//			/ was created in memory and never saved to disk? Then it won't be in the asset db.
-	//			- the editor should know where the scene was loaded from, and it should keep track of it.
-
-	// OK, for now, just save it as "currentScene.scene" in the project folder.
-
-	/*
-	std::filesystem::path scenePath{ context.GetContextState().projectPath };
-	scenePath /= std::format("{}.scene", activeScene.GetSceneName());
-
-	LOG_INFO("Saving scene to {}", scenePath.string());
-
-	if (Engine::DataFile::Serialize(sceneFile, scenePath.string()))
-	{
-		LOG_INFO("Scene saved successfully to {}", scenePath.string());
-		return {};
-	}
-
-
-	return std::unexpected{ "Failed to save scene." };
-	*/
 }
 
 Editor::CommandReturnType SceneName(const std::vector<std::string>& commandAndArguments,
