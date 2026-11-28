@@ -155,7 +155,7 @@ namespace Engine
 		return _isValid;
 	}
 
-	bool DirectoryWatcher::Poll(bool waitForCompletion)
+	void DirectoryWatcher::Poll(bool waitForCompletion)
 	{
 		assert(_isValid && "Trying to poll invalid DirectoryWatcher");
 
@@ -231,10 +231,7 @@ namespace Engine
 			}
 
 			StartWatching();
-			return true;
 		}
-
-		return false;
 	}
 
 } // namespace Engine

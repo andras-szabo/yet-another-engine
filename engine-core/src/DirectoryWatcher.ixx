@@ -41,7 +41,7 @@ namespace Engine
 		ENGINE_CORE_API void Teardown();
 
 		ENGINE_CORE_API bool IsValid() const;
-		ENGINE_CORE_API bool Poll(bool waitForCompletion);
+		ENGINE_CORE_API void Poll(bool waitForCompletion);
 		ENGINE_CORE_API void RegisterCallback(std::function<void(const FileChangeEvent&)> callback);
 
 		// TODO: This is a bit unfortunate, as this breaks encapsulation by
